@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Windows download metadata (WSL)
+*:Zone.Identifier
+
+# Local-only MCP configuration
+.mcp.json
