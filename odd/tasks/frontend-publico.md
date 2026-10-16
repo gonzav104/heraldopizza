@@ -161,6 +161,32 @@ Branch `feat/u2-sistema-diseno` (uncommitted). Test runner: Vitest (`npm test`).
 - L5 2026-10-16, the user approved iteration 6 («Quedo espectacular») and asked for the commercial and legal basics (S1–S5 above).
 - L6 Findings before writing. (a) `src/` has no storage, cookie, network, or analytics API, and `index.html` loads no external script (fonts are self-hosted). (b) The repo has no PedidosYa asset; Simple Icons (16.35.0) has no PedidosYa glyph; the official restaurant page answered 403 to automated fetch and no public brand kit exists, so the official logo file has to come from the owner or PedidosYa. The link ships working, with one seam where the file goes; no imitation is drawn. (c) The «Info» sheet was reduced on purpose in D7 (owner decision); S4 reopens delivery and payment facts there, so a new decision (D9) records that it supersedes that part of D7. (d) The button said «Enviar por WhatsApp», but the real behavior is to open WhatsApp with the message ready; the customer sends it there. The label becomes «Continuar en WhatsApp» to match the notice's «Al continuar».
 
+### U2 commits (authorized by the user on 2026-10-16; not pushed)
+
+Branch `feat/u2-sistema-diseno`, `c8c9763..` (the merge of U0). Thirteen work-unit commits, layered by dependency so each one compiles and passes on its own: the cart, catalog, and checkout features import each other, but there is no file-level cycle. Integration tests that render the whole page can only live with the commit that wires it.
+
+| Commit | Unit | Authored lines | Tests at that commit |
+|--------|------|---------------:|---------------------:|
+| `6ebf470` | dependencies, viewport, test setup, pine texture (**risk item 5**) | 26 | 1 |
+| `8d65e34` | catalog model, `formatArs`, local data with Postres | 127 | 2 |
+| `86b98ba` | design tokens, textures, base components | 888 | 11 |
+| `418180e` | catalog presentation by data shape, category marks | 326 | 27 |
+| `4986503` | order lines, store, live price resolution | 772 | 63 |
+| `4006764` | «Armá tu pizza» logic | 220 | 75 |
+| `88d1377` | checkout rules and the WhatsApp message | 416 | 92 |
+| `8990f85` | header, categories, rows, product and builder sheets | 1232 | 92 |
+| `6143f72` | order bar, panel, three-step order sheet, checkout form | 711 | 92 |
+| `335ff16` | store info, footer with PedidosYa, privacy notice | 294 | 99 |
+| `fd301cc` | `#sistema` reference view | 301 | 99 |
+| `7eda7f5` | Storefront, App, and the integration tests | 822 | 143 |
+| `288cffb` | decisions D1–D13, owner data, this document | 173 | 143 |
+
+Lines exclude `package-lock.json` and the generated `src/data/prototype-catalog.ts` (1,563 lines). Three commits are over the 400-line planning heuristic (888, 1,232, 772): each is one cohesive unit of components, and splitting them further would leave pieces that do not stand alone.
+
+- L9 Verification (2026-10-16): every commit was checked in its own worktree with `tsc -b --force`, ESLint, and Vitest: all 13 pass (table above). My first run silently skipped the tests (the script used `rg`, which does not exist inside non-interactive scripts here); it was rerun with `grep` and the output columns were read.
+- L10 The only commit that names a high-risk item is `6ebf470` (dependencies, item 5), and it sits alone. Independent verifier: PASS (`npm ci` without drift, 0 vulnerabilities, MIT/ISC/OFL licenses, no install scripts, no third-party requests, exactly three new lockfile packages; the parent re-ran the lockfile and audit checks). Native review (risk lens) on that commit alone: the user granted consent, the result was APPROVED with no findings, and the authority was acknowledged and burned. The other commits are medium or passive and are not due for review under the current contract.
+- L11 Delivery strategy: **not chosen yet**. The branch is about 6,300 authored lines, so a single PR would be over the 400-line budget. Before opening PRs the user chooses `stacked-to-main` or `feature-branch-chain`, and the slices above become the PRs. Push and PR creation are the user's decision.
+
 ## Later units (not authorized)
 
 U1 domain + mock catalog → U3 menu → U4 store info → U5 cart → U6 half-and-half + empanadas → U7 order pricing → U8 checkout + WhatsApp → U9 QR mode → U10 promotions → U11 quality.
