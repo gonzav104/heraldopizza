@@ -161,7 +161,7 @@ Branch `feat/u2-sistema-diseno` (uncommitted). Test runner: Vitest (`npm test`).
 - L5 2026-10-16, the user approved iteration 6 («Quedo espectacular») and asked for the commercial and legal basics (S1–S5 above).
 - L6 Findings before writing. (a) `src/` has no storage, cookie, network, or analytics API, and `index.html` loads no external script (fonts are self-hosted). (b) The repo has no PedidosYa asset; Simple Icons (16.35.0) has no PedidosYa glyph; the official restaurant page answered 403 to automated fetch and no public brand kit exists, so the official logo file has to come from the owner or PedidosYa. The link ships working, with one seam where the file goes; no imitation is drawn. (c) The «Info» sheet was reduced on purpose in D7 (owner decision); S4 reopens delivery and payment facts there, so a new decision (D9) records that it supersedes that part of D7. (d) The button said «Enviar por WhatsApp», but the real behavior is to open WhatsApp with the message ready; the customer sends it there. The label becomes «Continuar en WhatsApp» to match the notice's «Al continuar».
 
-### U2 commits (authorized by the user on 2026-10-16; not pushed)
+### U2 commits (authorized by the user on 2026-10-16; pushed to `origin/feat/u2-sistema-diseno`)
 
 Branch `feat/u2-sistema-diseno`, `c8c9763..` (the merge of U0). Thirteen work-unit commits, layered by dependency so each one compiles and passes on its own: the cart, catalog, and checkout features import each other, but there is no file-level cycle. Integration tests that render the whole page can only live with the commit that wires it.
 
@@ -185,7 +185,77 @@ Lines exclude `package-lock.json` and the generated `src/data/prototype-catalog.
 
 - L9 Verification (2026-10-16): every commit was checked in its own worktree with `tsc -b --force`, ESLint, and Vitest: all 13 pass (table above). My first run silently skipped the tests (the script used `rg`, which does not exist inside non-interactive scripts here); it was rerun with `grep` and the output columns were read.
 - L10 The only commit that names a high-risk item is `6ebf470` (dependencies, item 5), and it sits alone. Independent verifier: PASS (`npm ci` without drift, 0 vulnerabilities, MIT/ISC/OFL licenses, no install scripts, no third-party requests, exactly three new lockfile packages; the parent re-ran the lockfile and audit checks). Native review (risk lens) on that commit alone: the user granted consent, the result was APPROVED with no findings, and the authority was acknowledged and burned. The other commits are medium or passive and are not due for review under the current contract.
-- L11 Delivery strategy: **not chosen yet**. The branch is about 6,300 authored lines, so a single PR would be over the 400-line budget. Before opening PRs the user chooses `stacked-to-main` or `feature-branch-chain`, and the slices above become the PRs. Push and PR creation are the user's decision.
+- L11 Delivery strategy: chosen on 2026-10-16, see «U2 delivery: feature-branch-chain» below.
+
+### U2 delivery: feature-branch-chain (approved by the user on 2026-10-16)
+
+**Approval, in the user's words (conditions that bind the execution):** «Apruebo la estrategia feature-branch-chain y las siete excepciones size:exception justificadas.» (1) «Conservá los 14 commits originales y sus hashes. No hagas squash ni rebase.» (2) «Utilizá merge commits (--no-ff), respetando el orden de dependencias.» (3) «Documentá la justificación individual de cada excepción.» (4) «En los PRs 7 y 8, identificá explícitamente qué pruebas posteriores cubren los componentes incorporados y cuáles son las limitaciones de su validación aislada.» (5) «Verificá las bases y los diffs en cada paso. No avances si aparecen commits o archivos ajenos al tramo esperado.» (6) «Registrá la estrategia y sus decisiones en el seguimiento ODD, con mensajes de commit en español y sin Co-Authored-By.» Authorized: prepare and publish the branches and PRs, including this documentation commit. Not authorized: merges, until the user has seen the PR links and the verification results.
+
+**Structure.** Tracker `feat/u2-carta-publica`, created at `main` (`c8c9763`). Its PR to `main` is a draft and is not merged until the chain is complete; it is opened after PR 1 is integrated, because GitHub does not allow a PR without commits and the tracker equals `main` until then (the only difference with the skill's step order). Child branches are only pointers to commits that already exist: no commit is created, changed, or reordered, and the 14 original hashes stay. PR 1 targets the tracker; every other PR targets the previous child branch. Branch names are `feat/u2-carta-publica-NN-...`.
+
+| PR | Branch suffix | Base | Commits | Lines (GitHub) | Own lines |
+|----|---------------|------|---------|---------------:|----------:|
+| 1 | `01-base` | tracker | `6ebf470`, `8d65e34` | 1,778 | 153 |
+| 2 | `02-diseno` | `01-base` | `86b98ba` | 888 | 888 |
+| 3 | `03-presentacion` | `02-diseno` | `418180e` | 326 | 326 |
+| 4 | `04-pedido` | `03-presentacion` | `4986503` | 772 | 772 |
+| 5 | `05-armador` | `04-pedido` | `4006764` | 220 | 220 |
+| 6 | `06-checkout` | `05-armador` | `88d1377` | 416 | 416 |
+| 7 | `07-ui-carta` | `06-checkout` | `8990f85` | 1,232 | 1,232 |
+| 8 | `08-ui-pedido` | `07-ui-carta` | `6143f72` | 711 | 711 |
+| 9 | `09-info-privacidad` | `08-ui-pedido` | `335ff16` | 294 | 294 |
+| 10 | `10-sistema` | `09-info-privacidad` | `fd301cc` | 301 | 301 |
+| 11 | `11-tienda` | `10-sistema` | `7eda7f5` | 822 | 822 |
+| 12 | `12-docs` | `11-tienda` | `288cffb`, `f75ce46`, and this record | 269 | 269 |
+
+«Own lines» exclude `package-lock.json` and the generated `src/data/prototype-catalog.ts` (1,563 lines). The chain is linear because each unit imports the previous ones; no PR can be integrated out of order.
+
+**Integration protocol (after the user authorizes merges).** Merge commits only (`--no-ff`), never squash or rebase: a simulation in a scratch clone showed that merging in order gives every PR exactly its own slice, ends with a tree identical to `f75ce46`, and keeps the 14 hashes reachable, while a squash of PR 1 makes PR 2 show 2,666 lines instead of 888. Order: PR 1 into the tracker; open the tracker PR as a draft; then, for each next PR, retarget it to the tracker (`gh pr edit <n> --base feat/u2-carta-publica`), check that it shows only its commits and files, and merge it. Child branches are not deleted until the chain is complete. The tracker is merged into `main` last, with a merge commit, and only with the user's authorization.
+
+**Verification at every step.** Before publishing, each branch is checked against the plan: the commits between its base and its tip are exactly the expected ones, and the files and lines of the three-dot diff match the table. After each PR is created, GitHub's own numbers (base, head, commits, files, additions, deletions) are compared with the plan. Any extra commit or file stops the process.
+
+**Individual size exceptions (`size:exception`), approved by the user.** None is automatic: each names the cohesion that keeps it whole and why it cannot be smaller without rewriting commits (which the user excluded) or deleting tests and comments (which the skill forbids).
+
+1. **PR 1, 1,778 lines.** The excess is only generated content: the 1,563-line catalog and the lockfile. The 153 own lines are the unit to read. The catalog equals the regeneration from `docs/seed_catalogo.sql` except for the `imageUrl` field, removed by decision D5 (the commit message says «sin retoques a mano»; this is the exact version).
+2. **PR 2, 888 lines.** One unit, the design foundation: 222 lines of tokens and textures, 538 of components, and 128 of tests. The components consume the tokens, so neither half can be reviewed alone.
+3. **PR 4, 772 lines.** One unit, the order: 409 lines of code and 363 of tests (47 %). Lines, store, and price resolution verify each other, so the tests belong with the code.
+4. **PR 6, 416 lines.** 16 lines over the budget. It is one unit, the checkout rules: 190 lines of code and 226 of tests (54 %). The only way under 400 is deleting tests or comments.
+5. **PR 7, 1,232 lines.** The weakest exception, and the user accepted it knowingly: 13 interface files with no test inside. It is one cohesive layer (header, category navigation, rows, and sheets) whose pieces import each other. Its tests live in PR 11; see the mapping below.
+6. **PR 8, 711 lines.** One cohesive layer (order bar, panel, three-step sheet, checkout form): 8 interface files with no test inside. Its tests live in PR 11; see the mapping below.
+7. **PR 11, 822 lines.** 170 lines of code and 652 of tests (79 %): the wiring of the page and the integration tests that exercise everything below it. It only makes sense whole.
+
+**What covers the components of PRs 7 and 8, and what their isolated validation cannot show.** Measured on the full suite at `f75ce46` (143 tests) with V8 coverage, run in a scratch copy outside the repository. Coverage measures what the tests execute, not what they assert, so the second column lists the tests that make assertions about each piece. Every integration test renders the whole page, so «executed» is true for almost everything.
+
+| Component | Line coverage | Tests that assert something about it (all in PR 11 unless noted) |
+|-----------|--------------:|------------------------------------------------------------------|
+| `ProductRow` | 100 % | `menu.test`: tap adds a whole pizza; the half price opens the builder; unpublished price; out of stock; name and description open the sheet; compact row; Vigilante variants |
+| `ProductSheet` | 96 % | `menu.test`: add with variant, quantity, and note; only the whole pizza; no add button without a price; primary action without a dot |
+| `PizzaBuilderSheet` | 90 % | `menu.test` «Armá tu pizza» (one flavor, two flavors, promotion when clearing); the rules are also tested in PR 5 (`pizza-builder.test`) |
+| `FlavorBoard` | 93 % | `menu.test`: empanada counters per flavor |
+| `MenuSection`, `ProductName` | 100 % | `menu.test` (Postres section, names) and indirectly every test |
+| `CategoryBar` | 93 % | `menu.test` («marca la categoría activa»); `cart.test` (a single category entry) |
+| `StoreHeader` | 100 % | `store-info.test` («store header»); `App.test` |
+| `CategoryStamp` | 100 % | only the mapping, in PR 3 (`category-graphics.test`); nothing asserts how it looks |
+| `SplitPizzaDiagram` | 100 % | nothing asserts the drawing; the builder tests assert the mode label and the prices |
+| `CategoryIndexSheet` | 75 % | no test opens the index and jumps to a section |
+| `useActiveSection` | 24 % | no direct test; jsdom has no `IntersectionObserver`, so only the fallback runs |
+| `PromoRail` | 38 % | only the hidden-without-promotions path; with promotions it is shown only in `#sistema`, untested |
+| `CartLines` | 57 % | `cart.test`: labels and removing a line; no test edits a note or the quantity there |
+| `CartBar` | 100 % | `menu.test` (badge, total, short confirmation); `cart.test` (bar only with items) |
+| `OrderPanel` | 100 % | rendered, but no test uses it (the desktop panel is hidden by CSS below 1024 px) |
+| `OrderSheet` | 100 % | `checkout.test` (steps); `cart.test` |
+| `CheckoutForm` | 95 % | `checkout.test`: errors, label, payment columns, total on the button, validation |
+| `OrderTotalsCard` | 100 % | `checkout.test` (delivery surcharge) |
+| `ZonePicker` | 85 % | `checkout.test` (only «Otra zona»); the search box has no zones to search yet |
+| `MessagePreview` | 100 % | `checkout.test` (preview and confirmation notice); `pedidosya.test` |
+
+Limits of validating PRs 7 and 8 in isolation:
+- At their tips, no test renders these components, and the application does not mount them yet: `App.tsx` is still the earlier placeholder until PR 11. The only gates that exercise them are the type check and ESLint, plus the earlier tests (92 at both tips), which prove there is no regression in the lower layers.
+- What jsdom cannot show was verified by hand in a real browser (Playwright scripts kept outside the repository, with screenshots in `../heraldopizza-capturas/`): sticky positioning, scroll-spy, animations, safe areas, the keyboard inset, touch-target sizes, and the layout from 320 to 1440 px. That evidence is not reproducible from the repository.
+- Low-coverage spots are listed above (`useActiveSection`, `PromoRail`, `CartLines`, `CategoryIndexSheet`). They are known gaps, not hidden ones.
+- Each PR description repeats this mapping for its own files and gives a reading order.
+
+**Decisions.** Strategy: feature-branch-chain, linear, 12 children and a tracker. Merge method: merge commit only. Size exceptions: seven, individual, approved. Issues and `type:*` labels are not created: the `branch-pr` skill requires them for the Gentle AI repository's own workflow, and this repository has no `.github`, no CI, and no such labels; the user did not ask for them. The branch `feat/u2-sistema-diseno` stays as a backup until the chain is complete; deleting branches needs the user's authorization. The native review is not repeated on the accumulated branch: the only high-risk unit (`6ebf470`) was reviewed and approved.
 
 ## Later units (not authorized)
 
