@@ -2,7 +2,7 @@
 -- Runs on the local stack only (supabase test db); every change is rolled back.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(23);
 
 -- The seed, exactly as docs/seed_catalogo.sql defines it.
 select is((select count(*)::int from public.categorias), 13, 'the seed loads 13 categories');
@@ -82,6 +82,11 @@ select throws_ok(
 create temporary table prueba_borrado as
   select p.id from public.productos p join public.categorias c on c.id = p.categoria_id
   where c.nombre = 'Pizzas' order by p.orden limit 1;
+-- Precondition: without it the cascade check below would pass on a product that never had variants.
+select ok(
+  (select count(*) from public.variantes where producto_id = (select id from prueba_borrado)) > 0,
+  'the product chosen for the cascade test has variants before the delete'
+);
 delete from public.productos where id = (select id from prueba_borrado);
 select is(
   (select count(*)::int from public.variantes where producto_id = (select id from prueba_borrado)),
@@ -89,12 +94,11 @@ select is(
   'deleting a product deletes its variants'
 );
 
--- actualizado_en follows every update.
+-- actualizado_en follows every update: the trigger overwrites even an explicit value.
 update public.categorias set actualizado_en = '2000-01-01' where nombre = 'Bebidas';
-update public.categorias set orden = orden where nombre = 'Bebidas';
 select ok(
   (select actualizado_en > '2000-01-01' from public.categorias where nombre = 'Bebidas'),
-  'an update refreshes actualizado_en'
+  'an update sets actualizado_en to the time of the change, whatever the caller writes'
 );
 
 -- The helper schema is not one the API exposes, and nobody but its owner can use it yet.
