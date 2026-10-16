@@ -29,6 +29,19 @@ npm run build
 
 La integración continua (`.github/workflows/ci.yml`) las ejecuta con Node 24 en cada pull request y en cada push a `main`, y marca el resultado en el PR. Por sí sola no impide integrar un PR con verificaciones fallidas: para bloquearlo hay que configurar en GitHub una regla de protección de `main` que exija el check `CI / Typecheck, lint, test, and build`.
 
+## Base de datos local (Supabase)
+
+El esquema vive en `supabase/migrations/` (SQL versionado) y los datos iniciales en `docs/seed_catalogo.sql`, separados del esquema. Todo se prueba contra un stack local de Supabase, sin credenciales remotas. Requiere Docker; en WSL2, con la integración de Docker Desktop activada.
+
+```bash
+npm run db:start  # levanta el stack local (aplica migraciones y seed)
+npm run db:reset  # recrea la base local desde las migraciones y vuelve a cargar el seed
+npm run db:test   # pruebas pgTAP de supabase/tests/ (restricciones, seed y RLS)
+npm run db:stop   # detiene el stack
+```
+
+Las migraciones no se aplican a ningún proyecto remoto sin autorización expresa.
+
 ## Variables de entorno
 
 Los archivos `.env` y `.env.*` están excluidos de Git porque pueden contener secretos. Solo se versiona `.env.example`, con nombres de variables y valores ficticios.
