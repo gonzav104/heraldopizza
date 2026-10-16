@@ -27,7 +27,7 @@ npm test
 npm run build
 ```
 
-La integración continua (`.github/workflows/ci.yml`) las ejecuta con Node 24 en cada pull request y en cada push a `main`. Un PR no se integra si alguna falla.
+La integración continua (`.github/workflows/ci.yml`) las ejecuta con Node 24 en cada pull request y en cada push a `main`, y marca el resultado en el PR. Por sí sola no impide integrar un PR con verificaciones fallidas: para bloquearlo hay que configurar en GitHub una regla de protección de `main` que exija el check `CI / Typecheck, lint, test, and build`.
 
 ## Variables de entorno
 

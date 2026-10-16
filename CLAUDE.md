@@ -73,4 +73,4 @@ npm test
 npm run build
 ```
 
-Agregar un comando de tests solo cuando se configure el runner y se actualice `package.json`.
+La suite de tests automatizados (Vitest + Testing Library) ya existe y corre con `npm test`; la integración continua ejecuta las mismas verificaciones en cada PR.
