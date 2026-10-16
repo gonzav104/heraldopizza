@@ -28,3 +28,8 @@ dist-ssr
 
 # Local-only MCP configuration
 .mcp.json
+
+# Environment files may hold secrets; only the example with fake values is versioned
+.env
+.env.*
+!.env.example
