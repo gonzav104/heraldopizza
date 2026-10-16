@@ -1,1 +1,221 @@
-@import "tailwindcss";
+@import '@fontsource-variable/archivo/wdth.css';
+@import 'tailwindcss';
+
+/*
+ * Heraldo Pizza: "Turno noche en Av. Mitre".
+ * The venue at night: black corrugated sheet, pine lit by LED tubes,
+ * the logo's red and mustard ring. Wood comes from a real photo of the venue's tables.
+ */
+@theme {
+  --font-sans: 'Archivo Variable', system-ui, sans-serif;
+
+  --color-chapa: #131518;
+  --color-chapa-high: #1c1f23;
+  --color-chapa-edge: #2e3237;
+  --color-pino: #d29a55;
+  --color-pino-ink: #3a2210;
+  --color-heraldo: #d7191f;
+  --color-heraldo-deep: #a50f14;
+  --color-mostaza: #f5a524;
+  --color-crema: #f4efe7;
+  --color-crema-muted: #aea79d;
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    -webkit-tap-highlight-color: transparent;
+    scrollbar-color: var(--color-chapa-edge) var(--color-chapa);
+  }
+
+  body {
+    @apply bg-chapa font-sans text-crema antialiased;
+    font-size: 1rem;
+    line-height: 1.5;
+    caret-color: var(--color-mostaza);
+    /* With viewport-fit=cover, keep content out of the notch in landscape. */
+    padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
+  }
+
+  ::placeholder {
+    color: var(--color-crema-muted);
+    opacity: 1;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-mostaza);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--color-heraldo);
+    color: #fff;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+}
+
+/* Expanded, heavy Archivo: the voice of a pizzeria sign. */
+@utility type-display {
+  font-stretch: 125%;
+  font-weight: 850;
+  letter-spacing: -0.025em;
+  line-height: 0.92;
+}
+
+/* Prices: semi-expanded, bold, tabular so amounts align. */
+@utility type-price {
+  font-stretch: 112%;
+  font-weight: 720;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Black corrugated sheet, kept quiet so content reads first. */
+@utility texture-chapa {
+  background-color: var(--color-chapa);
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 10px,
+    rgb(255 255 255 / 0.018) 12px,
+    rgb(255 255 255 / 0.035) 14px,
+    rgb(0 0 0 / 0.12) 17px,
+    transparent 20px
+  );
+}
+
+/* Real pine from the venue's tables. */
+@utility texture-pino {
+  background-color: var(--color-pino);
+  background-image: url('/images/textures/pino-mesa.webp');
+  background-size: cover;
+  background-position: center;
+}
+
+/* The one load moment: the room comes into focus, then the logo pops onto it. */
+@keyframes room-focus {
+  from {
+    opacity: 0.2;
+    filter: blur(14px) saturate(0.6);
+    transform: scale(1.08);
+  }
+}
+
+@keyframes logo-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6) rotate(-10deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.06) rotate(2deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+/* Feedback when something lands on the counter: the count pops, the bar bumps. */
+@keyframes count-pop {
+  0% {
+    transform: scale(0.4);
+  }
+  60% {
+    transform: scale(1.25);
+  }
+}
+
+@keyframes feedback-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes bar-bump {
+  40% {
+    transform: scale(1.03);
+  }
+}
+
+/*
+ * Sheets are native <dialog>s: bottom sheet on phones, centered card from 640 px.
+ * They slide up on open and back down on close (display/overlay transition where supported).
+ */
+@layer components {
+  .sheet {
+    translate: 0 100%;
+    transition:
+      translate 380ms var(--ease-out-expo),
+      opacity 240ms ease,
+      overlay 380ms allow-discrete,
+      display 380ms allow-discrete;
+  }
+
+  .sheet[open] {
+    translate: 0 0;
+  }
+
+  @starting-style {
+    .sheet[open] {
+      translate: 0 100%;
+    }
+  }
+
+  .sheet::backdrop {
+    background-color: rgb(0 0 0 / 0);
+    transition:
+      background-color 300ms ease,
+      overlay 380ms allow-discrete,
+      display 380ms allow-discrete;
+  }
+
+  .sheet[open]::backdrop {
+    background-color: rgb(0 0 0 / 0.72);
+  }
+
+  @starting-style {
+    .sheet[open]::backdrop {
+      background-color: rgb(0 0 0 / 0);
+    }
+  }
+
+  @media (min-width: 640px) {
+    .sheet {
+      translate: 0 1.5rem;
+      opacity: 0;
+    }
+
+    .sheet[open] {
+      translate: 0 0;
+      opacity: 1;
+    }
+
+    @starting-style {
+      .sheet[open] {
+        translate: 0 1.5rem;
+        opacity: 0;
+      }
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sheet,
+    .sheet::backdrop {
+      transition: none;
+    }
+  }
+}

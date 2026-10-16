@@ -109,8 +109,17 @@ insert into variantes (producto_id, nombre, precio, orden) values ('cc93f21b-bce
 insert into productos (id, categoria_id, nombre, descripcion, solo_por_encargo, aviso_encargo, orden) values ('0cb069ea-52f8-502d-bfeb-f8c84c6b291d', '3504ed22-1d58-54af-a88d-02f15d2030b0', 'Ravioles al verdeo', 'Salsa de crema de verdeo, suave y sabrosa.', false, null, 3);
 insert into variantes (producto_id, nombre, precio, orden) values ('0cb069ea-52f8-502d-bfeb-f8c84c6b291d', 'Porción', 18000, 1);
 
+-- Postres (agregado el 2026-10-15 por decisión del dueño; ver docs/decisiones-pendientes.md)
+insert into categorias (id, nombre, orden, recargo_envio) values ('ee5f58f0-c05a-4f31-afc9-3be05018d1d1', 'Postres', 8, false);
+insert into productos (id, categoria_id, nombre, descripcion, solo_por_encargo, aviso_encargo, orden) values ('b9b2cec8-1905-49b2-bf31-4dec92aff650', 'ee5f58f0-c05a-4f31-afc9-3be05018d1d1', 'Chocotorta', null, false, null, 1);
+insert into variantes (producto_id, nombre, precio, orden) values ('b9b2cec8-1905-49b2-bf31-4dec92aff650', 'Unidad', 10500, 1);
+insert into productos (id, categoria_id, nombre, descripcion, solo_por_encargo, aviso_encargo, orden) values ('89946ae4-4d46-466f-9b1a-17de813eb645', 'ee5f58f0-c05a-4f31-afc9-3be05018d1d1', 'Vigilante', null, false, null, 2);
+insert into variantes (producto_id, nombre, precio, orden) values ('89946ae4-4d46-466f-9b1a-17de813eb645', 'Membrillo con queso', 7500, 1), ('89946ae4-4d46-466f-9b1a-17de813eb645', 'Batata con queso', 7500, 2);
+insert into productos (id, categoria_id, nombre, descripcion, solo_por_encargo, aviso_encargo, orden) values ('7936e92b-ef72-4432-b26c-ff3c2a642020', 'ee5f58f0-c05a-4f31-afc9-3be05018d1d1', 'Durazno con dulce de leche', null, false, null, 3);
+insert into variantes (producto_id, nombre, precio, orden) values ('7936e92b-ef72-4432-b26c-ff3c2a642020', 'Unidad', 7000, 1);
+
 -- Licuados
-insert into categorias (id, nombre, orden, recargo_envio) values ('e4c1bf3b-6e13-5b0b-b29e-8b487baa0367', 'Licuados', 8, false);
+insert into categorias (id, nombre, orden, recargo_envio) values ('e4c1bf3b-6e13-5b0b-b29e-8b487baa0367', 'Licuados', 9, false);
 insert into productos (id, categoria_id, nombre, descripcion, solo_por_encargo, aviso_encargo, orden) values ('64ed035e-5fa5-599f-98d7-7ab80a780101', 'e4c1bf3b-6e13-5b0b-b29e-8b487baa0367', 'Licuado de banana', '500 cc, con leche o con agua (indicarlo en la aclaración).', false, null, 1);
 insert into variantes (producto_id, nombre, precio, orden) values ('64ed035e-5fa5-599f-98d7-7ab80a780101', '500 cc', 7500, 1);
 insert into productos (id, categoria_id, nombre, descripcion, solo_por_encargo, aviso_encargo, orden) values ('0348fbb0-9437-5c9e-b99d-138286abf55c', 'e4c1bf3b-6e13-5b0b-b29e-8b487baa0367', 'Licuado de frutilla', '500 cc, con leche o con agua (indicarlo en la aclaración).', false, null, 2);
@@ -119,7 +128,7 @@ insert into productos (id, categoria_id, nombre, descripcion, solo_por_encargo, 
 insert into variantes (producto_id, nombre, precio, orden) values ('4620d606-cc74-55dc-a334-04fff160240d', '500 cc', 7500, 1);
 
 -- Cafetería
-insert into categorias (id, nombre, orden, recargo_envio) values ('433bf308-97f2-5e0c-ba6b-c50725d28756', 'Cafetería', 9, false);
+insert into categorias (id, nombre, orden, recargo_envio) values ('433bf308-97f2-5e0c-ba6b-c50725d28756', 'Cafetería', 10, false);
 insert into productos (id, categoria_id, nombre, descripcion, solo_por_encargo, aviso_encargo, orden) values ('fbfef5c5-29fc-517a-b305-0ce356b92b14', '433bf308-97f2-5e0c-ba6b-c50725d28756', 'Café jarrito', null, false, null, 1);
 insert into variantes (producto_id, nombre, precio, orden) values ('fbfef5c5-29fc-517a-b305-0ce356b92b14', 'Unidad', null, 1);
 insert into productos (id, categoria_id, nombre, descripcion, solo_por_encargo, aviso_encargo, orden) values ('f83d2eac-a3a0-545e-a41f-d699720cb890', '433bf308-97f2-5e0c-ba6b-c50725d28756', 'Café cortado', null, false, null, 2);
@@ -136,7 +145,7 @@ insert into productos (id, categoria_id, nombre, descripcion, solo_por_encargo, 
 insert into variantes (producto_id, nombre, precio, orden) values ('f3d8ce06-27aa-584d-b932-92289a17c6c8', 'Mediana', 25000, 1), ('f3d8ce06-27aa-584d-b932-92289a17c6c8', 'Grande', 35000, 2);
 
 -- Bebidas
-insert into categorias (id, nombre, orden, recargo_envio) values ('ec10f034-087b-5419-990c-e426b4a3cce4', 'Bebidas', 10, false);
+insert into categorias (id, nombre, orden, recargo_envio) values ('ec10f034-087b-5419-990c-e426b4a3cce4', 'Bebidas', 11, false);
 insert into productos (id, categoria_id, nombre, descripcion, solo_por_encargo, aviso_encargo, orden) values ('31de0469-5342-565c-be0d-03783e632194', 'ec10f034-087b-5419-990c-e426b4a3cce4', 'Coca-Cola 1,75 L', null, false, null, 1);
 insert into variantes (producto_id, nombre, precio, orden) values ('31de0469-5342-565c-be0d-03783e632194', 'Unidad', 9500, 1);
 insert into productos (id, categoria_id, nombre, descripcion, solo_por_encargo, aviso_encargo, orden) values ('ad246dd8-7505-52da-85dc-22509762e89e', 'ec10f034-087b-5419-990c-e426b4a3cce4', 'Sprite 1,75 L', null, false, null, 2);
@@ -169,7 +178,7 @@ insert into productos (id, categoria_id, nombre, descripcion, solo_por_encargo, 
 insert into variantes (producto_id, nombre, precio, orden) values ('df5d5db2-00a7-55b7-bfc7-4be69c5a29ae', 'Unidad', 7500, 1);
 
 -- Tragos clásicos
-insert into categorias (id, nombre, orden, recargo_envio) values ('82afe4ba-fb2c-5e01-84e6-14047d225d44', 'Tragos clásicos', 11, false);
+insert into categorias (id, nombre, orden, recargo_envio) values ('82afe4ba-fb2c-5e01-84e6-14047d225d44', 'Tragos clásicos', 12, false);
 insert into productos (id, categoria_id, nombre, descripcion, solo_por_encargo, aviso_encargo, orden) values ('bbf40171-e29f-5eea-a28b-fb43c8506d3f', '82afe4ba-fb2c-5e01-84e6-14047d225d44', 'Gancia', 'Aperitivo suave con notas dulces y cítricas.', false, null, 1);
 insert into variantes (producto_id, nombre, precio, orden) values ('bbf40171-e29f-5eea-a28b-fb43c8506d3f', 'Vaso', 7000, 1);
 insert into productos (id, categoria_id, nombre, descripcion, solo_por_encargo, aviso_encargo, orden) values ('0db726f0-1be8-5e42-b8ad-68b22fef2b90', '82afe4ba-fb2c-5e01-84e6-14047d225d44', 'Fernet', 'Licor amargo de hierbas, intenso y clásico.', false, null, 2);
@@ -184,7 +193,7 @@ insert into productos (id, categoria_id, nombre, descripcion, solo_por_encargo, 
 insert into variantes (producto_id, nombre, precio, orden) values ('9b2db960-b321-5977-aee9-5a325263c78f', 'Copa', null, 1);
 
 -- Tragos de autor
-insert into categorias (id, nombre, orden, recargo_envio) values ('f32b57aa-bda4-5781-9f6e-747f2f0bf95d', 'Tragos de autor', 12, false);
+insert into categorias (id, nombre, orden, recargo_envio) values ('f32b57aa-bda4-5781-9f6e-747f2f0bf95d', 'Tragos de autor', 13, false);
 insert into productos (id, categoria_id, nombre, descripcion, solo_por_encargo, aviso_encargo, orden) values ('1fd26969-cb9a-52df-90e4-9f4d9243d7ce', 'f32b57aa-bda4-5781-9f6e-747f2f0bf95d', 'Caipirinha', 'Cachaça con lima fresca, azúcar y hielo.', false, null, 1);
 insert into variantes (producto_id, nombre, precio, orden) values ('1fd26969-cb9a-52df-90e4-9f4d9243d7ce', 'Vaso', null, 1);
 insert into productos (id, categoria_id, nombre, descripcion, solo_por_encargo, aviso_encargo, orden) values ('dc53707c-36c2-5809-87f0-353cf8634219', 'f32b57aa-bda4-5781-9f6e-747f2f0bf95d', 'Caipiroska', 'Vodka mezclado con lima fresca y azúcar.', false, null, 2);
