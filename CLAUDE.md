@@ -67,7 +67,9 @@ No realizar commits genéricos (`update`, `changes`, `fix stuff`) ni incluir arc
 ```bash
 npm install
 npm run dev
+npm run typecheck
 npm run lint
+npm test
 npm run build
 ```
 
