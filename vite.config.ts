@@ -14,5 +14,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    // Tests that render the whole menu (84 products) take 3–5 s in jsdom on a slow machine; the default 5 s would flake.
+    testTimeout: 15_000,
   },
 })
