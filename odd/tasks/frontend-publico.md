@@ -193,20 +193,22 @@ Lines exclude `package-lock.json` and the generated `src/data/prototype-catalog.
 
 **Structure.** Tracker `feat/u2-carta-publica`, created at `main` (`c8c9763`). Its PR to `main` is a draft and is not merged until the chain is complete; it is opened after PR 1 is integrated, because GitHub does not allow a PR without commits and the tracker equals `main` until then (the only difference with the skill's step order). Child branches are only pointers to commits that already exist: no commit is created, changed, or reordered, and the 14 original hashes stay. PR 1 targets the tracker; every other PR targets the previous child branch. Branch names are `feat/u2-carta-publica-NN-...`.
 
-| PR | Branch suffix | Base | Commits | Lines (GitHub) | Own lines |
-|----|---------------|------|---------|---------------:|----------:|
-| 1 | `01-base` | tracker | `6ebf470`, `8d65e34` | 1,778 | 153 |
-| 2 | `02-diseno` | `01-base` | `86b98ba` | 888 | 888 |
-| 3 | `03-presentacion` | `02-diseno` | `418180e` | 326 | 326 |
-| 4 | `04-pedido` | `03-presentacion` | `4986503` | 772 | 772 |
-| 5 | `05-armador` | `04-pedido` | `4006764` | 220 | 220 |
-| 6 | `06-checkout` | `05-armador` | `88d1377` | 416 | 416 |
-| 7 | `07-ui-carta` | `06-checkout` | `8990f85` | 1,232 | 1,232 |
-| 8 | `08-ui-pedido` | `07-ui-carta` | `6143f72` | 711 | 711 |
-| 9 | `09-info-privacidad` | `08-ui-pedido` | `335ff16` | 294 | 294 |
-| 10 | `10-sistema` | `09-info-privacidad` | `fd301cc` | 301 | 301 |
-| 11 | `11-tienda` | `10-sistema` | `7eda7f5` | 822 | 822 |
-| 12 | `12-docs` | `11-tienda` | `288cffb`, `f75ce46`, and this record | 269 | 269 |
+**Numbering.** In this document «PR N» (and «position N») is the place in the chain, 1 to 12. GitHub's own numbers are different: position N is pull request **#N+1** (#2 to #13), because #1 was the U0 pull request. The tracker pull request is **#14**. Both appear in the table below; the earlier text keeps the chain positions.
+
+| PR | GitHub | Branch suffix | Base | Commits | Lines (GitHub) | Own lines |
+|----|--------|---------------|------|---------|---------------:|----------:|
+| 1 | #2 | `01-base` | tracker | `6ebf470`, `8d65e34` | 1,778 | 153 |
+| 2 | #3 | `02-diseno` | `01-base` | `86b98ba` | 888 | 888 |
+| 3 | #4 | `03-presentacion` | `02-diseno` | `418180e` | 326 | 326 |
+| 4 | #5 | `04-pedido` | `03-presentacion` | `4986503` | 772 | 772 |
+| 5 | #6 | `05-armador` | `04-pedido` | `4006764` | 220 | 220 |
+| 6 | #7 | `06-checkout` | `05-armador` | `88d1377` | 416 | 416 |
+| 7 | #8 | `07-ui-carta` | `06-checkout` | `8990f85` | 1,232 | 1,232 |
+| 8 | #9 | `08-ui-pedido` | `07-ui-carta` | `6143f72` | 711 | 711 |
+| 9 | #10 | `09-info-privacidad` | `08-ui-pedido` | `335ff16` | 294 | 294 |
+| 10 | #11 | `10-sistema` | `09-info-privacidad` | `fd301cc` | 301 | 301 |
+| 11 | #12 | `11-tienda` | `10-sistema` | `7eda7f5` | 822 | 822 |
+| 12 | #13 | `12-docs` | `11-tienda` | `288cffb`, `f75ce46`, and this record | 269 | 269 |
 
 «Own lines» exclude `package-lock.json` and the generated `src/data/prototype-catalog.ts` (1,563 lines). The chain is linear because each unit imports the previous ones; no PR can be integrated out of order.
 
@@ -256,6 +258,29 @@ Limits of validating PRs 7 and 8 in isolation:
 - Each PR description repeats this mapping for its own files and gives a reading order.
 
 **Decisions.** Strategy: feature-branch-chain, linear, 12 children and a tracker. Merge method: merge commit only. Size exceptions: seven, individual, approved. Issues and `type:*` labels are not created: the `branch-pr` skill requires them for the Gentle AI repository's own workflow, and this repository has no `.github`, no CI, and no such labels; the user did not ask for them. The branch `feat/u2-sistema-diseno` stays as a backup until the chain is complete; deleting branches needs the user's authorization. The native review is not repeated on the accumulated branch: the only high-risk unit (`6ebf470`) was reviewed and approved.
+
+**Integration result (2026-10-16).** The user authorized the internal merges into the tracker and the draft tracker pull request, and not the final merge to `main`. All 12 pull requests were integrated, in order, with GitHub merge commits (`gh pr merge --merge`, subject in Spanish, no attribution trailers). Before each merge the pull request was compared with GitHub's own data (base, commits, files, lines, mergeability) and, after it, the new tracker tip had to be a merge commit with the expected two parents and the same tree as the child branch.
+
+| Position | GitHub | Merge commit | Parents (tracker before + child tip) |
+|---------:|-------:|--------------|--------------------------------------|
+| 1 | #2 | `b7250d1` | `c8c9763` + `8d65e34` |
+| 2 | #3 | `61c3294` | `b7250d1` + `86b98ba` |
+| 3 | #4 | `8ecdef8` | `61c3294` + `418180e` |
+| 4 | #5 | `7388db0` | `8ecdef8` + `4986503` |
+| 5 | #6 | `6f0c6e8` | `7388db0` + `4006764` |
+| 6 | #7 | `9f4dd6c` | `6f0c6e8` + `88d1377` |
+| 7 | #8 | `3b518e0` | `9f4dd6c` + `8990f85` |
+| 8 | #9 | `a64fce4` | `3b518e0` + `6143f72` |
+| 9 | #10 | `9c17be9` | `a64fce4` + `335ff16` |
+| 10 | #11 | `b93b22d` | `9c17be9` + `fd301cc` |
+| 11 | #12 | `84fd665` | `b93b22d` + `7eda7f5` |
+| 12 | #13 | `6804af1` | `84fd665` + `a02cef0` |
+
+Traceability: the 14 original commits (`6ebf470` to `f75ce46`) and the delivery record `a02cef0` keep their hashes and are ancestors of the tracker. At `6804af1` the tracker tree was identical to the tree of `feat/u2-sistema-diseno` (`a02cef0`), the type check, ESLint, the 143 tests, and the build passed in a scratch copy, and `main` was still `c8c9763`. This record is the one commit added on top of that tip; it changes only this file. The repository has no CI, so those local runs are the only checks available.
+
+Tracker pull request: **#14**, draft, `feat/u2-carta-publica` into `main`, opened after position 1 was integrated (see Structure). It is not merged: the final merge to `main`, with a merge commit, waits for the user's approval after reviewing this record. The 12 child branches and `feat/u2-sistema-diseno` are kept until the user authorizes deleting them.
+
+Incident: the first pre-merge check required the tracker to be an ancestor of the child branch, which is wrong once the tracker holds merge commits (the child branch starts at the original commit, not at the merge). The script stopped on position 2 before merging anything; the check was changed to «the merge base with the tracker is the previous pull request's tip», which is what GitHub's diff measures. Nothing in the repository was affected.
 
 ## Later units (not authorized)
 
