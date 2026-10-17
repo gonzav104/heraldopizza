@@ -1,0 +1,273 @@
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import { AdminApp } from '@/features/admin/AdminApp'
+import type { AdminAuth, AdminSession, SignInResult } from '@/features/admin/admin-auth'
+
+interface Deferred<T> {
+  promise: Promise<T>
+  resolve: (value: T) => void
+  reject: (error: unknown) => void
+}
+
+function deferred<T>(): Deferred<T> {
+  let resolve!: (value: T) => void
+  let reject!: (error: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
+/** A fake AdminAuth whose every call the test settles by hand. */
+function fakeAuth() {
+  const session = deferred<AdminSession | null>()
+  const admin: Deferred<boolean>[] = []
+  const signIns: Deferred<SignInResult>[] = []
+  let listener: ((session: AdminSession | null) => void) | null = null
+  const auth: AdminAuth = {
+    getSession: vi.fn(() => session.promise),
+    onSessionChange: vi.fn((next) => {
+      listener = next
+      return () => {
+        listener = null
+      }
+    }),
+    signIn: vi.fn(() => {
+      const call = deferred<SignInResult>()
+      signIns.push(call)
+      return call.promise
+    }),
+    signOut: vi.fn(async () => {}),
+    isAdmin: vi.fn(() => {
+      const call = deferred<boolean>()
+      admin.push(call)
+      return call.promise
+    }),
+  }
+  return { auth, session, admin, signIns, emit: (next: AdminSession | null) => listener?.(next) }
+}
+
+const owner = { email: 'duenio@example.test' }
+
+function loginForm() {
+  return screen.queryByRole('form', { name: 'Ingresar al panel' })
+}
+
+function panel() {
+  return screen.queryByRole('heading', { level: 1, name: 'Panel de Heraldo Pizza' })
+}
+
+async function settle<T>(call: Deferred<T>, value: T) {
+  await act(async () => call.resolve(value))
+}
+
+describe('AdminApp', () => {
+  it('shows neither the login nor the panel while it restores the saved session (no flash)', async () => {
+    const { auth, session, admin } = fakeAuth()
+    render(<AdminApp auth={auth} />)
+
+    expect(screen.getByRole('status')).toHaveTextContent('Cargando…')
+    expect(loginForm()).not.toBeInTheDocument()
+    expect(panel()).not.toBeInTheDocument()
+
+    await settle(session, owner)
+    expect(screen.getByRole('status')).toHaveTextContent('Cargando…')
+    expect(loginForm()).not.toBeInTheDocument()
+    expect(panel()).not.toBeInTheDocument()
+
+    await settle(admin[0], true)
+    expect(panel()).toBeInTheDocument()
+    expect(loginForm()).not.toBeInTheDocument()
+  })
+
+  it('opens the panel straight from a saved administrator session (RF-29)', async () => {
+    const { auth, session, admin } = fakeAuth()
+    render(<AdminApp auth={auth} />)
+    await settle(session, owner)
+    await settle(admin[0], true)
+
+    expect(panel()).toBeInTheDocument()
+    expect(screen.getByText('duenio@example.test')).toBeInTheDocument()
+  })
+
+  it('asks for email and password when there is no saved session (RF-27)', async () => {
+    const { auth, session } = fakeAuth()
+    render(<AdminApp auth={auth} />)
+    await settle(session, null)
+
+    const form = loginForm()
+    expect(form).toBeInTheDocument()
+    expect(screen.getByLabelText('Email')).toHaveAttribute('autocomplete', 'username')
+    expect(screen.getByLabelText('Contraseña')).toHaveAttribute('autocomplete', 'current-password')
+    expect(screen.getByLabelText('Contraseña')).toHaveAttribute('type', 'password')
+    expect(screen.queryByRole('link', { name: /registr/i })).not.toBeInTheDocument()
+    expect(screen.queryByText(/crear cuenta|registrarse/i)).not.toBeInTheDocument()
+  })
+
+  it('lets the owner show and hide the password', async () => {
+    const { auth, session } = fakeAuth()
+    render(<AdminApp auth={auth} />)
+    await settle(session, null)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar contraseña' }))
+    expect(screen.getByLabelText('Contraseña')).toHaveAttribute('type', 'text')
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar contraseña' }))
+    expect(screen.getByLabelText('Contraseña')).toHaveAttribute('type', 'password')
+  })
+
+  it('signs in, checks the role, and opens the panel; the button waits while it sends', async () => {
+    const { auth, session, signIns, admin } = fakeAuth()
+    render(<AdminApp auth={auth} />)
+    await settle(session, null)
+
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'duenio@example.test' } })
+    fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: 'secreto' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ingresar' }))
+
+    expect(auth.signIn).toHaveBeenCalledWith('duenio@example.test', 'secreto')
+    expect(screen.getByRole('button', { name: 'Ingresando…' })).toBeDisabled()
+
+    await settle(signIns[0], { ok: true, session: owner })
+    expect(auth.isAdmin).toHaveBeenCalled()
+    await settle(admin[0], true)
+    expect(panel()).toBeInTheDocument()
+  })
+
+  it('answers refused credentials with one generic message and keeps the form', async () => {
+    const { auth, session, signIns } = fakeAuth()
+    render(<AdminApp auth={auth} />)
+    await settle(session, null)
+
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'otro@example.test' } })
+    fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: 'mal' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ingresar' }))
+    await settle(signIns[0], { ok: false, reason: 'credentials' })
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Email o contraseña incorrectos.')
+    expect(loginForm()).toBeInTheDocument()
+    expect(panel()).not.toBeInTheDocument()
+  })
+
+  it('says when the sign-in could not be completed', async () => {
+    const { auth, session, signIns } = fakeAuth()
+    render(<AdminApp auth={auth} />)
+    await settle(session, null)
+
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'duenio@example.test' } })
+    fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: 'secreto' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ingresar' }))
+    await settle(signIns[0], { ok: false, reason: 'unavailable' })
+
+    expect(screen.getByRole('alert')).toHaveTextContent('No pudimos iniciar sesión. Probá de nuevo en un momento.')
+  })
+
+  it('turns away an account without the administrator role and signs it out', async () => {
+    const { auth, session, admin } = fakeAuth()
+    render(<AdminApp auth={auth} />)
+    await settle(session, { email: 'cliente@example.test' })
+    await settle(admin[0], false)
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Esta cuenta no tiene acceso al panel.')
+    expect(auth.signOut).toHaveBeenCalled()
+    expect(panel()).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Volver a ingresar' }))
+    expect(loginForm()).toBeInTheDocument()
+  })
+
+  it('shows an error with «Reintentar» when the role cannot be checked, and retries', async () => {
+    const { auth, session, admin } = fakeAuth()
+    render(<AdminApp auth={auth} />)
+    await settle(session, owner)
+    await act(async () => admin[0].reject(new Error('offline')))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('No pudimos verificar tu cuenta.')
+    expect(panel()).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(screen.getByRole('status')).toHaveTextContent('Cargando…')
+    await settle(admin[1], true)
+    expect(panel()).toBeInTheDocument()
+  })
+
+  it('shows the email of the session the server returned, not the one typed', async () => {
+    const { auth, session, signIns, admin } = fakeAuth()
+    render(<AdminApp auth={auth} />)
+    await settle(session, null)
+
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'DUENIO@Example.test' } })
+    fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: 'secreto' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ingresar' }))
+    await settle(signIns[0], { ok: true, session: owner })
+    await settle(admin[0], true)
+
+    expect(screen.getByText('duenio@example.test')).toBeInTheDocument()
+    expect(screen.queryByText('DUENIO@Example.test')).not.toBeInTheDocument()
+  })
+
+  it('does not leave the button stuck if signing in throws anyway', async () => {
+    const { auth, session, signIns } = fakeAuth()
+    render(<AdminApp auth={auth} />)
+    await settle(session, null)
+
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'duenio@example.test' } })
+    fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: 'secreto' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ingresar' }))
+    await act(async () => signIns[0].reject(new Error('boom')))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('No pudimos iniciar sesión. Probá de nuevo en un momento.')
+    expect(screen.getByRole('button', { name: 'Ingresar' })).toBeEnabled()
+  })
+
+  it('offers «Cerrar sesión» when the account cannot be checked, so a rejected session is never a dead end', async () => {
+    const { auth, session, admin } = fakeAuth()
+    render(<AdminApp auth={auth} />)
+    await settle(session, owner)
+    await act(async () => admin[0].reject(new Error('401')))
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' })))
+
+    expect(auth.signOut).toHaveBeenCalled()
+    expect(loginForm()).toBeInTheDocument()
+  })
+
+  it('stays in the panel and says so when signing out fails, instead of pretending', async () => {
+    const { auth, session, admin } = fakeAuth()
+    vi.mocked(auth.signOut).mockRejectedValueOnce(new Error('offline'))
+    render(<AdminApp auth={auth} />)
+    await settle(session, owner)
+    await settle(admin[0], true)
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' })))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('No pudimos cerrar la sesión. Probá de nuevo.')
+    expect(panel()).toBeInTheDocument()
+    expect(loginForm()).not.toBeInTheDocument()
+  })
+
+  it('signs out from the panel and returns to the login (RF-29)', async () => {
+    const { auth, session, admin } = fakeAuth()
+    render(<AdminApp auth={auth} />)
+    await settle(session, owner)
+    await settle(admin[0], true)
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' })))
+
+    expect(auth.signOut).toHaveBeenCalled()
+    expect(loginForm()).toBeInTheDocument()
+    expect(panel()).not.toBeInTheDocument()
+  })
+
+  it('goes back to the login when the session ends elsewhere', async () => {
+    const { auth, session, admin, emit } = fakeAuth()
+    render(<AdminApp auth={auth} />)
+    await settle(session, owner)
+    await settle(admin[0], true)
+
+    act(() => emit(null))
+
+    expect(loginForm()).toBeInTheDocument()
+    expect(panel()).not.toBeInTheDocument()
+  })
+})

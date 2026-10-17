@@ -41,6 +41,10 @@ jobs:
       - name: Build
         run: npm run build
 
+      # The public menu's initial chunk carries no supabase-js or admin sign-in, and no file holds a server-only key.
+      - name: Bundle check
+        run: npm run check:bundle
+
   database:
     name: Database migrations and RLS tests
     runs-on: ubuntu-latest
@@ -61,6 +65,10 @@ jobs:
 
       - name: pgTAP tests
         run: npm run db:test
+
+      # Public sign-up stays closed and password sign-in stays enabled on the local stack (RF-27, RF-28).
+      - name: Auth settings
+        run: npm run db:check-auth
 
       - name: Stop local Supabase
         if: always()
