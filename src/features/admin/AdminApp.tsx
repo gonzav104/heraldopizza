@@ -3,6 +3,8 @@ import { useEffect, useId, useState, type FormEvent } from 'react'
 import { PrimaryAction } from '@/components/ui/PrimaryAction'
 import { StatusScreen } from '@/components/ui/StatusScreen'
 import type { AdminAuth, AdminSession } from '@/features/admin/admin-auth'
+import type { AdminCatalogRepository } from '@/features/admin/catalog/admin-catalog'
+import { CatalogEditor } from '@/features/admin/catalog/CatalogEditor'
 
 /**
  * Where the panel stands. «restoring» and «checking» render one neutral screen, so neither the login nor the panel
@@ -111,10 +113,12 @@ function LoginForm({ auth, onSignedIn }: { auth: AdminAuth; onSignedIn: (session
 
 function Panel({
   session,
+  catalog,
   onSignOut,
   signOutFailed,
 }: {
   session: AdminSession
+  catalog: AdminCatalogRepository
   onSignOut: () => void
   signOutFailed: boolean
 }) {
@@ -142,7 +146,7 @@ function Panel({
             {SIGN_OUT_FAILED}
           </p>
         ) : null}
-        <p className="text-crema-muted">La gestión de la carta llega en la próxima etapa.</p>
+        <CatalogEditor repository={catalog} />
       </section>
     </main>
   )
@@ -152,7 +156,7 @@ function Panel({
  * The admin panel (U4): restores the saved session, asks soy_administrador() whether to show the panel, and offers
  * sign-in and sign-out. The answer only shapes the interface; row level security guards every write.
  */
-export function AdminApp({ auth }: { auth: AdminAuth }) {
+export function AdminApp({ auth, catalog }: { auth: AdminAuth; catalog: AdminCatalogRepository }) {
   const [phase, setPhase] = useState<Phase>({ kind: 'restoring' })
   const [signOutFailed, setSignOutFailed] = useState(false)
 
@@ -271,6 +275,6 @@ export function AdminApp({ auth }: { auth: AdminAuth }) {
         </StatusScreen>
       )
     case 'admin':
-      return <Panel session={phase.session} onSignOut={signOut} signOutFailed={signOutFailed} />
+      return <Panel session={phase.session} catalog={catalog} onSignOut={signOut} signOutFailed={signOutFailed} />
   }
 }

@@ -68,16 +68,19 @@ interface AdminEnv {
   VITE_SUPABASE_PUBLISHABLE_KEY?: string
 }
 
-/** Builds the panel's auth from the same two public build settings as the menu. */
-export function createSupabaseAdminAuth(env: AdminEnv = import.meta.env): SupabaseAdminAuth {
+/** The panel's one Supabase client, from the same two public build settings as the menu. */
+export function createAdminClient(env: AdminEnv = import.meta.env): SupabaseClient {
   const url = env.VITE_SUPABASE_URL?.trim()
   const publishableKey = env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim()
   if (!url || !publishableKey || !/^https?:\/\//.test(url)) {
     throw new AdminConfigError('VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY must be set')
   }
-  return new SupabaseAdminAuth(
-    createClient(url, publishableKey, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
-    }),
-  )
+  return createClient(url, publishableKey, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+  })
+}
+
+/** Builds the panel's auth on its own client (kept for callers that need only authentication). */
+export function createSupabaseAdminAuth(env: AdminEnv = import.meta.env): SupabaseAdminAuth {
+  return new SupabaseAdminAuth(createAdminClient(env))
 }
