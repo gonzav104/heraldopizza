@@ -89,14 +89,27 @@ function SaveFeedback({ feedback, onReload }: { feedback: Feedback; onReload: ()
   )
 }
 
+/**
+ * A checkbox that saves on change. While the save runs it shows the requested state, so the tap visibly registers;
+ * when the save ends it shows the saved row again (the new state, or the old one if the save failed).
+ */
 function Toggle({ label, checked, disabled, onChange, description }: {
   label: string
   checked: boolean
   disabled: boolean
-  onChange: (checked: boolean) => void
+  onChange: (checked: boolean) => Promise<unknown>
   description?: ReactNode
 }) {
   const descriptionId = useId()
+  const [pending, setPending] = useState<boolean | null>(null)
+  const change = async (next: boolean) => {
+    setPending(next)
+    try {
+      await onChange(next)
+    } finally {
+      setPending(null)
+    }
+  }
   return (
     <div className="flex flex-col gap-1">
       <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 font-semibold">
@@ -104,9 +117,9 @@ function Toggle({ label, checked, disabled, onChange, description }: {
           type="checkbox"
           aria-label={label}
           aria-describedby={description ? descriptionId : undefined}
-          checked={checked}
+          checked={pending ?? checked}
           disabled={disabled}
-          onChange={(event) => onChange(event.target.checked)}
+          onChange={(event) => void change(event.target.checked)}
           className="size-5 accent-[var(--color-heraldo)]"
         />
         <span aria-hidden="true">{label.split(':')[0]}</span>
@@ -308,8 +321,8 @@ function ProductCard({ product, repository, onSaved, onReload }: {
         {product.outOfStock ? <span className="rounded-full bg-chapa px-2.5 py-0.5 text-[0.8125rem] text-crema-muted ring-1 ring-chapa-edge">Sin stock</span> : null}
       </div>
       <div className="flex flex-wrap gap-x-6">
-        <Toggle label={`Sin stock: ${product.name}`} checked={product.outOfStock} disabled={saving} onChange={(outOfStock) => void saveFields({ outOfStock })} />
-        <Toggle label={`Visible: ${product.name}`} checked={product.visible} disabled={saving} onChange={(visible) => void saveFields({ visible })} />
+        <Toggle label={`Sin stock: ${product.name}`} checked={product.outOfStock} disabled={saving} onChange={(outOfStock) => saveFields({ outOfStock })} />
+        <Toggle label={`Visible: ${product.name}`} checked={product.visible} disabled={saving} onChange={(visible) => saveFields({ visible })} />
       </div>
       <PriceEditor key={priceKey} product={product} saving={saving} onSave={savePrices} />
       {editing ? (
@@ -350,7 +363,7 @@ function CategorySection({ category, repository, onSaved, onProductSaved, onRelo
   const count = category.products.length
 
   const save = (changes: { name?: string; visible?: boolean }) =>
-    void run(async () => {
+    run(async () => {
       const saved = await repository.updateCategory(category.id, changes, category.updatedAt)
       onSaved(saved)
       setName(saved.name)
@@ -380,7 +393,7 @@ function CategorySection({ category, repository, onSaved, onProductSaved, onRelo
             aria-label={`Guardar nombre de ${category.name}`}
             className={primaryClass}
             disabled={saving || !dirty}
-            onClick={() => checked.ok && save({ name: checked.value })}
+            onClick={() => checked.ok && void save({ name: checked.value })}
           >
             Guardar nombre
           </button>

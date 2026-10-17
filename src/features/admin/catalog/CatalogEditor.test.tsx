@@ -201,6 +201,21 @@ describe('CatalogEditor: stock and visibility (RF-34, RF-31)', () => {
     expect(within(card).getByRole('checkbox', { name: 'Sin stock: Muzzarella' })).toBeChecked()
   })
 
+  it('shows the requested state while saving, and goes back to the saved one if the save fails', async () => {
+    let fail!: (error: unknown) => void
+    const updateProduct = vi.fn(() => new Promise<never>((_resolve, reject) => (fail = reject)))
+    await renderEditor(fakeRepository({ updateProduct }))
+    const toggle = within(productCard('Muzzarella')).getByRole('checkbox', { name: 'Sin stock: Muzzarella' })
+
+    fireEvent.click(toggle)
+    expect(toggle).toBeChecked()
+    expect(within(productCard('Muzzarella')).getByRole('status')).toHaveTextContent('Guardando…')
+
+    await act(async () => fail(new AdminSaveError('unavailable', 'offline')))
+    expect(toggle).not.toBeChecked()
+    expect(within(productCard('Muzzarella')).getByRole('alert')).toHaveTextContent('No pudimos guardar.')
+  })
+
   it('shows a hidden product again', async () => {
     const repository = await renderEditor()
 
