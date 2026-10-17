@@ -25,6 +25,7 @@ npm run typecheck
 npm run lint
 npm test
 npm run build
+npm run check:bundle
 ```
 
 La integración continua (`.github/workflows/ci.yml`) las ejecuta con Node 24 en cada pull request y en cada push a `main`, y marca el resultado en el PR. Un segundo job, `Database migrations and RLS tests`, levanta el stack local de Supabase en el runner y corre `npm run db:test`. Por sí sola, la integración continua no impide integrar un PR con verificaciones fallidas: para bloquearlo hay que configurar en GitHub una regla de protección de `main` que exija los checks `Typecheck, lint, test, and build` y `Database migrations and RLS tests`.
@@ -37,6 +38,7 @@ El esquema vive en `supabase/migrations/` (SQL versionado) y los datos iniciales
 npm run db:start  # levanta el stack local (aplica migraciones y seed)
 npm run db:reset  # recrea la base local desde las migraciones y vuelve a cargar el seed
 npm run db:test   # pruebas pgTAP de supabase/tests/ (restricciones, seed y RLS)
+npm run db:admin-local  # crea o reinicia un administrador de prueba en el stack local
 npm run db:stop   # detiene el stack
 ```
 
@@ -54,6 +56,14 @@ La carta lee el catálogo desde la Data API de Supabase y necesita dos variables
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Clave publicable (en local, `PUBLISHABLE_KEY` del mismo comando) |
 
 Para desarrollo, levantá el stack local (`npm run db:start`) y poné esos dos valores en `.env.local`. Nunca uses una clave secreta (`sb_secret_…`) ni `service_role` en la carta. Si faltan las variables o Supabase no responde, la carta muestra un error con «Reintentar»: no usa datos de prueba en su lugar.
+
+Vite copia en el bundle del navegador todas las variables `VITE_`. Por eso `vite`, `vite build` y las pruebas **se niegan a arrancar** si alguna contiene una clave secreta, `service_role` o un JWT de `service_role`, y `npm run check:bundle` revisa después del build que ningún archivo de `dist/` la contenga.
+
+## Panel de administración (`/admin`)
+
+`/admin` pide email y contraseña (Supabase Auth) y muestra el panel solo a las cuentas que figuran en `administradores`; `public.soy_administrador()` le dice a la interfaz si mostrarse, pero quien autoriza cada lectura y escritura es RLS. El panel se carga en diferido: la carta pública no incluye `supabase-js` en su bundle inicial, y `npm run check:bundle` lo verifica.
+
+No hay registro público. Para probar en local, con el stack levantado, `npm run db:admin-local` crea o reinicia `admin@heraldo.local` (o el email de `ADMIN_EMAIL`) con una contraseña aleatoria que muestra una sola vez (o la de `ADMIN_PASSWORD`). El script lee la clave secreta del stack local en el momento, no la guarda ni la imprime, y se niega a correr contra una API que no sea local. En un proyecto real, la cuenta del dueño y su fila en `administradores` se crean a mano desde el panel de Supabase, y el registro se desactiva ahí.
 
 ## Documentación
 

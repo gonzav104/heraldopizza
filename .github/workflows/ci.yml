@@ -41,6 +41,10 @@ jobs:
       - name: Build
         run: npm run build
 
+      # The public menu's initial chunk carries no supabase-js or admin sign-in, and no file holds a server-only key.
+      - name: Bundle check
+        run: npm run check:bundle
+
   database:
     name: Database migrations and RLS tests
     runs-on: ubuntu-latest
