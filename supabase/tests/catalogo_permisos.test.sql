@@ -5,7 +5,7 @@
 -- writes. Runs on the local stack only (supabase test db); every change is rolled back.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(15);
 
 select results_eq(
   $$select fila from (
@@ -87,9 +87,47 @@ select throws_ok(
 );
 select throws_ok($$truncate public.variantes$$, '42501', null, 'a non-admin cannot truncate the catalog');
 
--- es_admin() ignores the caller's search_path and claims without a subject.
-set local search_path = public, extensions;
-select is(privado.es_admin(), false, 'es_admin() stays false whatever the caller search_path is');
+-- es_admin() does not depend on a search_path the caller controls.
+-- Worst case: a decoy schema, first in the caller's search_path, holds an administradores table that lists the
+-- non-admin user. A real user cannot create schemas (asserted above), so postgres plants it here, inside this
+-- transaction; the rollback at the end leaves nothing behind.
+reset role;
+create schema senuelo;
+create table senuelo.administradores (user_id uuid primary key);
+insert into senuelo.administradores (user_id) values ('00000000-0000-4000-8000-0000000000b2');
+-- Positive control: the same check without a pinned search_path and with an unqualified table name. If this copy
+-- did not return true under the decoy, a false from the real function would prove nothing.
+create function senuelo.es_admin_vulnerable()
+returns boolean
+language sql
+stable
+security definer
+as $$
+  select exists (select 1 from administradores a where a.user_id = (select auth.uid()));
+$$;
+grant usage on schema senuelo to authenticated;
+grant select on table senuelo.administradores to authenticated;
+grant execute on function senuelo.es_admin_vulnerable() to authenticated;
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000b2","role":"authenticated"}', true);
+set local search_path = senuelo, public, extensions;
+select is(
+  senuelo.es_admin_vulnerable(),
+  true,
+  'control: a check without a pinned search_path is fooled by the decoy administradores'
+);
+select is(
+  privado.es_admin(),
+  false,
+  'es_admin() is not fooled by a decoy administradores earlier in the caller search_path'
+);
+select throws_ok(
+  $$insert into public.categorias (nombre, orden) values ('Con señuelo', 1)$$,
+  '42501', null, 'with the decoy in place, the non-admin still cannot write to the catalog'
+);
+reset search_path;
+
 select set_config('request.jwt.claims', '{}', true);
 select is(privado.es_admin(), false, 'es_admin() is false for claims without a subject');
 reset role;
