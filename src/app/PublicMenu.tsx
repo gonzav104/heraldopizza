@@ -1,22 +1,18 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Storefront } from '@/app/Storefront'
+import { StatusScreen } from '@/components/ui/StatusScreen'
 import type { Catalog, CatalogRepository } from '@/domain/catalog'
 
 type LoadState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; catalog: Catalog }
 
-/** Full-screen notice on the black sheet, with the logo, for the moments the menu itself cannot show. */
+/** The menu's own notices use the shared status screen, with the role that fits each moment. */
 function MenuNotice({ role, children }: { role: 'status' | 'alert'; children: ReactNode }) {
   return (
-    <main className="texture-chapa grid min-h-dvh place-items-center px-4">
-      <div role={role} className="flex max-w-sm flex-col items-center gap-4 text-center">
-        <span className="texture-pino size-20 rounded-full p-[3px] shadow-[0_10px_22px_-6px_rgb(0_0_0/0.9)]">
-          <span className="grid size-full place-items-center rounded-full bg-chapa">
-            <img src="/images/logo-heraldo-pizza.webp" alt="" width={80} height={80} className="size-[88%]" />
-          </span>
-        </span>
+    <StatusScreen>
+      <div role={role} className="flex flex-col items-center gap-4">
         {children}
       </div>
-    </main>
+    </StatusScreen>
   )
 }
 

@@ -1,5 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
+import { LazyChunkBoundary } from '@/app/LazyChunkBoundary'
 import { PublicMenu } from '@/app/PublicMenu'
+import { StatusScreen } from '@/components/ui/StatusScreen'
 import { createPublicCatalogRepository } from '@/data/supabase-catalog-repository'
 import type { CatalogRepository } from '@/domain/catalog'
 import { DesignSystemView } from '@/features/design-system/DesignSystemView'
@@ -34,17 +36,19 @@ function App({ repository = publicCatalog }: { repository?: CatalogRepository })
 
   if (isAdminPath(window.location.pathname)) {
     return (
-      <Suspense
-        fallback={
-          <main className="texture-chapa grid min-h-dvh place-items-center px-4">
-            <p role="status" className="font-semibold">
-              Cargando…
-            </p>
-          </main>
-        }
-      >
-        <AdminRoute />
-      </Suspense>
+      <LazyChunkBoundary what="el panel">
+        <Suspense
+          fallback={
+            <StatusScreen>
+              <p role="status" className="text-[1.0625rem] font-semibold">
+                Cargando…
+              </p>
+            </StatusScreen>
+          }
+        >
+          <AdminRoute />
+        </Suspense>
+      </LazyChunkBoundary>
     )
   }
 

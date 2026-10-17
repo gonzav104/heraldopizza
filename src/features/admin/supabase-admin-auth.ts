@@ -35,13 +35,19 @@ export class SupabaseAdminAuth implements AdminAuth {
   }
 
   async signIn(email: string, password: string): Promise<SignInResult> {
-    const { error } = await this.client.auth.signInWithPassword({ email, password })
-    if (!error) return { ok: true }
-    // Refused credentials get one generic answer: the panel never says whether the email exists.
-    if (isAuthApiError(error) && (error.code === 'invalid_credentials' || error.status === 400)) {
-      return { ok: false, reason: 'credentials' }
+    try {
+      const { data, error } = await this.client.auth.signInWithPassword({ email, password })
+      if (!error) return { ok: true, session: toAdminSession(data.session) ?? { email: data.user?.email ?? '' } }
+      // Only refused credentials get the generic «wrong email or password» answer, which never says whether the email
+      // exists. Anything else (disabled provider, unconfirmed email, rate limit, network) is a failure to complete the
+      // sign-in, not the owner's mistake, and is logged for diagnosis.
+      if (isAuthApiError(error) && error.code === 'invalid_credentials') return { ok: false, reason: 'credentials' }
+      console.error('Sign-in could not be completed', isAuthApiError(error) ? error.code ?? error.status : error.name)
+      return { ok: false, reason: 'unavailable' }
+    } catch (error) {
+      console.error('Sign-in failed unexpectedly', error)
+      return { ok: false, reason: 'unavailable' }
     }
-    return { ok: false, reason: 'unavailable' }
   }
 
   async signOut(): Promise<void> {

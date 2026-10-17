@@ -3,8 +3,11 @@ export interface AdminSession {
   email: string
 }
 
-/** A failed sign-in says only whether the credentials were refused or the service could not be reached. */
-export type SignInResult = { ok: true } | { ok: false; reason: 'credentials' | 'unavailable' }
+/**
+ * A successful sign-in carries the session the server returned. A failed one says only whether the credentials were
+ * refused or the sign-in could not be completed (network, configuration, rate limit, account state).
+ */
+export type SignInResult = { ok: true; session: AdminSession } | { ok: false; reason: 'credentials' | 'unavailable' }
 
 /**
  * Port between the admin panel and the authentication service. The Supabase adapter implements it; tests use a fake.
@@ -15,7 +18,9 @@ export interface AdminAuth {
   getSession(): Promise<AdminSession | null>
   /** Called when the session changes elsewhere (expiry, sign-out in another tab). Returns an unsubscribe function. */
   onSessionChange(listener: (session: AdminSession | null) => void): () => void
+  /** Never rejects: every failure becomes a SignInResult. */
   signIn(email: string, password: string): Promise<SignInResult>
+  /** Rejects when the session could not be ended; the session is then still on the device. */
   signOut(): Promise<void>
   /** Whether the signed-in account is an administrator. Rejects when the service cannot answer. */
   isAdmin(): Promise<boolean>

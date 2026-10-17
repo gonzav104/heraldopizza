@@ -128,7 +128,7 @@ describe('AdminApp', () => {
     expect(auth.signIn).toHaveBeenCalledWith('duenio@example.test', 'secreto')
     expect(screen.getByRole('button', { name: 'Ingresando…' })).toBeDisabled()
 
-    await settle(signIns[0], { ok: true })
+    await settle(signIns[0], { ok: true, session: owner })
     expect(auth.isAdmin).toHaveBeenCalled()
     await settle(admin[0], true)
     expect(panel()).toBeInTheDocument()
@@ -149,7 +149,7 @@ describe('AdminApp', () => {
     expect(panel()).not.toBeInTheDocument()
   })
 
-  it('says when the service cannot be reached', async () => {
+  it('says when the sign-in could not be completed', async () => {
     const { auth, session, signIns } = fakeAuth()
     render(<AdminApp auth={auth} />)
     await settle(session, null)
@@ -159,7 +159,7 @@ describe('AdminApp', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ingresar' }))
     await settle(signIns[0], { ok: false, reason: 'unavailable' })
 
-    expect(screen.getByRole('alert')).toHaveTextContent('No pudimos conectar con el servicio. Probá de nuevo.')
+    expect(screen.getByRole('alert')).toHaveTextContent('No pudimos iniciar sesión. Probá de nuevo en un momento.')
   })
 
   it('turns away an account without the administrator role and signs it out', async () => {
@@ -189,6 +189,61 @@ describe('AdminApp', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Cargando…')
     await settle(admin[1], true)
     expect(panel()).toBeInTheDocument()
+  })
+
+  it('shows the email of the session the server returned, not the one typed', async () => {
+    const { auth, session, signIns, admin } = fakeAuth()
+    render(<AdminApp auth={auth} />)
+    await settle(session, null)
+
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'DUENIO@Example.test' } })
+    fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: 'secreto' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ingresar' }))
+    await settle(signIns[0], { ok: true, session: owner })
+    await settle(admin[0], true)
+
+    expect(screen.getByText('duenio@example.test')).toBeInTheDocument()
+    expect(screen.queryByText('DUENIO@Example.test')).not.toBeInTheDocument()
+  })
+
+  it('does not leave the button stuck if signing in throws anyway', async () => {
+    const { auth, session, signIns } = fakeAuth()
+    render(<AdminApp auth={auth} />)
+    await settle(session, null)
+
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'duenio@example.test' } })
+    fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: 'secreto' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ingresar' }))
+    await act(async () => signIns[0].reject(new Error('boom')))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('No pudimos iniciar sesión. Probá de nuevo en un momento.')
+    expect(screen.getByRole('button', { name: 'Ingresar' })).toBeEnabled()
+  })
+
+  it('offers «Cerrar sesión» when the account cannot be checked, so a rejected session is never a dead end', async () => {
+    const { auth, session, admin } = fakeAuth()
+    render(<AdminApp auth={auth} />)
+    await settle(session, owner)
+    await act(async () => admin[0].reject(new Error('401')))
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' })))
+
+    expect(auth.signOut).toHaveBeenCalled()
+    expect(loginForm()).toBeInTheDocument()
+  })
+
+  it('stays in the panel and says so when signing out fails, instead of pretending', async () => {
+    const { auth, session, admin } = fakeAuth()
+    vi.mocked(auth.signOut).mockRejectedValueOnce(new Error('offline'))
+    render(<AdminApp auth={auth} />)
+    await settle(session, owner)
+    await settle(admin[0], true)
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' })))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('No pudimos cerrar la sesión. Probá de nuevo.')
+    expect(panel()).toBeInTheDocument()
+    expect(loginForm()).not.toBeInTheDocument()
   })
 
   it('signs out from the panel and returns to the login (RF-29)', async () => {

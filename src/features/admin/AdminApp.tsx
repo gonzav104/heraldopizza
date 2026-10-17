@@ -1,6 +1,7 @@
 import { Eye, EyeOff, LogOut } from 'lucide-react'
-import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useId, useState, type FormEvent } from 'react'
 import { PrimaryAction } from '@/components/ui/PrimaryAction'
+import { StatusScreen } from '@/components/ui/StatusScreen'
 import type { AdminAuth, AdminSession } from '@/features/admin/admin-auth'
 
 /**
@@ -15,24 +16,12 @@ type Phase =
   | { kind: 'no-access' }
   | { kind: 'check-failed'; session: AdminSession }
 
+const UNAVAILABLE = 'No pudimos iniciar sesión. Probá de nuevo en un momento.'
+const SIGN_OUT_FAILED = 'No pudimos cerrar la sesión. Probá de nuevo.'
+
 const labelClass = 'block text-[1rem] font-bold'
 const inputClass =
   'mt-2 min-h-12 w-full rounded-xl bg-chapa px-3.5 text-[1rem] ring-1 ring-chapa-edge focus-visible:ring-0'
-
-function Screen({ children }: { children: ReactNode }) {
-  return (
-    <main className="texture-chapa grid min-h-dvh place-items-center px-4 py-10">
-      <div className="flex w-full max-w-sm flex-col items-center gap-5 text-center">
-        <span className="texture-pino size-16 rounded-full p-[3px] shadow-[0_10px_22px_-6px_rgb(0_0_0/0.9)]">
-          <span className="grid size-full place-items-center rounded-full bg-chapa">
-            <img src="/images/logo-heraldo-pizza.webp" alt="" width={64} height={64} className="size-[88%]" />
-          </span>
-        </span>
-        {children}
-      </div>
-    </main>
-  )
-}
 
 function LoginForm({ auth, onSignedIn }: { auth: AdminAuth; onSignedIn: (session: AdminSession) => void }) {
   const ids = { email: useId(), password: useId(), title: useId() }
@@ -46,17 +35,19 @@ function LoginForm({ auth, onSignedIn }: { auth: AdminAuth; onSignedIn: (session
     event.preventDefault()
     setSending(true)
     setError(null)
-    const result = await auth.signIn(email.trim(), password)
-    setSending(false)
-    if (result.ok) {
-      onSignedIn({ email: email.trim() })
-      return
+    try {
+      const result = await auth.signIn(email.trim(), password)
+      if (result.ok) {
+        onSignedIn(result.session)
+        return
+      }
+      setError(result.reason === 'credentials' ? 'Email o contraseña incorrectos.' : UNAVAILABLE)
+    } catch {
+      // The port promises never to reject; if it ever does, the form must still recover.
+      setError(UNAVAILABLE)
+    } finally {
+      setSending(false)
     }
-    setError(
-      result.reason === 'credentials'
-        ? 'Email o contraseña incorrectos.'
-        : 'No pudimos conectar con el servicio. Probá de nuevo.',
-    )
   }
 
   return (
@@ -118,7 +109,15 @@ function LoginForm({ auth, onSignedIn }: { auth: AdminAuth; onSignedIn: (session
   )
 }
 
-function Panel({ session, onSignOut }: { session: AdminSession; onSignOut: () => void }) {
+function Panel({
+  session,
+  onSignOut,
+  signOutFailed,
+}: {
+  session: AdminSession
+  onSignOut: () => void
+  signOutFailed: boolean
+}) {
   return (
     <main className="texture-chapa min-h-dvh">
       <header className="border-b border-chapa-edge bg-chapa-high/60">
@@ -138,6 +137,11 @@ function Panel({ session, onSignOut }: { session: AdminSession; onSignOut: () =>
         </div>
       </header>
       <section className="mx-auto max-w-3xl px-4 py-8">
+        {signOutFailed ? (
+          <p role="alert" className="mb-4 font-semibold text-mostaza">
+            {SIGN_OUT_FAILED}
+          </p>
+        ) : null}
         <p className="text-crema-muted">La gestión de la carta llega en la próxima etapa.</p>
       </section>
     </main>
@@ -150,6 +154,7 @@ function Panel({ session, onSignOut }: { session: AdminSession; onSignOut: () =>
  */
 export function AdminApp({ auth }: { auth: AdminAuth }) {
   const [phase, setPhase] = useState<Phase>({ kind: 'restoring' })
+  const [signOutFailed, setSignOutFailed] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -194,30 +199,36 @@ export function AdminApp({ auth }: { auth: AdminAuth }) {
     }
   }, [auth, phase])
 
+  // A failed sign-out leaves the session on the device, so the panel says so instead of showing the login.
   const signOut = async () => {
-    await auth.signOut().catch(() => undefined)
-    setPhase({ kind: 'signed-out' })
+    try {
+      await auth.signOut()
+      setSignOutFailed(false)
+      setPhase({ kind: 'signed-out' })
+    } catch {
+      setSignOutFailed(true)
+    }
   }
 
   switch (phase.kind) {
     case 'restoring':
     case 'checking':
       return (
-        <Screen>
+        <StatusScreen>
           <p role="status" className="text-[1.0625rem] font-semibold">
             Cargando…
           </p>
-        </Screen>
+        </StatusScreen>
       )
     case 'signed-out':
       return (
-        <Screen>
+        <StatusScreen>
           <LoginForm auth={auth} onSignedIn={(session) => setPhase({ kind: 'checking', session })} />
-        </Screen>
+        </StatusScreen>
       )
     case 'no-access':
       return (
-        <Screen>
+        <StatusScreen>
           <p role="alert" className="type-display text-[1.375rem]">
             Esta cuenta no tiene acceso al panel.
           </p>
@@ -228,11 +239,11 @@ export function AdminApp({ auth }: { auth: AdminAuth }) {
           >
             Volver a ingresar
           </button>
-        </Screen>
+        </StatusScreen>
       )
     case 'check-failed':
       return (
-        <Screen>
+        <StatusScreen>
           <p role="alert" className="type-display text-[1.375rem]">
             No pudimos verificar tu cuenta.
           </p>
@@ -244,9 +255,22 @@ export function AdminApp({ auth }: { auth: AdminAuth }) {
           >
             Reintentar
           </button>
-        </Screen>
+          <button
+            type="button"
+            onClick={signOut}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full px-4 font-semibold ring-1 ring-chapa-edge hover:bg-chapa-edge"
+          >
+            <LogOut aria-hidden="true" className="size-4.5 text-mostaza" />
+            Cerrar sesión
+          </button>
+          {signOutFailed ? (
+            <p role="status" className="font-semibold text-mostaza">
+              {SIGN_OUT_FAILED}
+            </p>
+          ) : null}
+        </StatusScreen>
       )
     case 'admin':
-      return <Panel session={phase.session} onSignOut={signOut} />
+      return <Panel session={phase.session} onSignOut={signOut} signOutFailed={signOutFailed} />
   }
 }

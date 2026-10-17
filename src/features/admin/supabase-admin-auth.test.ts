@@ -5,6 +5,7 @@ import { AdminConfigError, SupabaseAdminAuth, createSupabaseAdminAuth } from '@/
 function fakeClient(overrides: {
   session?: { user: { email?: string | null } } | null
   signInError?: unknown
+  signInThrows?: unknown
   rpc?: { data: unknown; error: unknown }
 }) {
   const unsubscribe = vi.fn()
@@ -12,7 +13,12 @@ function fakeClient(overrides: {
     auth: {
       getSession: vi.fn(async () => ({ data: { session: overrides.session ?? null }, error: null })),
       onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe } } })),
-      signInWithPassword: vi.fn(async () => ({ data: {}, error: overrides.signInError ?? null })),
+      signInWithPassword: vi.fn(async () => {
+        if (overrides.signInThrows) throw overrides.signInThrows
+        return overrides.signInError
+          ? { data: { user: null, session: null }, error: overrides.signInError }
+          : { data: { user: { email: 'duenio@example.test' }, session: { user: { email: 'duenio@example.test' } } }, error: null }
+      }),
       signOut: vi.fn(async () => ({ error: null })),
     },
     rpc: vi.fn(async () => overrides.rpc ?? { data: false, error: null }),
@@ -33,17 +39,37 @@ describe('SupabaseAdminAuth', () => {
     await expect(auth.getSession()).resolves.toBeNull()
   })
 
-  it('signs in with email and password', async () => {
+  it('signs in with email and password, and reports the email of the session the server returned', async () => {
     const { auth, client } = fakeClient({})
 
-    await expect(auth.signIn('duenio@example.test', 'secreto')).resolves.toEqual({ ok: true })
-    expect(client.auth.signInWithPassword).toHaveBeenCalledWith({ email: 'duenio@example.test', password: 'secreto' })
+    await expect(auth.signIn('DUENIO@example.test', 'secreto')).resolves.toEqual({
+      ok: true,
+      session: { email: 'duenio@example.test' },
+    })
+    expect(client.auth.signInWithPassword).toHaveBeenCalledWith({ email: 'DUENIO@example.test', password: 'secreto' })
   })
 
   it('reports refused credentials without saying which part was wrong', async () => {
     const { auth } = fakeClient({ signInError: new AuthApiError('Invalid login credentials', 400, 'invalid_credentials') })
 
     await expect(auth.signIn('x@example.test', 'mal')).resolves.toEqual({ ok: false, reason: 'credentials' })
+  })
+
+  it.each([
+    ['a disabled email provider', new AuthApiError('Email logins are disabled', 422, 'email_provider_disabled')],
+    ['an unconfirmed email', new AuthApiError('Email not confirmed', 400, 'email_not_confirmed')],
+    ['a 400 without the credentials code', new AuthApiError('Bad request', 400, 'validation_failed')],
+    ['a rate limit', new AuthApiError('Too many requests', 429, 'over_request_rate_limit')],
+  ])('does not blame the password for %s', async (_label, error) => {
+    const { auth } = fakeClient({ signInError: error })
+
+    await expect(auth.signIn('x@example.test', 'clave')).resolves.toEqual({ ok: false, reason: 'unavailable' })
+  })
+
+  it('turns an unexpected exception into an unavailable answer instead of rejecting', async () => {
+    const { auth } = fakeClient({ signInThrows: new Error('boom') })
+
+    await expect(auth.signIn('x@example.test', 'clave')).resolves.toEqual({ ok: false, reason: 'unavailable' })
   })
 
   it('reports an unavailable service when the request cannot get through', async () => {
