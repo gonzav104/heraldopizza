@@ -87,7 +87,7 @@ begin
   end if;
 
   update public.variantes v
-  set precio = (e ->> 'precio')::integer
+  set precio = (e ->> 'precio')::numeric::integer
   from jsonb_array_elements(p_precios) e
   where v.id = (e ->> 'id')::uuid and v.producto_id = p_producto;
   get diagnostics v_count = row_count;

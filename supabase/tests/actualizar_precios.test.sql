@@ -2,7 +2,7 @@
 -- not at all, with an optimistic lock per variant. Runs on the local stack only; every change is rolled back.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(34);
+select plan(35);
 
 -- Shape and privileges.
 select has_function('public', 'actualizar_precios_producto', array['uuid', 'jsonb'], 'the function exists');
@@ -188,6 +188,11 @@ select results_eq(
   'the function returns the tokens that are now stored'
 );
 select is(pg_temp.estado(), 'Entera=16000,Media=10500', 'the prices can be restored the same way');
+select results_eq(
+  $$select precio from public.actualizar_precios_producto((select producto from muzza), pg_temp.precios('16000.0'::jsonb, '10500'::jsonb)) order by precio$$,
+  $$values (10500), (16000)$$,
+  'a whole number written with a decimal point (16000.0) is saved as that integer instead of failing'
+);
 reset role;
 
 select * from finish();
