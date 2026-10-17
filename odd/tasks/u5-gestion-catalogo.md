@@ -21,11 +21,11 @@ Branch: `feat/u5-gestion-catalogo` (from `main` at `b0d995c`). Delivery: work-un
 
 | ID | Specs | Route | Status | Commit |
 |----|-------|-------|--------|--------|
-| T1 | S4, S5, S8 | inline | pending | |
-| T2 | S2, S3, S6, S7, S8 | inline | pending | |
-| T3 | S3, S9 | inline | pending | |
-| T4 | S2, S6, S7, S9 | inline | pending | |
-| T5 | S10 | inline | pending | |
+| T1 | S4, S5, S8 | inline | done | `fb3bacc` |
+| T2 | S2, S3, S6, S7, S8 | inline | done | `5818b19` |
+| T3 | S3, S9 | inline | done | `f1596f2` (with T4), fix `cd260f2` |
+| T4 | S2, S6, S7, S9 | inline | done | `f1596f2` (same component as T3) |
+| T5 | S10 | inline | done | `8cc4c51` |
 | T6 | S1–S11 | verifier + native review | pending | |
 
 - T1 Migration `public.actualizar_precios_producto()` with pgTAP.
@@ -41,3 +41,11 @@ Routes: inline (one feature, sequential units; no writer reason).
 
 - L1 (2026-10-17) User's request: «Aprobado el diseño de U5 y aprobada la opción recomendada: E2E con Playwright commiteado y ejecutándose en CI. Implementá según el diseño, con estas condiciones adicionales: - El control de concurrencia de precios debe proteger realmente las variantes modificadas y renovar el token/timestamp correspondiente dentro de la misma transacción. - actualizar_precios_producto() debe validar explícitamente: - que todas las variantes pertenecen al producto recibido; - que no haya IDs duplicados; - que todos los precios sean válidos; - que cualquier error produzca rollback completo. No depender de RLS para validar pertenencia producto-variante. - Editar nombre de categoría/producto no debe regenerar slug, UUID ni otros identificadores técnicos. - Validar nombres vacíos/solo espacios y mantener las reglas actuales de null/vacío para descripción y aviso de encargo. El resto del alcance queda aprobado tal como fue propuesto. No ampliar U5 con: - altas/bajas; - reordenamiento; - imágenes; - carrito/WhatsApp; - rediseño; - Supabase remoto. Seguí ODD/Gentle, verificador independiente y gates de revisión. Reportame la implementación local antes de push/PR.»
 - L2 Design facts checked: prices live only in variants (no base price); `line-pricing.ts` treats a variant named «Media» as a half pizza, so variant names stay read-only; the public menu already renders out-of-stock products as not orderable. `@playwright/test` pinned to 1.63.0, the newest release older than two weeks.
+- L3 T1 (`fb3bacc`): pgTAP RED (function missing) → GREEN, 34 tests: privileges (authenticated only, security invoker, empty search_path), every validation (empty, not a list, missing keys, 0, negative, decimal, text, out of range, duplicates) with nothing changed, explicit ownership (another product's variant together with a valid one, unknown id), optimistic lock (all stale and one stale of two roll back both), explicit null, renewed tokens returned. Mutations caught: no token check (tests 27–30), no ownership filter (20, 22–23, 26).
+- L4 T2 (`5818b19`): validators 26 tests (implementation written before the run, so RED was shown by mutation: no notice rule → 2 fail, no thousands dot → 3 fail); adapter 16 tests RED → GREEN (only editable columns, guarded by id and token, zero rows = conflict, error-code mapping, tokens kept as returned text).
+- L5 T3/T4 (`f1596f2`): one component, so one commit; 16 editor tests RED → GREEN. Probe on the real local stack: a saved price persists, the token round-trips with microseconds through PostgREST, three consecutive saves on the same row do not conflict.
+- L6 Defect found by the E2E and fixed in `cd260f2`: toggles only showed the saved state, so a tap did not visibly change them until the database answered; they now show the requested state while saving and the saved row afterwards (old state plus error if the save failed). Unit test RED → GREEN.
+- L7 T5 (`8cc4c51`): Playwright 1.63.0, 5 scenarios on the local stack, all passing: price saved → persisted (Data API) → public menu shows «$ 18.750»; out of stock → public button disabled; hidden → gone from the menu and back; rename keeps the id; two tabs → second save refused as a conflict, price unchanged. Each run resets the local database; non-local APIs are refused. CI installs Chromium and runs it in the database job.
+- L8 Browser at 360 and 1280 px (screenshots in `../heraldopizza-capturas/u5/`): no horizontal overflow; every control at least 44 px tall.
+- L9 Checks: 276 Vitest tests, typecheck, lint, build (initial chunk 107.0 kB gzip; AdminRoute 62.0 kB gzip), `check:bundle`, 137 pgTAP, `db:check-auth`, 5 E2E.
+
