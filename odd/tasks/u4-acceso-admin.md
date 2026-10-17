@@ -18,11 +18,11 @@ Branch: `feat/u4-acceso-admin` (from `main` at `7314416`). Delivery: work-unit c
 
 | ID | Specs | Route | Status | Commit |
 |----|-------|-------|--------|--------|
-| T1 | S2, S3 | inline | pending | |
-| T2 | S5, S6, S7 | inline | pending | |
-| T3 | S1, S4, S7 | inline | pending | |
-| T4 | S5, S6 | inline | pending | |
-| T5 | S1–S8 | verifier + native review | pending | |
+| T1 | S2, S3 | inline | done | `784ee46` |
+| T2 | S5, S6, S7 | inline | done | `9b631ae` |
+| T3 | S1, S4, S7 | inline | done | `52912d9`, fixes `c4aac34`, `98b88f5` |
+| T4 | S5, S6 | inline | done | `db903c3`, `097eb77`, `33f710d` |
+| T5 | S1–S8 | verifier + native review | done | verifier PASS S1–S8; native review approved ×2 |
 
 - T1 Migration `public.soy_administrador()` and pgTAP tests (privileges, results per identity, claims ignored, inventory).
 - T2 supabase-js (pinned), `AdminAuth` port, Supabase adapter, admin client config.
@@ -42,3 +42,8 @@ Routes: inline (one feature, sequential units; no writer reason).
 - L6 Incident from U3a: `[auth.email] enable_signup = false` in `supabase/config.toml` disabled the email provider on the local stack (`email_provider_disabled`), so nobody could sign in. Public sign-up stays closed by `[auth] enable_signup = false`; checked over HTTP: sign-up → `signup_disabled`, password login → token issued. Also fixed: `AdminRoute` created two Supabase clients under StrictMode; the client is now created once per module load.
 - L7 Browser on the local stack (Playwright, 390 px; screenshots in `../heraldopizza-capturas/u4/`): `/` loads no admin code and stores nothing; `/admin` shows «Cargando…» then the form; wrong password → «Email o contraseña incorrectos.»; right password → panel, session saved; reload → panel without the form ever showing; «Cerrar sesión» clears storage; an account without role → «Esta cuenta no tiene acceso al panel.», signed out, nothing stored; anon `POST /rpc/soy_administrador` → 401 `42501`. `npm run db:admin-local` is idempotent and refuses a non-local API.
 - L8 Checks in a clean copy (the user's current `.env.local` is rightly refused by the guard): typecheck, lint, 207 Vitest tests, build, bundle check; pgTAP 103.
+- L9 Independent verifier: PASS on S1–S8, no blockers. Advisories: a server-rejected saved token left the owner on «No pudimos verificar tu cuenta» with no way out; `check:bundle` missed a base64 service_role JWT.
+- L10 Native review of `7314416..db903c3` (four lenses, consented): approved and acknowledged. Its real defects were fixed in one batch (`98b88f5`, `33f710d`): only `invalid_credentials` is reported as wrong credentials (others, such as the L6 incident, become «No pudimos iniciar sesión. Probá de nuevo en un momento.» and are logged); `signIn` never rejects and the button never sticks; the panel shows the email of the server session; a failed sign-out is reported instead of faked; the check-failed screen offers «Cerrar sesión»; a failed panel chunk shows «No pudimos cargar el panel.» with «Reintentar»; shared `StatusScreen`; `check:bundle` decodes JWTs; `db:check-auth` in CI fails if sign-up reopens or password sign-in is switched off (mutation: provider off → failed); the local admin script lowercases the email.
+- L11 Native review of `7314416..33f710d` (four lenses, consented): approved and acknowledged. Non-blocking follow-ups, recorded instead of another correction loop: the `signOutFailed` flag can go stale across phases; a failed session restore falls back to the login without a message; a failed sign-out after «sin acceso» is swallowed (the panel stays closed because the role is checked again); the «no configurado» screen does not use `StatusScreen` and has no rendered test; duplicated local-stack and JWT helpers in the scripts.
+- L12 Final checks: 217 Vitest tests, typecheck, lint, build, `check:bundle` (clean copy), pgTAP 103, `db:check-auth`. Browser on the local stack after the fixes: same results as L7, plus a failed panel chunk shows the error with «Reintentar». The user's `.env.local` still holds the secret key pasted after the publishable one, and the guard still refuses it; checks run with the publishable key from the process env.
+
