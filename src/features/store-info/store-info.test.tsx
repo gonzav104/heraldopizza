@@ -44,11 +44,17 @@ describe('store info (D7, D8, D9)', () => {
 })
 
 describe('store header (S1)', () => {
-  it('centers the brand: the name is the page heading, with address and hours below and Info on the photo', () => {
+  it('lets the venue lead: the photo is described, and the brand and Info sit below it, never on top', () => {
     const onOpenInfo = vi.fn()
     render(<StoreHeader onOpenInfo={onOpenInfo} />)
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Heraldo Pizza' })).toHaveClass('text-center')
+    const photo = screen.getByRole('img', { name: 'Salón de Heraldo Pizza: chapa negra, madera de pino y la barra' })
+    const heading = screen.getByRole('heading', { level: 1, name: 'Heraldo Pizza' })
+    const info = screen.getByRole('button', { name: 'Info del local' })
+    const figure = photo.closest('figure')
+    expect(figure).not.toBeNull()
+    expect(figure).not.toContainElement(heading)
+    expect(figure).not.toContainElement(info)
     expect(screen.getByText('Av. Mitre 1130, Campana')).toBeInTheDocument()
     expect(screen.getByText('Todos los días, de 11 a 14 y de 19 a 00 h')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Info del local' }))
