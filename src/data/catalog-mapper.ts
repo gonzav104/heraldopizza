@@ -24,9 +24,11 @@ function text(value: unknown, what: string): string {
   return value
 }
 
+/** Optional text: null, empty, or blank all mean "none" (the database allows an empty description). */
 function optionalText(value: unknown, what: string): string | null {
   if (value === null) return null
-  return text(value, what)
+  if (typeof value !== 'string') fail(`${what} is not a text`)
+  return value.trim() === '' ? null : value
 }
 
 function integer(value: unknown, what: string): number {

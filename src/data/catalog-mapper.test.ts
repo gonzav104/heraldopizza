@@ -105,6 +105,15 @@ describe('mapCatalogRows', () => {
     expect(products.find((product) => product.id === 'p-cafe')?.madeToOrderNotice).toBeNull()
   })
 
+  it.each([
+    ['an empty', ''],
+    ['a blank', '   '],
+  ])('treats %s description as no description, so one cleared field cannot take the menu down', (_label, descripcion) => {
+    const body = [{ ...row, productos: [{ ...row.productos[0], descripcion }] }]
+
+    expect(mapCatalogRows(body).products[0].description).toBeNull()
+  })
+
   it('returns an empty menu for an empty response', () => {
     expect(mapCatalogRows([])).toEqual({ categories: [], products: [] })
   })

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from '@/App'
 import { FixtureCatalogRepository } from '@/data/fixture-catalog-repository'
 import { CatalogConfigError, createPublicCatalogRepository } from '@/data/supabase-catalog-repository'
@@ -13,6 +13,10 @@ function controlledRepository() {
   }
   return { repository, pending }
 }
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe('App', () => {
   it('opens on the menu: brand, category navigation, and the pizzas up front, with no hero', async () => {
@@ -60,7 +64,6 @@ describe('App', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos cargar la carta.')
     expect(fetchSpy).not.toHaveBeenCalled()
-    vi.unstubAllGlobals()
   })
 
   it('says the menu is not available when the catalog is empty', async () => {
