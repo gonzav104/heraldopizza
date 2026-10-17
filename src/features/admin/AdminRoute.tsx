@@ -1,6 +1,8 @@
-import { useState } from 'react'
 import { AdminApp } from '@/features/admin/AdminApp'
 import { createSupabaseAdminAuth, type SupabaseAdminAuth } from '@/features/admin/supabase-admin-auth'
+
+// Created once, when this lazy module loads: one Supabase client per page, even under StrictMode's double render.
+const auth = createAuth()
 
 function createAuth(): SupabaseAdminAuth | null {
   try {
@@ -16,8 +18,6 @@ function createAuth(): SupabaseAdminAuth | null {
  * bundle never carries it (U4, S5). `App` loads it with React.lazy when the path starts with `/admin`.
  */
 export default function AdminRoute() {
-  const [auth] = useState(createAuth)
-
   if (!auth) {
     return (
       <main className="texture-chapa grid min-h-dvh place-items-center px-4">
