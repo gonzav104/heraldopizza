@@ -3,7 +3,7 @@ import { LazyChunkBoundary } from '@/app/LazyChunkBoundary'
 import { PublicMenu } from '@/app/PublicMenu'
 import { StatusScreen } from '@/components/ui/StatusScreen'
 import { createPublicCatalogRepository } from '@/data/supabase-catalog-repository'
-import type { CatalogRepository } from '@/domain/catalog'
+import type { CatalogRepository, Promotion } from '@/domain/catalog'
 import { DesignSystemView } from '@/features/design-system/DesignSystemView'
 
 // Temporary hash switch so the design reference can be reviewed without adding a router (routes arrive in U9).
@@ -31,7 +31,13 @@ function useHash(): string {
   return hash
 }
 
-function App({ repository = publicCatalog }: { repository?: CatalogRepository }) {
+function App({
+  repository = publicCatalog,
+  loadPromotions,
+}: {
+  repository?: CatalogRepository
+  loadPromotions?: () => Promise<Promotion[]>
+}) {
   const hash = useHash()
 
   if (isAdminPath(window.location.pathname)) {
@@ -54,7 +60,7 @@ function App({ repository = publicCatalog }: { repository?: CatalogRepository })
 
   if (hash === DESIGN_SYSTEM_HASH) return <DesignSystemView />
 
-  return <PublicMenu repository={repository} />
+  return <PublicMenu repository={repository} loadPromotions={loadPromotions} />
 }
 
 export default App

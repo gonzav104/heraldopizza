@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from '@/App'
 import { FixtureCatalogRepository } from '@/data/fixture-catalog-repository'
+import { prototypePromotions } from '@/data/prototype-promotions'
 import { CatalogConfigError, createPublicCatalogRepository } from '@/data/supabase-catalog-repository'
 import type { Catalog, CatalogRepository } from '@/domain/catalog'
 
@@ -64,6 +65,20 @@ describe('App', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos cargar la carta.')
     expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('shows the Promos section when promotions are available (prototype data in development)', async () => {
+    render(<App repository={new FixtureCatalogRepository()} loadPromotions={async () => prototypePromotions} />)
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Promos' })).toBeInTheDocument()
+    expect(screen.getByRole('article', { name: 'Tres pizzas Muzzarella' })).toBeInTheDocument()
+  })
+
+  it('renders no Promos section when there is no source of promotions (production until U9)', async () => {
+    render(<App repository={new FixtureCatalogRepository()} loadPromotions={async () => []} />)
+
+    await screen.findByRole('heading', { level: 2, name: 'Pizzas' })
+    expect(screen.queryByRole('heading', { level: 2, name: 'Promos' })).not.toBeInTheDocument()
   })
 
   it('says the menu is not available when the catalog is empty', async () => {

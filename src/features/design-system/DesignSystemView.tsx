@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { Product, Promotion } from '@/domain/catalog'
 import { prototypeCategories, prototypeProducts } from '@/data/prototype-catalog'
 import { Badge } from '@/components/ui/Badge'
@@ -11,6 +11,7 @@ import { PizzaBuilderEntry } from '@/features/catalog/MenuSection'
 import { BuilderSummary, FlavorList, PizzaBuilderSheet } from '@/features/catalog/PizzaBuilderSheet'
 import { ProductSheet } from '@/features/catalog/ProductSheet'
 import { CompactRow, PizzaRow, ProductRow } from '@/features/catalog/ProductRow'
+import { loadDevPromotions } from '@/data/dev-promotions'
 import { PromoCard } from '@/features/catalog/PromoRail'
 import { initBuilder, type BuilderState } from '@/features/catalog/pizza-builder'
 import { halfAndHalfCandidates } from '@/features/catalog/presentation'
@@ -23,9 +24,6 @@ import { OTHER_ZONE, buildOrderMessage, computeTotals, type CheckoutDetails } fr
 import { DisabledSendButton } from '@/features/checkout/MessagePreview'
 import { PrivacySheet } from '@/features/store-info/PrivacySheet'
 import { SiteFooter } from '@/features/store-info/SiteFooter'
-
-// Real photo of the venue, used only to show how a promo photo is framed (promos may carry one, RF-42).
-const SAMPLE_PHOTO = '/images/local/salon-heraldo-pizza-800.webp'
 
 const swatches = [
   { name: 'Chapa', token: 'chapa', hex: '#131518', use: 'Fondo de la carta' },
@@ -63,19 +61,6 @@ function Block({ title, note, children }: { title: string; note?: string; childr
 const muzzarella = findProduct('Muzzarella')
 const especial = findProduct('Especial')
 const napolitanaHeraldo = findProduct('Napolitana Heraldo')
-const wholePrice = (product: Product) => product.variants.find((variant) => variant.name === 'Entera')?.price ?? 0
-
-// Labeled design example: the catalog has no promotions. Price = sum of both whole list prices.
-const promoExample: Promotion = {
-  id: 'ejemplo',
-  title: 'Muzza + Especial',
-  description: 'Ejemplo de diseño, no es una promoción real.',
-  price: wholePrice(muzzarella) + wholePrice(especial),
-  imageUrl: null,
-  activeFrom: '',
-  activeTo: '',
-  weekdays: [],
-}
 
 const sampleLines: OrderLine[] = [
   { id: 'a', kind: 'product', productId: muzzarella.id, variantId: variantId(muzzarella, 'Entera'), quantity: 1, note: 'sin aceitunas' },
@@ -117,6 +102,17 @@ export function DesignSystemView() {
   const [pillQuantity, setPillQuantity] = useState(2)
   const [stepperValue, setStepperValue] = useState(0)
   const [promoQuantity, setPromoQuantity] = useState(0)
+  // The owner's real promotions, as prototype data in development only (none in production until U9).
+  const [promotions, setPromotions] = useState<Promotion[]>([])
+  useEffect(() => {
+    let active = true
+    void loadDevPromotions().then((loaded) => {
+      if (active) setPromotions(loaded)
+    })
+    return () => {
+      active = false
+    }
+  }, [])
   const [bump, setBump] = useState(0)
   const [showFeedback, setShowFeedback] = useState(false)
 
@@ -258,11 +254,21 @@ export function DesignSystemView() {
           </div>
         </Block>
 
-        <Block title="Promos" note="Ejemplo de diseño, no es una promoción real: el catálogo no tiene promociones. En la carta, la sección solo aparece cuando hay promos vigentes. Las promos sí pueden llevar foto; esta es del salón.">
-          <div className="grid max-w-xl gap-3 sm:grid-cols-2">
-            <PromoCard promotion={promoExample} quantity={promoQuantity} onAdd={() => setPromoQuantity((value) => value + 1)} />
-            <PromoCard promotion={{ ...promoExample, id: 'ejemplo-foto', imageUrl: SAMPLE_PHOTO }} quantity={0} onAdd={() => setPromoQuantity((value) => value + 1)} />
-          </div>
+        <Block
+          title="Promos"
+          note={
+            promotions.length > 0
+              ? 'Promos reales del local, cargadas solo en desarrollo como datos de prototipo hasta que exista la fuente real (U9). Cada parte del combo va en su renglón; el precio y el botón, sobre la tabla de pino.'
+              : 'Todavía no hay una fuente de promociones (llega en U9): en producción la sección no se muestra.'
+          }
+        >
+          {promotions.length > 0 ? (
+            <div className="grid max-w-3xl gap-3 sm:grid-cols-3">
+              {promotions.slice(0, 3).map((promotion) => (
+                <PromoCard key={promotion.id} promotion={promotion} quantity={promotion.id === promotions[0].id ? promoQuantity : 0} onAdd={() => setPromoQuantity((value) => value + 1)} />
+              ))}
+            </div>
+          ) : null}
         </Block>
 
         <Block title="Resumen y mensaje" note="Ejemplo con datos de prueba. En el prototipo el mensaje se muestra pero no se envía.">

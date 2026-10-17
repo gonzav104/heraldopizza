@@ -15,8 +15,8 @@ Branch: `feat/hero-y-promos` (from `main` at `af7a82b`). Delivery: work-unit com
 
 | ID | Specs | Route | Status | Commit |
 |----|-------|-------|--------|--------|
-| T1 | S1, S5 | inline | pending | |
-| T2 | S2, S3, S4, S5 | inline | pending | |
+| T1 | S1, S5 | inline | done | `60d12a5` |
+| T2 | S2, S3, S4, S5 | inline | done | this commit |
 | T3 | S1–S5 | browser checks + review | pending | |
 
 ## Log
@@ -24,3 +24,5 @@ Branch: `feat/hero-y-promos` (from `main` at `af7a82b`). Delivery: work-unit com
 - L1 (2026-10-17) User's request: «El prototipo va bien en estructura general, pero quiero una nueva iteración visual con dos cambios importantes: 1. Mejorar el encabezado / hero [...] 2. Agregar una sección de promociones [...] Importante: No quiero rehacer toda la estructura. [...] Mantener la estética de Heraldo: chapa negra, madera, rojo Heraldo, luz cálida, estilo gastronómico moderno y atractivo.» Then the data policy (S3) and the eight promos (S4).
 - L2 Decision for S3: the promo fixture loads only in development (`import.meta.env.DEV`), in the menu and in `#sistema`, through a lazy import, so a production build carries neither the section nor the promo data until U9 provides a real source. Interpretation of «mostrarlas en desarrollo y #sistema» reported to the user.
 - L3 Baseline at 390 px (`../heraldopizza-capturas/hero-promos/antes/`): the logo covers the center of the photo (tables and door), the ceiling with fluorescent tubes and the street cars dominate, and «Info» sits on the photo.
+- L4 T1: three capture rounds (`v1`–`v3`) at 360/390/768/1280. Mobile crop zooms toward the tables and pine wall; street darkened by the top gradient; Info shares the address row, hours on its own line. Header 316/351 px at 360/390 (before 266/293); desktop unchanged from v1 (460 px), accepted as the venue photo's room.
+- L5 T2: RED observed (missing module), then GREEN. `Promotion.activeFrom/activeTo` nullable (validity not given, not invented). Cards split the title on « + », price on a pine board, one swipeable row at every width (a desktop grid of 8 pushed the menu ~1,300 px down). Checks: typecheck, lint, 291 Vitest, build, `check:bundle` (now fails if a prototype promo id reaches `dist`; mutation-tested), E2E 5/5, impeccable detect `[]`. Browser: 8 equal-height cards, no page overflow at 360–1280, «Sumar» adds one promo line. pgTAP not rerun: no SQL changed.
