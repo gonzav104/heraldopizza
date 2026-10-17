@@ -23,9 +23,11 @@ Cuando estén incorporados al repositorio, consultar antes de implementar:
 
 **No inventar** precios, imágenes, promociones, historia del dueño, zonas de reparto, horarios nuevos ni contenido comercial. Para datos faltantes, usar un estado vacío o un placeholder claramente señalado como tal.
 
-**Inconsistencias conocidas que no deben resolverse a ciegas:** el PDF menciona 70 productos en 10 categorías en su cierre, pero el SQL adjunto contiene 81 inserciones de productos en 12 categorías. El SQL contiene variantes con precio `NULL` (`Consultar en barra`), mientras que RN-01 exige una variante con precio positivo para publicar un producto. Consultar antes de definir la política de visibilidad definitiva. Nunca convertir un `NULL` en `$0` ni habilitar su compra.
+**Inconsistencias conocidas que no deben resolverse a ciegas:** el PDF menciona 70 productos en 10 categorías en su cierre, pero el SQL contiene 84 productos en 13 categorías, con 110 variantes (81 productos en 12 categorías hasta que se agregó Postres, el 2026-10-15). Hay 17 variantes con precio `NULL` (`Consultar en barra`), en 16 productos de cafetería y tragos, mientras que RN-01 exige una variante con precio positivo para publicar un producto.
 
-No ejecutar el seed SQL directamente: primero verificar esquema, claves, restricciones, migraciones, permisos e idempotencia. `docs/` puede no existir todavía; solicitar los archivos si faltan, en lugar de recrearlos de memoria.
+**Política decidida (2026-10-16, opción A):** un producto sin ninguna variante con precio se muestra como «Consultar en barra», pero no se puede agregar al carrito; si un producto combina variantes con y sin precio, solo se pueden pedir las que tienen precio. Nunca convertir un `NULL` en `$0` ni habilitar su compra.
+
+No ejecutar el seed SQL directamente: primero verificar esquema, claves, restricciones, migraciones, permisos e idempotencia. Desde U3a, el seed se carga solo en el stack local de Supabase, después de las migraciones (`supabase db reset`); nunca en un proyecto remoto sin autorización expresa. `docs/` puede no existir todavía; solicitar los archivos si faltan, en lugar de recrearlos de memoria.
 
 ## 3. Stack y estado real
 
