@@ -295,6 +295,38 @@ describe('CatalogEditor: product data (RF-32, RF-35) and category name (RF-31)',
     expect(repository.updateProduct).not.toHaveBeenCalled()
   })
 
+  it('keeps an unsaved category name while the category visibility is saved', async () => {
+    const repository = await renderEditor()
+    const input = screen.getByLabelText('Nombre de la categoría Pizzas')
+
+    fireEvent.change(input, { target: { value: 'Pizzas a la piedra' } })
+    await act(async () => fireEvent.click(screen.getByRole('checkbox', { name: 'Visible: categoría Pizzas' })))
+
+    expect(repository.updateCategory).toHaveBeenCalledWith('cat-pizzas', { visible: false }, T0)
+    expect(screen.getByLabelText('Nombre de la categoría Pizzas')).toHaveValue('Pizzas a la piedra')
+    expect(screen.getByText('Nombre sin guardar')).toBeInTheDocument()
+  })
+
+  it('keeps an unsaved category name while another row is saved', async () => {
+    await renderEditor()
+
+    fireEvent.change(screen.getByLabelText('Nombre de la categoría Pizzas'), { target: { value: 'Pizzas a la piedra' } })
+    await act(async () => fireEvent.click(within(productCard('Muzzarella')).getByRole('checkbox', { name: 'Sin stock: Muzzarella' })))
+
+    expect(screen.getByLabelText('Nombre de la categoría Pizzas')).toHaveValue('Pizzas a la piedra')
+  })
+
+  it('drops the unsaved name only on an explicit reload of the catalog', async () => {
+    const repository = await renderEditor()
+
+    fireEvent.change(screen.getByLabelText('Nombre de la categoría Pizzas'), { target: { value: 'Pizzas a la piedra' } })
+    await act(async () => fireEvent.click(screen.getAllByRole('button', { name: 'Recargar catálogo' })[0]))
+    await screen.findByRole('heading', { level: 2, name: 'Pizzas' })
+
+    expect(repository.load).toHaveBeenCalledTimes(2)
+    expect(screen.getByLabelText('Nombre de la categoría Pizzas')).toHaveValue('Pizzas')
+  })
+
   it('renames a category, trimmed, and refuses a blank name', async () => {
     const repository = await renderEditor()
     const input = screen.getByLabelText('Nombre de la categoría Pizzas')

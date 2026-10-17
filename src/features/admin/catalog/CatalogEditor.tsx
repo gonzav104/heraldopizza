@@ -390,7 +390,8 @@ function CategorySection({ category, repository, onSaved, onProductSaved, onRelo
     run(async () => {
       const saved = await repository.updateCategory(category.id, changes, category.updatedAt)
       onSaved(saved)
-      setName(saved.name)
+      // Only a saved name replaces the draft: saving the visibility must not erase a name typed but not yet saved.
+      if (changes.name !== undefined) setName(saved.name)
     })
 
   return (
