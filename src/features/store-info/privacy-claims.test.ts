@@ -12,7 +12,9 @@ const sources = import.meta.glob<string>('/src/**/*.{ts,tsx}', { query: '?raw', 
 const forbidden: Record<string, RegExp> = {
   'browser storage': /\b(localStorage|sessionStorage|indexedDB)\b/,
   cookies: /document\s*\.\s*cookie/,
-  'network calls': /\b(fetch\s*\(|XMLHttpRequest|sendBeacon|WebSocket|EventSource)\b/,
+  // No trailing \b after `fetch(`: the next character is often a quote, and \b between `(` and `'` never matches
+  // (until U3b this missed fetch('/url') entirely).
+  'network calls': /\bfetch\s*\(|\b(XMLHttpRequest|sendBeacon|WebSocket|EventSource)\b/,
   'service workers': /navigator\s*\.\s*serviceWorker/,
   'analytics or ads': /\b(gtag|dataLayer|googletagmanager|google-analytics|fbq|hotjar|mixpanel|segment\.com)\b/i,
 }
