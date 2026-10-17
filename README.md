@@ -40,10 +40,15 @@ npm run db:reset  # recrea la base local desde las migraciones y vuelve a cargar
 npm run db:test   # pruebas pgTAP de supabase/tests/ (restricciones, seed y RLS)
 npm run db:admin-local  # crea o reinicia un administrador de prueba en el stack local
 npm run db:check-auth   # comprueba que el registro siga cerrado y el login con contraseña habilitado
+npm run e2e             # E2E con Playwright contra el stack local (¡resetea la base local!)
 npm run db:stop   # detiene el stack
 ```
 
 Las migraciones no se aplican a ningún proyecto remoto sin autorización expresa.
+
+## Pruebas de punta a punta (`npm run e2e`)
+
+Con el stack local levantado, `npm run e2e` resetea la base local desde el seed, crea un administrador de prueba y recorre con Playwright el panel y la carta: un precio guardado en `/admin` queda en Supabase y se ve en la carta al recargar; lo mismo con «Sin stock», la visibilidad y un cambio de nombre (que conserva el `id`); y dos pestañas que editan el mismo precio terminan en un conflicto, sin pisarse. Corre también en CI. Se niega a correr si la API no es local.
 
 ## Variables de entorno
 
