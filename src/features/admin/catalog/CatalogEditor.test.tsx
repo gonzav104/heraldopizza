@@ -117,6 +117,30 @@ describe('CatalogEditor: prices (RF-39, RF-58)', () => {
     expect(save).toBeDisabled()
   })
 
+  it('marks unsaved edits as modified, and drops a stale «Guardado» as soon as the owner edits again', async () => {
+    await renderEditor()
+    const card = productCard('Muzzarella')
+    const entera = within(card).getByLabelText('Precio Entera de Muzzarella')
+
+    fireEvent.change(entera, { target: { value: '17000' } })
+    expect(within(card).getByText('Cambios sin guardar')).toBeInTheDocument()
+    await act(async () => fireEvent.click(within(card).getByRole('button', { name: 'Guardar precios' })))
+    expect(within(card).getByRole('status')).toHaveTextContent('Guardado')
+    expect(within(card).queryByText('Cambios sin guardar')).not.toBeInTheDocument()
+
+    fireEvent.change(within(card).getByLabelText('Precio Entera de Muzzarella'), { target: { value: '17500' } })
+    expect(within(card).queryByRole('status')).not.toBeInTheDocument()
+    expect(within(card).getByText('Cambios sin guardar')).toBeInTheDocument()
+  })
+
+  it('marks an unsaved category name as modified', async () => {
+    await renderEditor()
+
+    fireEvent.change(screen.getByLabelText('Nombre de la categoría Pizzas'), { target: { value: 'Pizzas nuevas' } })
+
+    expect(screen.getByText('Nombre sin guardar')).toBeInTheDocument()
+  })
+
   it('saves both pizza prices together when both changed', async () => {
     const repository = await renderEditor()
     const card = productCard('Muzzarella')

@@ -36,6 +36,10 @@ const buttonClass =
 const primaryClass =
   'inline-flex min-h-11 items-center justify-center rounded-full bg-heraldo px-5 font-bold text-white hover:bg-heraldo-deep disabled:cursor-not-allowed disabled:bg-chapa-edge disabled:text-crema-muted'
 
+function Unsaved({ children }: { children: ReactNode }) {
+  return <p className="text-[0.875rem] font-semibold text-mostaza">{children}</p>
+}
+
 const formatPrice = (price: number) => String(price).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
 
 function failureReason(error: unknown): SaveFailure {
@@ -57,8 +61,10 @@ function useSave(onReload: () => void) {
       return false
     }
   }, [])
+  // A new edit makes the last «Guardado» or error stale; a save in progress keeps its status.
+  const clear = useCallback(() => setFeedback((current) => (current.kind === 'saving' ? current : { kind: 'idle' })), [])
   const view = <SaveFeedback feedback={feedback} onReload={onReload} />
-  return { run, view, saving: feedback.kind === 'saving' }
+  return { run, clear, view, saving: feedback.kind === 'saving' }
 }
 
 function SaveFeedback({ feedback, onReload }: { feedback: Feedback; onReload: () => void }) {
@@ -138,9 +144,10 @@ interface PriceDraft {
   consult: boolean
 }
 
-function PriceEditor({ product, saving, onSave }: {
+function PriceEditor({ product, saving, onEdit, onSave }: {
   product: AdminProduct
   saving: boolean
+  onEdit: () => void
   onSave: (changes: { variant: AdminVariant; price: number | null }[]) => void
 }) {
   const [drafts, setDrafts] = useState<Record<string, PriceDraft>>(() =>
@@ -163,7 +170,11 @@ function PriceEditor({ product, saving, onSave }: {
     .map((row) => ({ variant: row.variant, price: row.price as number | null }))
   const valid = rows.every((row) => row.error === null)
 
-  const update = (id: string, next: Partial<PriceDraft>) => setDrafts((current) => ({ ...current, [id]: { ...current[id], ...next } }))
+  const update = (id: string, next: Partial<PriceDraft>) => {
+    onEdit()
+    setDrafts((current) => ({ ...current, [id]: { ...current[id], ...next } }))
+  }
+  const modified = changes.length > 0 || !valid
 
   return (
     <div className="flex flex-col gap-3">
@@ -199,18 +210,20 @@ function PriceEditor({ product, saving, onSave }: {
           )
         })}
       </div>
-      <div>
+      <div className="flex flex-wrap items-center gap-3">
         <button type="button" className={primaryClass} disabled={saving || !valid || changes.length === 0} onClick={() => onSave(changes)}>
           Guardar precios
         </button>
+        {modified ? <Unsaved>Cambios sin guardar</Unsaved> : null}
       </div>
     </div>
   )
 }
 
-function ProductDataForm({ product, saving, onCancel, onSave }: {
+function ProductDataForm({ product, saving, onEdit, onCancel, onSave }: {
   product: AdminProduct
   saving: boolean
+  onEdit: () => void
   onCancel: () => void
   onSave: (changes: { name: string; description: string | null; madeToOrder: boolean; madeToOrderNotice: string | null }) => void
 }) {
@@ -222,6 +235,15 @@ function ProductDataForm({ product, saving, onCancel, onSave }: {
     madeToOrderNotice: product.madeToOrderNotice ?? '',
   })
   const [errors, setErrors] = useState<Partial<Record<'name' | 'madeToOrderNotice', string>>>({})
+  const edit = (next: Partial<typeof form>) => {
+    onEdit()
+    setForm({ ...form, ...next })
+  }
+  const modified =
+    form.name !== product.name ||
+    form.description !== (product.description ?? '') ||
+    form.madeToOrder !== product.madeToOrder ||
+    form.madeToOrderNotice !== (product.madeToOrderNotice ?? '')
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -240,7 +262,7 @@ function ProductDataForm({ product, saving, onCancel, onSave }: {
         <label htmlFor={ids.name} className="font-bold">
           Nombre
         </label>
-        <input id={ids.name} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className={`${inputClass} mt-1`} aria-invalid={errors.name ? true : undefined} />
+        <input id={ids.name} value={form.name} onChange={(event) => edit({ name: event.target.value })} className={`${inputClass} mt-1`} aria-invalid={errors.name ? true : undefined} />
         {errors.name ? <p className="text-[0.875rem] font-semibold text-mostaza">{errors.name}</p> : null}
       </div>
       <div>
@@ -251,7 +273,7 @@ function ProductDataForm({ product, saving, onCancel, onSave }: {
           id={ids.description}
           rows={2}
           value={form.description}
-          onChange={(event) => setForm({ ...form, description: event.target.value })}
+          onChange={(event) => edit({ description: event.target.value })}
           className="mt-1 w-full rounded-xl bg-chapa px-3 py-2 text-[1rem] ring-1 ring-chapa-edge focus-visible:ring-0"
         />
       </div>
@@ -259,7 +281,7 @@ function ProductDataForm({ product, saving, onCancel, onSave }: {
         <input
           type="checkbox"
           checked={form.madeToOrder}
-          onChange={(event) => setForm({ ...form, madeToOrder: event.target.checked })}
+          onChange={(event) => edit({ madeToOrder: event.target.checked })}
           className="size-5 accent-[var(--color-heraldo)]"
         />
         Solo por encargo
@@ -268,7 +290,7 @@ function ProductDataForm({ product, saving, onCancel, onSave }: {
         <label htmlFor={ids.notice} className="font-bold">
           Aviso de anticipación
         </label>
-        <input id={ids.notice} value={form.madeToOrderNotice} onChange={(event) => setForm({ ...form, madeToOrderNotice: event.target.value })} className={`${inputClass} mt-1`} aria-invalid={errors.madeToOrderNotice ? true : undefined} />
+        <input id={ids.notice} value={form.madeToOrderNotice} onChange={(event) => edit({ madeToOrderNotice: event.target.value })} className={`${inputClass} mt-1`} aria-invalid={errors.madeToOrderNotice ? true : undefined} />
         {errors.madeToOrderNotice ? <p className="text-[0.875rem] font-semibold text-mostaza">{errors.madeToOrderNotice}</p> : null}
       </div>
       <div className="flex flex-wrap gap-2">
@@ -278,6 +300,7 @@ function ProductDataForm({ product, saving, onCancel, onSave }: {
         <button type="button" className={buttonClass} onClick={onCancel}>
           Cancelar
         </button>
+        {modified ? <Unsaved>Cambios sin guardar</Unsaved> : null}
       </div>
     </form>
   )
@@ -291,7 +314,7 @@ function ProductCard({ product, repository, onSaved, onReload }: {
 }) {
   const headingId = useId()
   const [editing, setEditing] = useState(false)
-  const { run, view, saving } = useSave(onReload)
+  const { run, clear, view, saving } = useSave(onReload)
 
   const saveFields = (changes: Parameters<AdminCatalogRepository['updateProduct']>[1]) =>
     run(async () => {
@@ -324,11 +347,12 @@ function ProductCard({ product, repository, onSaved, onReload }: {
         <Toggle label={`Sin stock: ${product.name}`} checked={product.outOfStock} disabled={saving} onChange={(outOfStock) => saveFields({ outOfStock })} />
         <Toggle label={`Visible: ${product.name}`} checked={product.visible} disabled={saving} onChange={(visible) => saveFields({ visible })} />
       </div>
-      <PriceEditor key={priceKey} product={product} saving={saving} onSave={savePrices} />
+      <PriceEditor key={priceKey} product={product} saving={saving} onEdit={clear} onSave={savePrices} />
       {editing ? (
         <ProductDataForm
           product={product}
           saving={saving}
+          onEdit={clear}
           onCancel={() => setEditing(false)}
           onSave={(changes) =>
             void saveFields(changes).then((ok) => {
@@ -357,7 +381,7 @@ function CategorySection({ category, repository, onSaved, onProductSaved, onRelo
 }) {
   const nameId = useId()
   const [name, setName] = useState(category.name)
-  const { run, view, saving } = useSave(onReload)
+  const { run, clear, view, saving } = useSave(onReload)
   const checked = validateName(name)
   const dirty = checked.ok && checked.value !== category.name
   const count = category.products.length
@@ -382,7 +406,10 @@ function CategorySection({ category, repository, onSaved, onProductSaved, onRelo
               id={nameId}
               aria-label={`Nombre de la categoría ${category.name}`}
               value={name}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(event) => {
+                clear()
+                setName(event.target.value)
+              }}
               aria-invalid={checked.ok ? undefined : true}
               className={`${inputClass} mt-1`}
             />
@@ -397,6 +424,7 @@ function CategorySection({ category, repository, onSaved, onProductSaved, onRelo
           >
             Guardar nombre
           </button>
+          {name !== category.name ? <Unsaved>Nombre sin guardar</Unsaved> : null}
         </div>
         <Toggle
           label={`Visible: categoría ${category.name}`}
