@@ -14,7 +14,8 @@ function Topic({ title, children }: { title: string; children: ReactNode }) {
 
 /**
  * Privacy notice (S2): short, in plain words, and only what the app really does. The claims about cookies, storage,
- * analytics, and servers are backed by `privacy-claims.test.ts`, which fails when the code starts using any of them.
+ * analytics, and the network are backed by `privacy-claims.test.ts`: the only request is the catalog GET to Supabase
+ * (U3b), and the test fails when the code starts using anything else.
  * The text describes the finished WhatsApp flow (RF-20, built in U8); the prototype never opens WhatsApp.
  * Not written here on purpose, because the business has not provided it: legal name, CUIT, registration of the
  * database, an e-mail address, and how long the store keeps its WhatsApp conversations.
@@ -40,11 +41,13 @@ export function PrivacySheet({ open, onClose }: { open: boolean; onClose: () => 
         </Topic>
 
         <Topic title="Para qué los usamos">
+          <p>Solo para armar el mensaje de WhatsApp con tu pedido.</p>
           <p>
-            Solo para armar el mensaje de WhatsApp con tu pedido. Mientras lo armás, lo que escribís queda en tu dispositivo y
-            la página no lo envía a ningún servidor.
+            La carta y sus precios se descargan desde nuestra base de datos alojada en Supabase. Al consultar la carta no
+            enviamos a esa base de datos el contenido de tu pedido ni los datos que ingreses para armarlo. El pedido permanece
+            en tu dispositivo hasta que decidís enviarlo por WhatsApp.
           </p>
-          <p>La página no usa cookies, ni herramientas de análisis o publicidad.</p>
+          <p>No utilizamos cookies ni herramientas de análisis.</p>
         </Topic>
 
         <Topic title="Vos decidís si lo enviás">

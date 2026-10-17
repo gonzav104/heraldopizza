@@ -52,11 +52,21 @@ describe('privacy notice (S2)', () => {
     )
   })
 
-  it('claims only what the app really does: no cookies or analytics, and nothing stored on a server', () => {
+  it('says where the menu comes from, and that the order is not sent with that request (U3b)', () => {
     const text = openPrivacy().textContent ?? ''
 
-    expect(text).toMatch(/no usa cookies, ni herramientas de análisis o publicidad/)
-    expect(text).toMatch(/no lo envía a ningún servidor/)
+    expect(text).toContain(
+      'La carta y sus precios se descargan desde nuestra base de datos alojada en Supabase. Al consultar la carta no ' +
+        'enviamos a esa base de datos el contenido de tu pedido ni los datos que ingreses para armarlo. El pedido ' +
+        'permanece en tu dispositivo hasta que decidís enviarlo por WhatsApp.',
+    )
+    expect(text).toContain('No utilizamos cookies ni herramientas de análisis.')
+  })
+
+  it('claims only what the app really does: no promise that it reaches no server at all', () => {
+    const text = openPrivacy().textContent ?? ''
+
+    expect(text).not.toMatch(/no lo envía a ningún servidor|no se conecta a ningún servidor/)
     expect(text).not.toMatch(/no se almacenan|no guardamos|no se guardan|anónimo/i)
   })
 

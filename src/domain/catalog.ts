@@ -45,6 +45,18 @@ export interface Promotion {
   weekdays: Weekday[]
 }
 
+/** Everything the public menu shows. */
+export interface Catalog {
+  categories: Category[]
+  products: Product[]
+  promotions: Promotion[]
+}
+
+/** Port for reading the menu: the Supabase adapter in the app, the fixture in tests and in `#sistema`. */
+export interface CatalogRepository {
+  load(signal?: AbortSignal): Promise<Catalog>
+}
+
 /** A variant can be ordered only when it has a positive price (RN-01). */
 export function hasOrderablePrice(variant: Variant): variant is Variant & { price: Ars } {
   return variant.price !== null && variant.price > 0

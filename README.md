@@ -46,6 +46,15 @@ Las migraciones no se aplican a ningún proyecto remoto sin autorización expres
 
 Los archivos `.env` y `.env.*` están excluidos de Git porque pueden contener secretos. Solo se versiona `.env.example`, con nombres de variables y valores ficticios.
 
+La carta lee el catálogo desde la Data API de Supabase y necesita dos variables, ambas públicas por diseño:
+
+| Variable | Valor |
+|---|---|
+| `VITE_SUPABASE_URL` | URL del proyecto (en local, `API_URL` de `npx supabase status -o env`) |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Clave publicable (en local, `PUBLISHABLE_KEY` del mismo comando) |
+
+Para desarrollo, levantá el stack local (`npm run db:start`) y poné esos dos valores en `.env.local`. Nunca uses una clave secreta (`sb_secret_…`) ni `service_role` en la carta. Si faltan las variables o Supabase no responde, la carta muestra un error con «Reintentar»: no usa datos de prueba en su lugar.
+
 ## Documentación
 
 - `AGENTS.md`: reglas de negocio, diseño y convenciones.
