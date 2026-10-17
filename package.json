@@ -15,7 +15,8 @@
     "db:test": "supabase test db",
     "db:stop": "supabase stop",
     "check:bundle": "node scripts/verificar-bundle.mjs",
-    "db:admin-local": "node scripts/crear-admin-local.mjs"
+    "db:admin-local": "node scripts/crear-admin-local.mjs",
+    "db:check-auth": "node scripts/verificar-auth-local.mjs"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "^5.3.0",

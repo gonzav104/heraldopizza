@@ -66,6 +66,10 @@ jobs:
       - name: pgTAP tests
         run: npm run db:test
 
+      # Public sign-up stays closed and password sign-in stays enabled on the local stack (RF-27, RF-28).
+      - name: Auth settings
+        run: npm run db:check-auth
+
       - name: Stop local Supabase
         if: always()
         run: npx supabase stop --no-backup

@@ -1,6 +1,6 @@
 // Vite copies every VITE_ variable into the browser bundle. This guard stops `vite`, `vite build`, and the tests from
-// starting when one of them holds a secret, service_role, or admin key (U4, S6). The error names the variable and
-// never prints its value.
+// starting when one of them holds a server-only key: an `sb_secret_` key, the text `service_role`, or a JWT whose role
+// is service_role (U4, S6). The error names the variable and never prints its value.
 
 function isServiceRoleJwt(value: string): boolean {
   const parts = value.split('.')

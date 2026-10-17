@@ -24,7 +24,8 @@ if (!secret) {
   process.exit(1)
 }
 
-const email = process.env.ADMIN_EMAIL || 'admin@heraldo.local'
+// Auth stores emails in lowercase; comparing in lowercase keeps the reset idempotent.
+const email = (process.env.ADMIN_EMAIL || 'admin@heraldo.local').toLowerCase()
 const generated = !process.env.ADMIN_PASSWORD
 const password = process.env.ADMIN_PASSWORD || randomBytes(12).toString('base64url')
 const headers = { apikey: secret, Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' }
@@ -36,6 +37,7 @@ async function call(path, init) {
   return body
 }
 
+// One page is enough: the local stack only holds a handful of test accounts.
 const { users } = await call('/auth/v1/admin/users?per_page=1000')
 let user = users.find((candidate) => candidate.email === email)
 if (user) {

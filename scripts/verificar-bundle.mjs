@@ -2,7 +2,7 @@
 // 1. The public menu's initial chunks (the entry script and its modulepreloads in dist/index.html) carry nothing from
 //    supabase-js or the admin sign-in: the panel lives in a lazy chunk loaded only on /admin.
 // 2. That lazy chunk exists, so check 1 cannot pass just because the markers changed name.
-// 3. No file in dist holds a secret or service_role key.
+// 3. No file in dist holds a secret key, the word service_role, or a JWT whose role is service_role.
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -15,6 +15,18 @@ const allChunks = readdirSync(join(dist, 'assets'))
 
 const supabaseMarkers = ['GoTrueClient', 'signInWithPassword', 'soy_administrador', '@supabase/']
 const secretMarkers = [/sb_secret_[A-Za-z0-9]/, /service_role/]
+
+function hasServiceRoleJwt(text) {
+  for (const [token] of text.matchAll(/eyJ[A-Za-z0-9_-]+\.([A-Za-z0-9_-]+)\.[A-Za-z0-9_-]*/g)) {
+    try {
+      const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'))
+      if (payload?.role === 'service_role') return true
+    } catch {
+      // Not a JWT payload; ignore.
+    }
+  }
+  return false
+}
 
 const failures = []
 if (initial.length === 0) failures.push('dist/index.html references no script')
@@ -38,6 +50,7 @@ for (const name of readdirSync(dist, { recursive: true })) {
   for (const pattern of secretMarkers) {
     if (pattern.test(text)) failures.push(`${path} matches ${pattern}`)
   }
+  if (hasServiceRoleJwt(text)) failures.push(`${path} contains a service_role JWT`)
 }
 
 if (failures.length > 0) {

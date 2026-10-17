@@ -39,6 +39,7 @@ npm run db:start  # levanta el stack local (aplica migraciones y seed)
 npm run db:reset  # recrea la base local desde las migraciones y vuelve a cargar el seed
 npm run db:test   # pruebas pgTAP de supabase/tests/ (restricciones, seed y RLS)
 npm run db:admin-local  # crea o reinicia un administrador de prueba en el stack local
+npm run db:check-auth   # comprueba que el registro siga cerrado y el login con contraseña habilitado
 npm run db:stop   # detiene el stack
 ```
 
