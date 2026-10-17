@@ -70,6 +70,13 @@ jobs:
       - name: Auth settings
         run: npm run db:check-auth
 
+      # Admin edits in /admin reach Supabase and the public menu (U5). Resets the runner's local database first.
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        run: npm run e2e
+
       - name: Stop local Supabase
         if: always()
         run: npx supabase stop --no-backup

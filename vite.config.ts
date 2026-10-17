@@ -2,7 +2,7 @@ import { fileURLToPath, URL } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { loadEnv } from 'vite'
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 import { assertNoSecretInClientEnv } from './client-env-guard.ts'
 
 // https://vite.dev/config/
@@ -20,6 +20,8 @@ export default defineConfig(({ mode }) => {
     test: {
       environment: 'jsdom',
       setupFiles: ['./src/test/setup.ts'],
+      // Playwright owns e2e/ (npm run e2e); Vitest must not pick its specs up.
+      exclude: [...configDefaults.exclude, 'e2e/**'],
       // Tests that render the whole menu (84 products) take 3–5 s in jsdom on a slow machine; the default 5 s would flake.
       testTimeout: 15_000,
       // The module cache reuses transformed files between runs, and import.meta.glob is resolved at transform time:

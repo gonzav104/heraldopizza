@@ -2,6 +2,15 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { AdminApp } from '@/features/admin/AdminApp'
 import type { AdminAuth, AdminSession, SignInResult } from '@/features/admin/admin-auth'
+import type { AdminCatalogRepository } from '@/features/admin/catalog/admin-catalog'
+
+/** The catalog editor is tested on its own; here it only needs to load an empty catalog. */
+const catalog: AdminCatalogRepository = {
+  load: async () => [],
+  updateCategory: async () => { throw new Error('unused') },
+  updateProduct: async () => { throw new Error('unused') },
+  updatePrices: async () => { throw new Error('unused') },
+}
 
 interface Deferred<T> {
   promise: Promise<T>
@@ -65,7 +74,7 @@ async function settle<T>(call: Deferred<T>, value: T) {
 describe('AdminApp', () => {
   it('shows neither the login nor the panel while it restores the saved session (no flash)', async () => {
     const { auth, session, admin } = fakeAuth()
-    render(<AdminApp auth={auth} />)
+    render(<AdminApp auth={auth} catalog={catalog} />)
 
     expect(screen.getByRole('status')).toHaveTextContent('Cargando…')
     expect(loginForm()).not.toBeInTheDocument()
@@ -83,7 +92,7 @@ describe('AdminApp', () => {
 
   it('opens the panel straight from a saved administrator session (RF-29)', async () => {
     const { auth, session, admin } = fakeAuth()
-    render(<AdminApp auth={auth} />)
+    render(<AdminApp auth={auth} catalog={catalog} />)
     await settle(session, owner)
     await settle(admin[0], true)
 
@@ -93,7 +102,7 @@ describe('AdminApp', () => {
 
   it('asks for email and password when there is no saved session (RF-27)', async () => {
     const { auth, session } = fakeAuth()
-    render(<AdminApp auth={auth} />)
+    render(<AdminApp auth={auth} catalog={catalog} />)
     await settle(session, null)
 
     const form = loginForm()
@@ -107,7 +116,7 @@ describe('AdminApp', () => {
 
   it('lets the owner show and hide the password', async () => {
     const { auth, session } = fakeAuth()
-    render(<AdminApp auth={auth} />)
+    render(<AdminApp auth={auth} catalog={catalog} />)
     await settle(session, null)
 
     fireEvent.click(screen.getByRole('button', { name: 'Mostrar contraseña' }))
@@ -118,7 +127,7 @@ describe('AdminApp', () => {
 
   it('signs in, checks the role, and opens the panel; the button waits while it sends', async () => {
     const { auth, session, signIns, admin } = fakeAuth()
-    render(<AdminApp auth={auth} />)
+    render(<AdminApp auth={auth} catalog={catalog} />)
     await settle(session, null)
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'duenio@example.test' } })
@@ -136,7 +145,7 @@ describe('AdminApp', () => {
 
   it('answers refused credentials with one generic message and keeps the form', async () => {
     const { auth, session, signIns } = fakeAuth()
-    render(<AdminApp auth={auth} />)
+    render(<AdminApp auth={auth} catalog={catalog} />)
     await settle(session, null)
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'otro@example.test' } })
@@ -151,7 +160,7 @@ describe('AdminApp', () => {
 
   it('says when the sign-in could not be completed', async () => {
     const { auth, session, signIns } = fakeAuth()
-    render(<AdminApp auth={auth} />)
+    render(<AdminApp auth={auth} catalog={catalog} />)
     await settle(session, null)
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'duenio@example.test' } })
@@ -164,7 +173,7 @@ describe('AdminApp', () => {
 
   it('turns away an account without the administrator role and signs it out', async () => {
     const { auth, session, admin } = fakeAuth()
-    render(<AdminApp auth={auth} />)
+    render(<AdminApp auth={auth} catalog={catalog} />)
     await settle(session, { email: 'cliente@example.test' })
     await settle(admin[0], false)
 
@@ -178,7 +187,7 @@ describe('AdminApp', () => {
 
   it('shows an error with «Reintentar» when the role cannot be checked, and retries', async () => {
     const { auth, session, admin } = fakeAuth()
-    render(<AdminApp auth={auth} />)
+    render(<AdminApp auth={auth} catalog={catalog} />)
     await settle(session, owner)
     await act(async () => admin[0].reject(new Error('offline')))
 
@@ -193,7 +202,7 @@ describe('AdminApp', () => {
 
   it('shows the email of the session the server returned, not the one typed', async () => {
     const { auth, session, signIns, admin } = fakeAuth()
-    render(<AdminApp auth={auth} />)
+    render(<AdminApp auth={auth} catalog={catalog} />)
     await settle(session, null)
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'DUENIO@Example.test' } })
@@ -208,7 +217,7 @@ describe('AdminApp', () => {
 
   it('does not leave the button stuck if signing in throws anyway', async () => {
     const { auth, session, signIns } = fakeAuth()
-    render(<AdminApp auth={auth} />)
+    render(<AdminApp auth={auth} catalog={catalog} />)
     await settle(session, null)
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'duenio@example.test' } })
@@ -222,7 +231,7 @@ describe('AdminApp', () => {
 
   it('offers «Cerrar sesión» when the account cannot be checked, so a rejected session is never a dead end', async () => {
     const { auth, session, admin } = fakeAuth()
-    render(<AdminApp auth={auth} />)
+    render(<AdminApp auth={auth} catalog={catalog} />)
     await settle(session, owner)
     await act(async () => admin[0].reject(new Error('401')))
 
@@ -235,7 +244,7 @@ describe('AdminApp', () => {
   it('stays in the panel and says so when signing out fails, instead of pretending', async () => {
     const { auth, session, admin } = fakeAuth()
     vi.mocked(auth.signOut).mockRejectedValueOnce(new Error('offline'))
-    render(<AdminApp auth={auth} />)
+    render(<AdminApp auth={auth} catalog={catalog} />)
     await settle(session, owner)
     await settle(admin[0], true)
 
@@ -248,7 +257,7 @@ describe('AdminApp', () => {
 
   it('signs out from the panel and returns to the login (RF-29)', async () => {
     const { auth, session, admin } = fakeAuth()
-    render(<AdminApp auth={auth} />)
+    render(<AdminApp auth={auth} catalog={catalog} />)
     await settle(session, owner)
     await settle(admin[0], true)
 
@@ -261,7 +270,7 @@ describe('AdminApp', () => {
 
   it('goes back to the login when the session ends elsewhere', async () => {
     const { auth, session, admin, emit } = fakeAuth()
-    render(<AdminApp auth={auth} />)
+    render(<AdminApp auth={auth} catalog={catalog} />)
     await settle(session, owner)
     await settle(admin[0], true)
 
