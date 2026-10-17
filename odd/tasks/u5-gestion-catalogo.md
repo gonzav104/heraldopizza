@@ -26,7 +26,7 @@ Branch: `feat/u5-gestion-catalogo` (from `main` at `b0d995c`). Delivery: work-un
 | T3 | S3, S9 | inline | done | `f1596f2` (with T4), fix `cd260f2` |
 | T4 | S2, S6, S7, S9 | inline | done | `f1596f2` (same component as T3) |
 | T5 | S10 | inline | done | `8cc4c51` |
-| T6 | S1–S11 | verifier + native review | pending | |
+| T6 | S1–S11 | verifier + native review | done | verifier PASS except one S9 blocker, fixed in `c3db86c`; native review approved |
 
 - T1 Migration `public.actualizar_precios_producto()` with pgTAP.
 - T2 `AdminCatalogRepository` port, Supabase adapter, pure price parser and validators.
@@ -48,4 +48,7 @@ Routes: inline (one feature, sequential units; no writer reason).
 - L7 T5 (`8cc4c51`): Playwright 1.63.0, 5 scenarios on the local stack, all passing: price saved → persisted (Data API) → public menu shows «$ 18.750»; out of stock → public button disabled; hidden → gone from the menu and back; rename keeps the id; two tabs → second save refused as a conflict, price unchanged. Each run resets the local database; non-local APIs are refused. CI installs Chromium and runs it in the database job.
 - L8 Browser at 360 and 1280 px (screenshots in `../heraldopizza-capturas/u5/`): no horizontal overflow; every control at least 44 px tall.
 - L9 Checks: 276 Vitest tests, typecheck, lint, build (initial chunk 107.0 kB gzip; AdminRoute 62.0 kB gzip), `check:bundle`, 137 pgTAP, `db:check-auth`, 5 E2E.
+- L10 Independent verifier: PASS on S1–S8 and S10 (26 malformed RPC payloads raised and left the variants unchanged; ownership refused even as postgres with RLS bypassed; a concurrent second caller waited on the lock and got HP409; anon and a real non-admin changed nothing over HTTP). One S9 blocker: no «modified» state, and a stale «Guardado» stayed visible while new values were typed. Fixed in one batch: `c3db86c` («Cambios sin guardar», «Nombre sin guardar», feedback cleared on edit; 2 tests RED → GREEN). Advisories applied: `d902b60` saves a whole price written with a decimal point (16000.0) as that integer instead of failing with 22P02 (pgTAP now 35 cases in this file, 138 in total; real decimals stay rejected); `f4968d0` resets the local database after the E2E run.
+- L11 Native review of `b0d995c..f4968d0` (four lenses, consented): approved and acknowledged. Non-blocking follow-ups, recorded instead of another correction loop: a pending category-name edit is overwritten when «Visible» is toggled before saving it; CI does not upload Playwright traces/report on failure; the E2E project is named «mobile» but uses a desktop device at 390 px; the product column list is duplicated in the adapter; load failures are typed as save errors; the toggle's visible text is cut from its accessible label at the colon; `createSupabaseAdminAuth` has no caller now; the RPC's price checks rely on evaluation order before casting (a string price could surface as a non-HP422 error; the panel never sends one).
+- L12 Final checks: 278 Vitest tests, typecheck, lint, build, `check:bundle`, 138 pgTAP (also right after an E2E run), 5 E2E, `db:check-auth`.
 
