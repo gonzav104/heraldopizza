@@ -101,7 +101,8 @@ export function DesignSystemView() {
   const privacy = useSheetHistory<true>('privacidad')
   const [pillQuantity, setPillQuantity] = useState(2)
   const [stepperValue, setStepperValue] = useState(0)
-  const [promoQuantity, setPromoQuantity] = useState(0)
+  // Taps per promo card, so each card shows only its own count.
+  const [promoQuantities, setPromoQuantities] = useState<Record<string, number>>({})
   // The owner's real promotions, as prototype data in development only (none in production until U9).
   const [promotions, setPromotions] = useState<Promotion[]>([])
   useEffect(() => {
@@ -269,7 +270,12 @@ export function DesignSystemView() {
           {promotions.length > 0 ? (
             <div className="grid max-w-3xl gap-3 sm:grid-cols-3">
               {promotions.slice(0, 3).map((promotion) => (
-                <PromoCard key={promotion.id} promotion={promotion} quantity={promotion.id === promotions[0].id ? promoQuantity : 0} onAdd={() => setPromoQuantity((value) => value + 1)} />
+                <PromoCard
+                  key={promotion.id}
+                  promotion={promotion}
+                  quantity={promoQuantities[promotion.id] ?? 0}
+                  onAdd={() => setPromoQuantities((counts) => ({ ...counts, [promotion.id]: (counts[promotion.id] ?? 0) + 1 }))}
+                />
               ))}
             </div>
           ) : null}

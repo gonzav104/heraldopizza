@@ -156,31 +156,33 @@ describe('local section with the real facade (S10)', () => {
     expect(photo).toHaveAttribute('height', '1200')
   })
 
-  it('tells the owner’s story with the owner’s own text, and the two projects before Campana as a side note', () => {
+  it('tells the owner’s story with the owner’s own text, and nothing more', () => {
     render(<LocalSection onOpenInfo={() => {}} />)
     const section = screen.getByRole('region', { name: 'El local' })
 
     expect(section).toHaveTextContent(
       'Heraldo Pizza llegó a Campana en 2024, pero la historia detrás del horno empezó mucho antes. Heraldo Velazquez, su fundador, lleva más de 15 años trabajando como pizzero y construyendo experiencia en distintos proyectos gastronómicos. Hoy esa trayectoria continúa en Campana, con una propuesta propia y una identidad marcada por la pizza, el barrio y el oficio.',
     )
-    expect(within(section).getByText('Antes de Campana pasó por proyectos como Qatar, en San Pedro, y ChavosBar.')).toBeInTheDocument()
+    expect(section).not.toHaveTextContent(/Qatar|ChavosBar|San Pedro/)
   })
 
-  it('carries only real facts: address with directions, hours, how to order, Instagram, and the full info', () => {
+  it('keeps identity and location only: the address, «Cómo llegar», and «Info del local» for the practical details', () => {
     const onOpenInfo = vi.fn()
     render(<LocalSection onOpenInfo={onOpenInfo} />)
     const section = screen.getByRole('region', { name: 'El local' })
 
     expect(within(section).getByText('Av. Mitre 1130, Campana')).toBeInTheDocument()
     expect(within(section).getByRole('link', { name: 'Cómo llegar' })).toHaveAttribute('target', '_blank')
-    expect(within(section).getByText('Todos los días, de 11 a 14 y de 19 a 00 h')).toBeInTheDocument()
-    expect(within(section).getByText('Retiro en el local o envío a domicilio.')).toBeInTheDocument()
-    expect(within(section).getByRole('link', { name: 'Instagram de Heraldo Pizza (@heraldopizza)' })).toHaveAttribute(
-      'href',
-      'https://www.instagram.com/heraldopizza/',
-    )
     fireEvent.click(within(section).getByRole('button', { name: 'Info del local' }))
     expect(onOpenInfo).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves the practical details to «Info del local»: no hours, ordering, payments, delivery, Instagram, or PedidosYa', () => {
+    render(<LocalSection onOpenInfo={() => {}} />)
+    const section = screen.getByRole('region', { name: 'El local' })
+
+    expect(section).not.toHaveTextContent(/Todos los días|Retiro|envío|WhatsApp|efectivo|transferencia|Instagram|@heraldopizza|PedidosYa/)
+    expect(within(section).getAllByRole('link')).toHaveLength(1)
   })
 
   it('tells the story in order: brand video, the local, promos, then the menu', () => {
