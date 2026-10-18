@@ -9,12 +9,13 @@ export interface ComboPart {
   count: number | null
 }
 
-// Empanadas first: an empanada flavor may share a word with a pizza («de JyQ», «especial»).
+// Whole words only, so «paraguaya» is not «agua». Empanadas first: an empanada flavor may share a word with a pizza.
+// A pizza is a part that says «pizza», or one that is only a pizza flavor, with or without a quantity («Muzza»,
+// «Especial»): «Milanesa napolitana» or «Milanesa especial» name another dish and show no picture.
 const KIND_PATTERNS: [ComboItemKind, RegExp][] = [
-  ['empanada', /empanada/i],
-  ['drink', /coca|cola|bebida|gaseosa|sprite|fanta|agua|cerveza|vino|jugo/i],
-  // «Especial» names the pizza only when it is the whole part; «Milanesa especial» is not a pizza.
-  ['pizza', /pizza|muzza|napolitana|fugazz|^especial$/i],
+  ['empanada', /(^|[^\p{L}])empanadas?($|[^\p{L}])/iu],
+  ['drink', /(^|[^\p{L}])(coca-cola|coca|cola|bebidas?|gaseosas?|sprite|fanta|agua|cervezas?|vinos?|jugos?)($|[^\p{L}])/iu],
+  ['pizza', /(^|[^\p{L}])pizzas?($|[^\p{L}])|^(\d+\s+|dos\s+|tres\s+)?(muzza|muzzarella|especial|napolitana|fugazzeta|fugazza)$/iu],
 ]
 
 const NUMBER_WORDS: Record<string, number> = { dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6 }

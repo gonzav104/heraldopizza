@@ -19,6 +19,10 @@ describe('comboParts', () => {
     ])
   })
 
+  it('reads drinks as whole words', () => {
+    expect(comboParts('Agua saborizada').map((part) => part.kind)).toEqual(['drink'])
+  })
+
   it('names pizzas by flavor or by the word pizza', () => {
     expect(comboParts('Pizza Napolitana + Pizza Especial').map((part) => part.kind)).toEqual(['pizza', 'pizza'])
     expect(comboParts('Especial + Pizza Muzzarella').map((part) => part.kind)).toEqual(['pizza', 'pizza'])
@@ -28,6 +32,9 @@ describe('comboParts', () => {
     expect(comboParts('Flan casero')).toEqual([{ text: 'Flan casero', kind: null, count: null }])
     // «Especial» alone is the pizza; as an adjective of another dish it says nothing about the kind.
     expect(comboParts('Milanesa especial')).toEqual([{ text: 'Milanesa especial', kind: null, count: null }])
+    // A pizza flavor naming another dish is not a pizza, and drink words only count as whole words.
+    expect(comboParts('Milanesa napolitana')).toEqual([{ text: 'Milanesa napolitana', kind: null, count: null }])
+    expect(comboParts('Sopa paraguaya')).toEqual([{ text: 'Sopa paraguaya', kind: null, count: null }])
   })
 
   it('reads only real number words as a quantity, never an inherited object key', () => {
