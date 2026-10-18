@@ -121,6 +121,15 @@ describe('store header with the brand video (S8)', () => {
     expect(screen.queryByRole('button', { name: /la animación/ })).not.toBeInTheDocument()
   })
 
+  it('shows the still poster, with no video, when the visitor is saving data', () => {
+    vi.stubGlobal('navigator', { ...navigator, connection: { saveData: true } })
+    render(<StoreHeader onOpenInfo={() => {}} />)
+    const media = screen.getByRole('img', { name: MEDIA_LABEL })
+
+    expect(media.querySelector('video')).toBeNull()
+    expect(media.querySelector('img')).toHaveAttribute('src', POSTER)
+  })
+
   it('falls back to the still poster if the video fails to load', () => {
     preferReducedMotion(false)
     render(<StoreHeader onOpenInfo={() => {}} />)

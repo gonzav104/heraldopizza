@@ -49,6 +49,16 @@ describe('Promos section', () => {
     ])
   })
 
+  it('counts the combos in the subtitle, in the singular for one', () => {
+    renderMenu(prototypePromotions.slice(0, 1))
+    expect(screen.getByText('1 combo con precio propio')).toBeInTheDocument()
+  })
+
+  it('counts several combos in the plural', () => {
+    renderMenu()
+    expect(screen.getByText('8 combos con precio propio')).toBeInTheDocument()
+  })
+
   it('renders nothing, and no category entry, without promotions', () => {
     renderMenu([])
 

@@ -28,6 +28,10 @@ describe('comboParts', () => {
     expect(comboParts('Flan casero')).toEqual([{ text: 'Flan casero', kind: null, count: null }])
   })
 
+  it('reads only real number words as a quantity, never an inherited object key', () => {
+    expect(comboParts('Constructor especial')).toEqual([{ text: 'Constructor especial', kind: 'pizza', count: null }])
+  })
+
   it('keeps repeated parts, each on its own line', () => {
     expect(comboParts('Muzza + Muzza').map((part) => part.text)).toEqual(['Muzza', 'Muzza'])
   })

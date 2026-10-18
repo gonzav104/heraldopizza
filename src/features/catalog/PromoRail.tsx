@@ -120,7 +120,7 @@ export function PromoRail({ promotions }: { promotions: Promotion[] }) {
           Promos
         </h2>
         <p className="pb-1 text-right text-[clamp(0.8125rem,3.6vw,0.9375rem)] whitespace-nowrap text-crema-muted">
-          {promotions.length} combos con precio propio
+          {promotions.length === 1 ? '1 combo con precio propio' : `${promotions.length} combos con precio propio`}
         </p>
       </div>
       <ul className="mt-3 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pt-2 pb-3 [scrollbar-color:var(--color-chapa-edge)_transparent] [scrollbar-width:none] sm:scroll-px-6 sm:px-6 lg:scroll-px-0 lg:px-0 lg:pb-4 lg:[scrollbar-width:thin]">

@@ -24,7 +24,7 @@ function statedCount(text: string): number | null {
   if (/^media docena\b/i.test(text)) return 6
   if (/^docena\b/i.test(text)) return 12
   const word = /^(\p{L}+)\s/u.exec(text)?.[1].toLowerCase()
-  return word && word in NUMBER_WORDS ? NUMBER_WORDS[word] : null
+  return word && Object.hasOwn(NUMBER_WORDS, word) ? NUMBER_WORDS[word] : null
 }
 
 /** «Muzza + 6 empanadas surtidas» → the two parts, each with what it is and how many it states. */
