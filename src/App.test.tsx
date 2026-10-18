@@ -104,6 +104,14 @@ describe('App', () => {
     expect(screen.queryByRole('heading', { level: 2, name: 'Promos' })).not.toBeInTheDocument()
   })
 
+  it('still shows the menu, without a Promos section, when the promotions loader fails', async () => {
+    render(<App repository={new FixtureCatalogRepository()} loadPromotions={() => Promise.reject(new Error('no source'))} />)
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Pizzas' })).toBeInTheDocument()
+    await act(async () => undefined)
+    expect(screen.queryByRole('heading', { level: 2, name: 'Promos' })).not.toBeInTheDocument()
+  })
+
   it('shows only the catalog promotions when the real source has them, never the prototype ones', async () => {
     const fixture = await new FixtureCatalogRepository().load()
     const repository: CatalogRepository = { load: async () => ({ ...fixture, promotions: [catalogPromotion] }) }

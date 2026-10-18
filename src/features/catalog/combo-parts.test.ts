@@ -26,10 +26,12 @@ describe('comboParts', () => {
 
   it('leaves a part it cannot read without a picture, rather than guessing', () => {
     expect(comboParts('Flan casero')).toEqual([{ text: 'Flan casero', kind: null, count: null }])
+    // «Especial» alone is the pizza; as an adjective of another dish it says nothing about the kind.
+    expect(comboParts('Milanesa especial')).toEqual([{ text: 'Milanesa especial', kind: null, count: null }])
   })
 
   it('reads only real number words as a quantity, never an inherited object key', () => {
-    expect(comboParts('Constructor especial')).toEqual([{ text: 'Constructor especial', kind: 'pizza', count: null }])
+    expect(comboParts('Constructor especial')).toEqual([{ text: 'Constructor especial', kind: null, count: null }])
   })
 
   it('keeps repeated parts, each on its own line', () => {

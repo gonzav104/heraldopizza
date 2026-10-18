@@ -13,7 +13,8 @@ export interface ComboPart {
 const KIND_PATTERNS: [ComboItemKind, RegExp][] = [
   ['empanada', /empanada/i],
   ['drink', /coca|cola|bebida|gaseosa|sprite|fanta|agua|cerveza|vino|jugo/i],
-  ['pizza', /pizza|muzza|especial|napolitana|fugazz/i],
+  // «Especial» names the pizza only when it is the whole part; «Milanesa especial» is not a pizza.
+  ['pizza', /pizza|muzza|napolitana|fugazz|^especial$/i],
 ]
 
 const NUMBER_WORDS: Record<string, number> = { dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6 }
