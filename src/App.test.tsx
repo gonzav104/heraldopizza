@@ -122,6 +122,9 @@ describe('App', () => {
     render(<App repository={repository} />)
     pending[0].resolve({ categories: [], products: [], promotions: [] })
 
-    expect(await screen.findByRole('status')).toHaveTextContent('La carta no está disponible en este momento.')
+    // The loading notice is also a status: wait for the empty-state text, then check it is the status.
+    const notice = await screen.findByText('La carta no está disponible en este momento.')
+    expect(notice.closest('[role="status"]')).not.toBeNull()
+    expect(screen.queryByText('Cargando la carta…')).not.toBeInTheDocument()
   })
 })
