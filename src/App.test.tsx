@@ -1,10 +1,10 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from '@/App'
 import { FixtureCatalogRepository } from '@/data/fixture-catalog-repository'
 import { prototypePromotions } from '@/data/prototype-promotions'
 import { CatalogConfigError, createPublicCatalogRepository } from '@/data/supabase-catalog-repository'
-import type { Catalog, CatalogRepository } from '@/domain/catalog'
+import type { Catalog, CatalogRepository, Promotion } from '@/domain/catalog'
 
 /** A repository whose load the test settles by hand, to see each state in turn. */
 function controlledRepository() {
@@ -13,6 +13,25 @@ function controlledRepository() {
     load: vi.fn(() => new Promise<Catalog>((resolve, reject) => pending.push({ resolve, reject }))),
   }
   return { repository, pending }
+}
+
+/** A promotions loader the test settles by hand, so assertions run only after it has finished. */
+function controlledPromotions() {
+  let resolve: (promotions: Promotion[]) => void = () => undefined
+  const load = vi.fn(() => new Promise<Promotion[]>((settle) => (resolve = settle)))
+  return { load, resolve: (promotions: Promotion[]) => resolve(promotions) }
+}
+
+/** A promotion as the real source would return it (test data only). */
+const catalogPromotion: Promotion = {
+  id: 'catalog-promo',
+  title: 'Promo de prueba del catálogo',
+  description: null,
+  price: 1000,
+  imageUrl: null,
+  activeFrom: null,
+  activeTo: null,
+  weekdays: [],
 }
 
 afterEach(() => {
@@ -75,10 +94,27 @@ describe('App', () => {
   })
 
   it('renders no Promos section when there is no source of promotions (production until U9)', async () => {
-    render(<App repository={new FixtureCatalogRepository()} loadPromotions={async () => []} />)
-
+    const promotions = controlledPromotions()
+    render(<App repository={new FixtureCatalogRepository()} loadPromotions={promotions.load} />)
     await screen.findByRole('heading', { level: 2, name: 'Pizzas' })
+
+    await act(async () => promotions.resolve([]))
+
+    expect(promotions.load).toHaveBeenCalledTimes(1)
     expect(screen.queryByRole('heading', { level: 2, name: 'Promos' })).not.toBeInTheDocument()
+  })
+
+  it('shows only the catalog promotions when the real source has them, never the prototype ones', async () => {
+    const fixture = await new FixtureCatalogRepository().load()
+    const repository: CatalogRepository = { load: async () => ({ ...fixture, promotions: [catalogPromotion] }) }
+    const promotions = controlledPromotions()
+    render(<App repository={repository} loadPromotions={promotions.load} />)
+    await screen.findByRole('heading', { level: 2, name: 'Promos' })
+
+    await act(async () => promotions.resolve(prototypePromotions))
+
+    expect(screen.getByRole('article', { name: catalogPromotion.title })).toBeInTheDocument()
+    expect(screen.queryByRole('article', { name: 'Tres pizzas Muzzarella' })).not.toBeInTheDocument()
   })
 
   it('says the menu is not available when the catalog is empty', async () => {

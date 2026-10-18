@@ -106,9 +106,13 @@ export function DesignSystemView() {
   const [promotions, setPromotions] = useState<Promotion[]>([])
   useEffect(() => {
     let active = true
-    void loadDevPromotions().then((loaded) => {
-      if (active) setPromotions(loaded)
-    })
+    loadDevPromotions().then(
+      (loaded) => {
+        if (active) setPromotions(loaded)
+      },
+      // Without the prototype data the block just explains that there is no source yet.
+      () => undefined,
+    )
     return () => {
       active = false
     }
