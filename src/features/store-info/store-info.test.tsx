@@ -5,7 +5,8 @@ import { Storefront } from '@/app/Storefront'
 import { StoreHeader } from '@/features/catalog/StoreHeader'
 import { SiteFooter } from './SiteFooter'
 import { StoreInfoSheet } from './StoreInfoSheet'
-import { VenueSection } from './VenueSection'
+import { LocalSection } from './LocalSection'
+import { prototypePromotions } from '@/data/prototype-promotions'
 
 describe('store info (D7, D8, D9)', () => {
   it('presents the essentials: name, place, hours, contact, how to order, payments, and delivery', () => {
@@ -65,7 +66,7 @@ describe('store header with the brand video (S8)', () => {
   })
 
   it('plays the provided video, muted and looping inline, over its own poster, as a described brand animation', () => {
-    render(<StoreHeader onOpenInfo={() => {}} />)
+    render(<StoreHeader />)
 
     const media = screen.getByRole('img', { name: MEDIA_LABEL })
     const video = media.querySelector('video')
@@ -79,27 +80,21 @@ describe('store header with the brand video (S8)', () => {
     expect(video?.className).toContain('object-cover')
   })
 
-  it('keeps the brand, a short phrase, and the main actions off the video', () => {
-    const onOpenInfo = vi.fn()
-    render(<StoreHeader onOpenInfo={onOpenInfo} />)
+  it('keeps the hero clean: the brand and a short phrase off the video, and no call to action', () => {
+    render(<StoreHeader />)
     const media = screen.getByRole('img', { name: MEDIA_LABEL })
 
     const heading = screen.getByRole('heading', { level: 1, name: 'Heraldo Pizza' })
-    const cta = screen.getByRole('link', { name: 'Ver la carta' })
     expect(media).not.toContainElement(heading)
-    expect(media).not.toContainElement(cta)
-    expect(cta).toHaveAttribute('href', '#carta')
     expect(screen.getByText('Pizzas, empanadas, milanesas ¡y mucho más!')).toBeInTheDocument()
-    expect(screen.getByText('Av. Mitre 1130, Campana')).toBeInTheDocument()
-    expect(screen.getByText('Todos los días, de 11 a 14 y de 19 a 00 h')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Info del local' }))
-    expect(onOpenInfo).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /carta|Info/ })).not.toBeInTheDocument()
   })
 
   it('lets the animation be paused and played again (WCAG 2.2.2)', () => {
     const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined)
     const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
-    render(<StoreHeader onOpenInfo={() => {}} />)
+    render(<StoreHeader />)
     const video = screen.getByRole('img', { name: MEDIA_LABEL }).querySelector('video') as HTMLVideoElement
 
     fireEvent.play(video)
@@ -113,7 +108,7 @@ describe('store header with the brand video (S8)', () => {
 
   it('shows the still poster, with no video and no controls, when the visitor prefers reduced motion', () => {
     preferReducedMotion(true)
-    render(<StoreHeader onOpenInfo={() => {}} />)
+    render(<StoreHeader />)
     const media = screen.getByRole('img', { name: MEDIA_LABEL })
 
     expect(media.querySelector('video')).toBeNull()
@@ -123,7 +118,7 @@ describe('store header with the brand video (S8)', () => {
 
   it('shows the still poster, with no video, when the visitor is saving data', () => {
     vi.stubGlobal('navigator', { ...navigator, connection: { saveData: true } })
-    render(<StoreHeader onOpenInfo={() => {}} />)
+    render(<StoreHeader />)
     const media = screen.getByRole('img', { name: MEDIA_LABEL })
 
     expect(media.querySelector('video')).toBeNull()
@@ -132,7 +127,7 @@ describe('store header with the brand video (S8)', () => {
 
   it('falls back to the still poster if the video fails to load', () => {
     preferReducedMotion(false)
-    render(<StoreHeader onOpenInfo={() => {}} />)
+    render(<StoreHeader />)
     const media = screen.getByRole('img', { name: MEDIA_LABEL })
 
     fireEvent.error(media.querySelector('video') as HTMLVideoElement)
@@ -142,26 +137,48 @@ describe('store header with the brand video (S8)', () => {
   })
 })
 
-describe('venue section (S8)', () => {
-  it('shows the real dining room in its own section, with the address and directions', () => {
-    render(<VenueSection />)
-    const section = screen.getByRole('region', { name: 'El local' })
+const FACADE_ALT = 'Fachada de Heraldo Pizza de noche: chapa negra, el cartel con el logo en luz roja y la entrada iluminada'
 
-    expect(within(section).getByRole('img', { name: 'Salón de Heraldo Pizza: chapa negra, madera de pino y la barra' })).toHaveAttribute(
-      'loading',
-      'lazy',
-    )
-    expect(within(section).getByText('Av. Mitre 1130, Campana')).toBeInTheDocument()
-    expect(within(section).getByRole('link', { name: 'Cómo llegar' })).toHaveAttribute('target', '_blank')
+describe('local section with the real facade (S10)', () => {
+  it('shows the provided facade photo at its own vertical proportions, described', () => {
+    render(<LocalSection onOpenInfo={() => {}} />)
+    const section = screen.getByRole('region', { name: 'El local' })
+    const photo = within(section).getByRole('img', { name: FACADE_ALT })
+
+    expect(photo).toHaveAttribute('src', '/images/local/local-heraldo-pizza.webp')
+    expect(photo).toHaveAttribute('width', '1086')
+    expect(photo).toHaveAttribute('height', '1448')
   })
 
-  it('sits after the menu, so the brand video and the menu stay first', () => {
-    render(<Storefront categories={prototypeCategories} products={prototypeProducts} promotions={[]} />)
-    const venue = screen.getByRole('region', { name: 'El local' })
-    const pizzas = screen.getByRole('heading', { level: 2, name: 'Pizzas' })
+  it('carries only real facts: address with directions, hours, how to order, Instagram, and the full info', () => {
+    const onOpenInfo = vi.fn()
+    render(<LocalSection onOpenInfo={onOpenInfo} />)
+    const section = screen.getByRole('region', { name: 'El local' })
 
-    expect(pizzas.compareDocumentPosition(venue) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(screen.getByRole('main')).toHaveAttribute('id', 'carta')
+    expect(within(section).getByText('Av. Mitre 1130, Campana')).toBeInTheDocument()
+    expect(within(section).getByRole('link', { name: 'Cómo llegar' })).toHaveAttribute('target', '_blank')
+    expect(within(section).getByText('Todos los días, de 11 a 14 y de 19 a 00 h')).toBeInTheDocument()
+    expect(within(section).getByText('Retiro en el local o envío a domicilio.')).toBeInTheDocument()
+    expect(within(section).getByRole('link', { name: 'Instagram de Heraldo Pizza (@heraldopizza)' })).toHaveAttribute(
+      'href',
+      'https://www.instagram.com/heraldopizza/',
+    )
+    fireEvent.click(within(section).getByRole('button', { name: 'Info del local' }))
+    expect(onOpenInfo).toHaveBeenCalledTimes(1)
+  })
+
+  it('tells the story in order: brand video, the local, promos, then the menu', () => {
+    render(<Storefront categories={prototypeCategories} products={prototypeProducts} promotions={prototypePromotions} />)
+    const brand = screen.getByRole('heading', { level: 1, name: 'Heraldo Pizza' })
+    const local = screen.getByRole('heading', { level: 2, name: 'El local' })
+    const promos = screen.getByRole('heading', { level: 2, name: 'Promos' })
+    const pizzas = screen.getByRole('heading', { level: 2, name: 'Pizzas' })
+    const follows = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+
+    expect(follows(brand, local)).toBe(true)
+    expect(follows(local, promos)).toBe(true)
+    expect(follows(promos, pizzas)).toBe(true)
+    expect(screen.queryByRole('img', { name: /Salón de Heraldo Pizza/ })).not.toBeInTheDocument()
   })
 })
 

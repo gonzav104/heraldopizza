@@ -1,14 +1,13 @@
-import { Clock, Info, MapPin } from 'lucide-react'
 import { storeInfo } from '@/data/store-info'
 import { BrandVideo } from '@/features/catalog/BrandVideo'
 
 /**
  * The brand leads: the owner's animation of the Heraldo mascot plays on its own, with nothing on top of it. On phones
  * it runs full width at its 16:9 frame (cropping it would cut the words and the products); from tablets up it sits
- * beside the brand. The name, a short line, the address, the hours, and the two actions follow on the black sheet.
- * The real dining room has its own section after the menu (VenueSection).
+ * beside the brand. Only the logo, the name, and a short line follow, with no call to action: the video already
+ * moves, speaks, and shows the products. The real place comes right after, in LocalSection.
  */
-export function StoreHeader({ onOpenInfo }: { onOpenInfo: () => void }) {
+export function StoreHeader() {
   return (
     <header id="top" className="mx-auto max-w-6xl md:grid md:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] md:items-center md:gap-8 md:px-6 md:pt-6 lg:gap-12">
       <BrandVideo className="motion-safe:animate-[room-focus_900ms_var(--ease-out-expo)_both] md:order-2 md:rounded-2xl md:shadow-[0_24px_48px_-24px_rgb(0_0_0/0.9)] md:ring-1 md:ring-chapa-edge" />
@@ -26,36 +25,6 @@ export function StoreHeader({ onOpenInfo }: { onOpenInfo: () => void }) {
               Pizzas, empanadas, milanesas ¡y mucho más!
             </p>
           </div>
-        </div>
-
-        <ul className="mt-3 flex flex-col gap-1 text-[clamp(0.8125rem,3.7vw,0.9375rem)] leading-snug text-crema-muted md:mt-5">
-          <li className="flex items-center gap-2">
-            <MapPin aria-hidden="true" className="size-4 shrink-0 text-mostaza" />
-            {storeInfo.address}, {storeInfo.city}
-          </li>
-          <li className="flex items-center gap-2">
-            <Clock aria-hidden="true" className="size-4 shrink-0 text-mostaza" />
-            {storeInfo.hours}
-          </li>
-        </ul>
-
-        <div className="mt-4 flex gap-2.5 md:mt-6">
-          <a
-            href="#carta"
-            className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full bg-heraldo px-6 text-[1.0625rem] font-bold text-white shadow-[0_12px_24px_-12px_rgb(215_25_31/0.9)] transition-colors hover:bg-heraldo-deep md:flex-none"
-          >
-            Ver la carta
-          </a>
-          <button
-            type="button"
-            onClick={onOpenInfo}
-            aria-label="Info del local"
-            aria-haspopup="dialog"
-            className="inline-flex min-h-12 shrink-0 items-center gap-1.5 rounded-full bg-chapa-high px-4 text-[0.9375rem] font-semibold text-crema ring-1 ring-chapa-edge transition-colors hover:bg-chapa-edge"
-          >
-            <Info aria-hidden="true" className="size-4.5 text-mostaza" />
-            Info
-          </button>
         </div>
       </div>
     </header>
