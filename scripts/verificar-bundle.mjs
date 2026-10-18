@@ -3,6 +3,7 @@
 //    supabase-js or the admin sign-in: the panel lives in a lazy chunk loaded only on /admin.
 // 2. That lazy chunk exists, so check 1 cannot pass just because the markers changed name.
 // 3. No file in dist holds a secret key, the word service_role, or a JWT whose role is service_role.
+// 4. No file in dist carries the prototype promotions, which load in development only until U9 brings a real source.
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -15,6 +16,8 @@ const allChunks = readdirSync(join(dist, 'assets'))
 
 const supabaseMarkers = ['GoTrueClient', 'signInWithPassword', 'soy_administrador', '@supabase/']
 const secretMarkers = [/sb_secret_[A-Za-z0-9]/, /service_role/]
+// Ids of src/data/prototype-promotions.ts: present in a bundle only if the development-only loader leaked.
+const prototypePromotionMarker = /promo-(?:muzza-6-empanadas|especial-muzzarella|especial-coca-6-jyq|docena-surtida|docena-eleccion|muzza-especial-6-jyq|tres-muzzarella|napolitana-especial)/
 
 function hasServiceRoleJwt(text) {
   for (const [token] of text.matchAll(/eyJ[A-Za-z0-9_-]+\.([A-Za-z0-9_-]+)\.[A-Za-z0-9_-]*/g)) {
@@ -51,6 +54,7 @@ for (const name of readdirSync(dist, { recursive: true })) {
     if (pattern.test(text)) failures.push(`${path} matches ${pattern}`)
   }
   if (hasServiceRoleJwt(text)) failures.push(`${path} contains a service_role JWT`)
+  if (prototypePromotionMarker.test(text)) failures.push(`${path} carries the prototype promotions (development only)`)
 }
 
 if (failures.length > 0) {

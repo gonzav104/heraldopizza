@@ -40,8 +40,9 @@ export interface Promotion {
   description: string | null
   price: Ars
   imageUrl: string | null
-  activeFrom: string
-  activeTo: string
+  /** Validity window (RF-43); null while it is not defined. Visibility rules arrive with the real source (U9). */
+  activeFrom: string | null
+  activeTo: string | null
   weekdays: Weekday[]
 }
 

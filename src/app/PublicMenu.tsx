@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Storefront } from '@/app/Storefront'
 import { StatusScreen } from '@/components/ui/StatusScreen'
-import type { Catalog, CatalogRepository } from '@/domain/catalog'
+import { loadDevPromotions } from '@/data/dev-promotions'
+import type { Catalog, CatalogRepository, Promotion } from '@/domain/catalog'
 
 type LoadState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; catalog: Catalog }
 
@@ -20,7 +21,29 @@ function MenuNotice({ role, children }: { role: 'status' | 'alert'; children: Re
  * Loads the catalog through the repository and shows the menu, or a clear state while it loads, when it fails, or
  * when it is empty. On failure it offers «Reintentar» and never substitutes other data (S6 of U3b).
  */
-export function PublicMenu({ repository }: { repository: CatalogRepository }) {
+export function PublicMenu({
+  repository,
+  loadPromotions = loadDevPromotions,
+}: {
+  repository: CatalogRepository
+  /** Promotions to show while the catalog source has none: prototype data in development, none in production (U9). */
+  loadPromotions?: () => Promise<Promotion[]>
+}) {
+  const [extraPromotions, setExtraPromotions] = useState<Promotion[]>([])
+
+  useEffect(() => {
+    let active = true
+    loadPromotions().then(
+      (promotions) => {
+        if (active) setExtraPromotions(promotions)
+      },
+      () => undefined,
+    )
+    return () => {
+      active = false
+    }
+  }, [loadPromotions])
+
   const [attempt, setAttempt] = useState(0)
   const [state, setState] = useState<LoadState>({ status: 'loading' })
 
@@ -68,7 +91,8 @@ export function PublicMenu({ repository }: { repository: CatalogRepository }) {
     )
   }
 
-  const { categories, products, promotions } = state.catalog
+  const { categories, products } = state.catalog
+  const promotions = state.catalog.promotions.length > 0 ? state.catalog.promotions : extraPromotions
   if (categories.length === 0) {
     return (
       <MenuNotice role="status">
