@@ -15,6 +15,7 @@ import { OrderAnnouncer, OrderBar } from '@/features/cart/CartBar'
 import { OrderPanel } from '@/features/cart/OrderPanel'
 import { OrderSheet, type OrderStep } from '@/features/cart/OrderSheet'
 import { PrivacySheet } from '@/features/store-info/PrivacySheet'
+import { VenueSection } from '@/features/store-info/VenueSection'
 import { SiteFooter } from '@/features/store-info/SiteFooter'
 import { StoreInfoSheet } from '@/features/store-info/StoreInfoSheet'
 
@@ -80,7 +81,7 @@ export function Storefront({ categories, products, promotions }: StorefrontProps
         <StoreHeader onOpenInfo={() => infoSheet.open(true)} />
 
         <div className="mx-auto max-w-6xl lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-10 lg:px-6">
-          <main className="min-w-0">
+          <main id="carta" className="min-w-0 scroll-mt-0">
             <CategoryBar items={indexItems} activeId={activeId} onSelect={setActiveId} onOpenIndex={() => indexSheet.open(true)} />
             <PromoRail promotions={promotions} />
             {sections.map((section) => (
@@ -97,6 +98,8 @@ export function Storefront({ categories, products, promotions }: StorefrontProps
             <OrderPanel onContinue={() => orderSheet.open('details')} />
           </aside>
         </div>
+
+        <VenueSection />
 
         <SiteFooter onOpenPrivacy={() => privacySheet.open(true)} />
 

@@ -119,7 +119,7 @@ export function PromoRail({ promotions }: { promotions: Promotion[] }) {
         <h2 id="promos-titulo" className="type-display text-[clamp(1.875rem,8.5vw,2.75rem)]">
           Promos
         </h2>
-        <p className="pb-1 text-right text-[0.9375rem] text-crema-muted">
+        <p className="pb-1 text-right text-[clamp(0.8125rem,3.6vw,0.9375rem)] whitespace-nowrap text-crema-muted">
           {promotions.length} combos con precio propio
         </p>
       </div>

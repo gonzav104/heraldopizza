@@ -37,3 +37,6 @@ dist-ssr
 # Playwright output (npm run e2e)
 test-results/
 playwright-report/
+
+# Windows download metadata (alternate data streams copied by WSL)
+*:Zone.Identifier
