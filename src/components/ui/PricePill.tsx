@@ -12,11 +12,14 @@ interface PricePillProps {
   /** Full action for assistive tech: "Sumar Muzzarella, entera". */
   actionLabel: string
   disabled?: boolean
+  /** «lg» makes the price the protagonist, for a promo whose price is its whole point. */
+  size?: 'md' | 'lg'
   className?: string
 }
 
 /** One-tap add for one orderable variant (quick add). */
-export function PricePill({ price, label, quantity, onAdd, actionLabel, disabled = false, className = '' }: PricePillProps) {
+export function PricePill({ price, label, quantity, onAdd, actionLabel, disabled = false, size = 'md', className = '' }: PricePillProps) {
+  const large = size === 'lg'
   const inOrder = quantity > 0 ? `, ${quantity} en tu pedido` : ''
 
   return (
@@ -25,15 +28,15 @@ export function PricePill({ price, label, quantity, onAdd, actionLabel, disabled
       onClick={onAdd}
       disabled={disabled}
       aria-label={`${actionLabel}, ${formatArs(price)}${inOrder}`}
-      className={`group relative flex min-h-12 w-full min-w-0 items-center gap-2 rounded-xl bg-chapa-high py-1.5 pr-1.5 pl-3 text-left ring-1 ring-chapa-edge transition-[box-shadow,transform,background-color] duration-150 hover:ring-crema-muted/60 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:ring-chapa-edge disabled:active:scale-100 motion-reduce:active:scale-100 ${className}`}
+      className={`group relative flex ${large ? 'min-h-14' : 'min-h-12'} w-full min-w-0 items-center gap-2 rounded-xl bg-chapa-high py-1.5 pr-1.5 pl-3 text-left ring-1 ring-chapa-edge transition-[box-shadow,transform,background-color] duration-150 hover:ring-crema-muted/60 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:ring-chapa-edge disabled:active:scale-100 motion-reduce:active:scale-100 ${className}`}
     >
       <span className="flex min-w-0 flex-1 flex-col leading-tight">
         {label ? <span className="truncate text-[0.8125rem] text-crema-muted">{label}</span> : null}
-        <span className="type-price text-[1.0625rem] whitespace-nowrap text-crema">{formatArs(price)}</span>
+        <span className={`type-price ${large ? 'text-[1.625rem] leading-none' : 'text-[1.0625rem]'} whitespace-nowrap text-crema`}>{formatArs(price)}</span>
       </span>
       <span
         aria-hidden="true"
-        className="grid size-9 shrink-0 place-items-center rounded-lg bg-heraldo text-white transition-colors group-hover:bg-heraldo-deep group-disabled:bg-chapa-edge"
+        className={`grid ${large ? 'size-11' : 'size-9'} shrink-0 place-items-center rounded-lg bg-heraldo text-white transition-colors group-hover:bg-heraldo-deep group-disabled:bg-chapa-edge`}
       >
         <Plus className="size-5" strokeWidth={2.75} />
       </span>
