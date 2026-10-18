@@ -45,7 +45,8 @@ describe('store info (D7, D8, D9)', () => {
   })
 })
 
-const VIDEO_SRC = '/videos/gemini_generated_video_720ff841.mp4'
+// The web encode of the owner's video (H.264, no audio, faststart); the original stays in the repo as the source.
+const VIDEO_SRC = '/videos/heraldo-video-720p.mp4'
 const POSTER = '/images/hero/heraldo-video-poster-1280.webp'
 const MEDIA_LABEL = 'Animación de Heraldo: el personaje presenta pizzas, empanadas, milanesas ¡y mucho más!'
 
@@ -145,9 +146,24 @@ describe('local section with the real facade (S10)', () => {
     const section = screen.getByRole('region', { name: 'El local' })
     const photo = within(section).getByRole('img', { name: FACADE_ALT })
 
-    expect(photo).toHaveAttribute('src', '/images/local/local-heraldo-pizza.webp')
-    expect(photo).toHaveAttribute('width', '1086')
-    expect(photo).toHaveAttribute('height', '1448')
+    // The web versions of the owner's photo (900 and 600 px wide); the 1.8 MB original is kept only as the source.
+    expect(photo).toHaveAttribute('src', '/images/local/local-heraldo-pizza-900.webp')
+    expect(photo).toHaveAttribute(
+      'srcset',
+      '/images/local/local-heraldo-pizza-600.webp 600w, /images/local/local-heraldo-pizza-900.webp 900w',
+    )
+    expect(photo).toHaveAttribute('width', '900')
+    expect(photo).toHaveAttribute('height', '1200')
+  })
+
+  it('tells the owner’s story with the owner’s own text, and the two projects before Campana as a side note', () => {
+    render(<LocalSection onOpenInfo={() => {}} />)
+    const section = screen.getByRole('region', { name: 'El local' })
+
+    expect(section).toHaveTextContent(
+      'Heraldo Pizza llegó a Campana en 2024, pero la historia detrás del horno empezó mucho antes. Heraldo Velazquez, su fundador, lleva más de 15 años trabajando como pizzero y construyendo experiencia en distintos proyectos gastronómicos. Hoy esa trayectoria continúa en Campana, con una propuesta propia y una identidad marcada por la pizza, el barrio y el oficio.',
+    )
+    expect(within(section).getByText('Antes de Campana pasó por proyectos como Qatar, en San Pedro, y ChavosBar.')).toBeInTheDocument()
   })
 
   it('carries only real facts: address with directions, hours, how to order, Instagram, and the full info', () => {

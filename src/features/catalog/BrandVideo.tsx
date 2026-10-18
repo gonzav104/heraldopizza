@@ -1,8 +1,10 @@
 import { Pause, Play } from 'lucide-react'
 import { useRef, useState, useSyncExternalStore } from 'react'
 
-// The owner's brand animation, served exactly as provided (1280×720, 10 s, H.264). The poster is its last frame.
-const VIDEO_SRC = '/videos/gemini_generated_video_720ff841.mp4'
+// The owner's brand animation. The original (public/videos/gemini_generated_video_720ff841.mp4) stays as the source;
+// the page plays its web encode: 1280×720, 24 fps, H.264 High, no audio, moov first (faststart), 0.9 MB instead of
+// 2.3 MB. The poster is the video's last frame.
+const VIDEO_SRC = '/videos/heraldo-video-720p.mp4'
 const POSTER = '/images/hero/heraldo-video-poster-1280.webp'
 const POSTER_SRCSET = '/images/hero/heraldo-video-poster-640.webp 640w, /images/hero/heraldo-video-poster-1280.webp 1280w'
 const DESCRIPTION = 'Animación de Heraldo: el personaje presenta pizzas, empanadas, milanesas ¡y mucho más!'

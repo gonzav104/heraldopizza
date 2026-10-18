@@ -21,8 +21,8 @@ function Detail({ icon, title, children }: { icon: ReactNode; title: string; chi
 
 /**
  * The real place, right after the brand video: the owner's photo of the facade at night (black corrugated sheet, the
- * logo in red light, the lit pine interior) proves Heraldo is a real shop, and the facts beside it are the real ones
- * the info sheet already carries. The photo keeps its vertical frame: 4:5 on phones (only sky and wet pavement are
+ * logo in red light, the lit pine interior) proves Heraldo is a real shop. Beside it, the owner's short story and the
+ * real facts the info sheet already carries. The photo keeps its vertical frame: 4:5 on phones (only sky and wet pavement are
  * trimmed, never the sign or the entrance), its own 3:4 from tablets up, overlapping a black-sheet panel with the
  * red neon line of the facade's sign.
  */
@@ -32,9 +32,11 @@ export function LocalSection({ onOpenInfo }: { onOpenInfo: () => void }) {
       <div className="md:grid md:grid-cols-12 md:items-center">
         <figure className="relative z-10 m-0 md:col-span-5 md:col-start-1 md:row-start-1">
           <img
-            src="/images/local/local-heraldo-pizza.webp"
-            width={1086}
-            height={1448}
+            // Web versions of the owner's photo (local-heraldo-pizza.webp, 1086×1448, 1.8 MB, kept as the source).
+            src="/images/local/local-heraldo-pizza-900.webp"
+            srcSet="/images/local/local-heraldo-pizza-600.webp 600w, /images/local/local-heraldo-pizza-900.webp 900w"
+            width={900}
+            height={1200}
             sizes="(min-width: 1152px) 460px, (min-width: 768px) 40vw, 100vw"
             loading="lazy"
             decoding="async"
@@ -48,8 +50,17 @@ export function LocalSection({ onOpenInfo }: { onOpenInfo: () => void }) {
           <h2 id="local-titulo" className="type-display mt-3 text-[clamp(2rem,9vw,3.25rem)] leading-none md:mt-4">
             El local
           </h2>
-          <p className="mt-2.5 max-w-[38ch] text-[1rem] leading-relaxed text-crema md:mt-3 md:text-[1.0625rem]">
-            Chapa negra, madera y luz cálida: así es Heraldo Pizza, en {storeInfo.city}.
+          {/* The owner's own text (2026-10-18). Nothing is added to it. */}
+          <p className="mt-3 max-w-[58ch] text-[1rem] leading-relaxed text-crema/90 md:mt-4 md:text-[1.0625rem]">
+            <span className="mb-2 block text-[clamp(1.1875rem,5vw,1.5rem)] leading-snug font-semibold text-balance text-crema">
+              Heraldo Pizza llegó a Campana en 2024, pero la historia detrás del horno empezó mucho antes.
+            </span>{' '}
+            Heraldo Velazquez, su fundador, lleva más de 15 años trabajando como pizzero y construyendo experiencia en
+            distintos proyectos gastronómicos. Hoy esa trayectoria continúa en Campana, con una propuesta propia y una
+            identidad marcada por la pizza, el barrio y el oficio.
+          </p>
+          <p className="mt-2.5 text-[0.875rem] text-crema-muted">
+            Antes de Campana pasó por proyectos como Qatar, en San Pedro, y ChavosBar.
           </p>
 
           <dl className="mt-5 grid gap-3.5 sm:mt-6 sm:grid-cols-2 sm:gap-5">
