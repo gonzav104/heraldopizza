@@ -4,6 +4,26 @@ Relevado el 2026-10-15 a partir de `docs/requerimientos.pdf` (PDF) y `docs/seed_
 
 **Decisión vigente (2026-10-15, responsable del proyecto):** el SQL es la fuente provisional de productos y precios. Las diferencias con el PDF quedan registradas acá; no se resuelven con datos inventados.
 
+## Actualización vigente — 2026-10-18
+
+Estas decisiones posteriores reemplazan las referencias históricas incompatibles de este documento y de las guías iniciales:
+
+- **QR:** enlace a la misma carta pública, sin modo especial, sesiones temporales, vencimiento ni aviso al mozo. Reemplaza RF-51 y RN-09; RF-50 conserva el acceso mediante QR. La impresión espera la URL definitiva.
+- **Productos sin precio:** decisión A del 2026-10-16: se muestran como «Consultar en barra», sin compra; en productos mixtos solo se pueden pedir variantes con precio. La pregunta histórica sobre mostrarlos está resuelta.
+- **Imágenes:** administración fuera del MVP; no se incorpora a U1.
+- **Promociones:** las ocho promociones reales suministradas por el dueño ya están en `src/data/prototype-promotions.ts`. El commit `1922f02` y `odd/tasks/hero-y-promos.md` documentan presentación, incorporación al carrito y verificaciones. `dev-promotions.ts` las carga solo en desarrollo; `supabase-catalog-repository.ts` devuelve promociones vacías. Lo pendiente es la integración productiva, no obtener otra vez los datos ni reconstruir la sección. Vigencia no suministrada permanece sin inventar. La promo suministrada «Docena de empanadas a elección» y la regla general de combos cerrados requieren reconciliación antes de esa integración; U1 no modifica ninguna.
+- **Prioridad después de U1:** completar menú → configuradores existentes → carrito → checkout → WhatsApp, con la configuración operativa necesaria. La administración restante no debe bloquear innecesariamente ese recorrido.
+
+Orden de trabajo actualizado:
+
+1. U1: experiencia del administrador, con contratos existentes y sin nuevas funciones comerciales.
+2. Cierre del recorrido comercial: persistencia/reconciliación del carrito (RF-17), configuración operativa necesaria, checkout y enlace WhatsApp real, reutilizando formulario y cálculos. Contemplar zonas, modalidades, pagos, recargo por pizza y lluvia; aclarar la redacción de RN-16 antes de implementarla. El recargo nocturno automático sigue en F2.
+3. Integración productiva de las promociones existentes y su administración, vigencia y cobro correcto de envío; asociación avanzada de productos RF-44 sigue en F2.
+4. Completar gestión administrativa: categorías (incluido su orden, MVP), altas/bajas y variantes; ajustes porcentuales con vista previa y redondeo (RF-40/41, MVP). Reordenar productos RF-37 sigue en F2.
+5. Aceptación integral, rendimiento, accesibilidad, datos del local/horarios e indicador abierto/cerrado RF-24, publicación autorizada y QR definitivo. Las dependencias comerciales necesarias se adelantan al punto 2.
+
+La evidencia de «sin llamadas de red» de D11 describe el prototipo histórico; el catálogo público actual consulta Supabase. La numeración antigua de unidades no define este orden vigente. No se accede a Supabase remoto durante U1.
+
 ## Inconsistencias entre PDF y SQL
 
 | # | Tema | PDF | SQL | Estado |
