@@ -7,9 +7,15 @@ import type { AdminCatalogRepository } from '@/features/admin/catalog/admin-cata
 /** The catalog editor is tested on its own; here it only needs to load an empty catalog. */
 const catalog: AdminCatalogRepository = {
   load: async () => [],
-  updateCategory: async () => { throw new Error('unused') },
-  updateProduct: async () => { throw new Error('unused') },
-  updatePrices: async () => { throw new Error('unused') },
+  updateCategory: async () => {
+    throw new Error('unused')
+  },
+  updateProduct: async () => {
+    throw new Error('unused')
+  },
+  updatePrices: async () => {
+    throw new Error('unused')
+  },
 }
 
 interface Deferred<T> {
@@ -278,5 +284,105 @@ describe('AdminApp', () => {
 
     expect(loginForm()).toBeInTheDocument()
     expect(panel()).not.toBeInTheDocument()
+  })
+})
+
+function editableCatalog(): AdminCatalogRepository {
+  return {
+    ...catalog,
+    load: async () => [
+      {
+        id: 'c1',
+        name: 'Pizzas',
+        visible: true,
+        updatedAt: 't0',
+        products: [
+          {
+            id: 'p1',
+            categoryId: 'c1',
+            name: 'Muzzarella',
+            description: null,
+            madeToOrder: false,
+            madeToOrderNotice: null,
+            outOfStock: false,
+            visible: true,
+            updatedAt: 't0',
+            variants: [{ id: 'v1', name: 'Entera', price: 16000, updatedAt: 't0' }],
+          },
+        ],
+      },
+    ],
+  }
+}
+
+async function openEditablePanel(repository = editableCatalog()) {
+  const fake = fakeAuth()
+  render(<AdminApp auth={fake.auth} catalog={repository} />)
+  await settle(fake.session, owner)
+  await settle(fake.admin[0], true)
+  fireEvent.click(await screen.findByRole('button', { name: 'Editar precios de Muzzarella' }))
+  const price = await screen.findByRole('textbox', { name: /Precio.*Entera/i })
+  fireEvent.change(price, { target: { value: '17000' } })
+  return { ...fake, price }
+}
+
+describe('AdminApp: leaving pending work', () => {
+  it('keeps drafts when sign-out is cancelled and signs out only after confirmation', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const { auth, price } = await openEditablePanel()
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' })))
+    expect(confirm).toHaveBeenCalled()
+    expect(auth.signOut).not.toHaveBeenCalled()
+    expect(price).toHaveValue('17000')
+    confirm.mockReturnValue(true)
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' })))
+    expect(auth.signOut).toHaveBeenCalledTimes(1)
+    expect(loginForm()).toBeInTheDocument()
+  })
+
+  it('preserves drafts after a confirmed sign-out fails', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const { auth, price } = await openEditablePanel()
+    vi.mocked(auth.signOut).mockRejectedValueOnce(new Error('offline'))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' })))
+    expect(screen.getByRole('alert')).toHaveTextContent('No pudimos cerrar la sesión.')
+    expect(price).toHaveValue('17000')
+  })
+
+  it('pauses catalog editing during sign-out and restores the draft after failure', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const { auth, price } = await openEditablePanel()
+    const signOut = deferred<void>()
+    vi.mocked(auth.signOut).mockReturnValueOnce(signOut.promise)
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }))
+    expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeDisabled()
+    expect(price.closest('section[aria-label="Gestión del catálogo"]')).toHaveAttribute('inert')
+    await act(async () => signOut.reject(new Error('offline')))
+    expect(price).toHaveValue('17000')
+    expect(price.closest('section[aria-label="Gestión del catálogo"]')).not.toHaveAttribute('inert')
+    expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeEnabled()
+  })
+
+  it('opens the public menu separately without discarding or confirming drafts', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const { price } = await openEditablePanel()
+    const link = screen.getByRole('link', { name: 'Ver carta (abre otra pestaña)' })
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    fireEvent.click(link)
+    expect(confirm).not.toHaveBeenCalled()
+    expect(price).toHaveValue('17000')
+  })
+
+  it('disables exit during a price save and restores it when the save fails', async () => {
+    const save = deferred<Awaited<ReturnType<AdminCatalogRepository['updatePrices']>>>()
+    const { auth } = await openEditablePanel({ ...editableCatalog(), updatePrices: () => save.promise })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar precios' }))
+    expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeDisabled()
+    expect(screen.getByRole('link', { name: 'Ver carta (abre otra pestaña)' })).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }))
+    expect(auth.signOut).not.toHaveBeenCalled()
+    await act(async () => save.reject(new Error('offline')))
+    expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeEnabled()
   })
 })

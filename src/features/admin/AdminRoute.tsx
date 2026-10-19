@@ -23,8 +23,8 @@ function createServices() {
 export default function AdminRoute() {
   if (!services) {
     return (
-      <main className="texture-chapa grid min-h-dvh place-items-center px-4">
-        <p role="alert" className="max-w-sm text-center font-semibold">
+      <main className="admin-theme admin-access">
+        <p role="alert" className="admin-status-title">
           El panel no está configurado: faltan los datos de conexión con Supabase.
         </p>
       </main>

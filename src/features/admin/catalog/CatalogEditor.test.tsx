@@ -54,7 +54,12 @@ function catalog(): AdminCategory[] {
 function fakeRepository(overrides: Partial<AdminCatalogRepository> = {}) {
   const repository: AdminCatalogRepository = {
     load: vi.fn(async () => catalog()),
-    updateCategory: vi.fn(async (id, changes) => ({ id, name: changes.name ?? 'Pizzas', visible: changes.visible ?? true, updatedAt: T1 })),
+    updateCategory: vi.fn(async (id, changes) => ({
+      id,
+      name: changes.name ?? 'Pizzas',
+      visible: changes.visible ?? true,
+      updatedAt: T1,
+    })),
     updateProduct: vi.fn(async (id, changes) => {
       const current = catalog()[0].products.find((product) => product.id === id)!
       return { ...current, ...changes, variants: undefined, updatedAt: T1 }
@@ -70,6 +75,8 @@ function fakeRepository(overrides: Partial<AdminCatalogRepository> = {}) {
 async function renderEditor(repository = fakeRepository()) {
   render(<CatalogEditor repository={repository} />)
   await screen.findByRole('heading', { level: 2, name: 'Pizzas' })
+  fireEvent.click(screen.getByText('Editar categoría'))
+  screen.getAllByRole('button', { name: /^Editar precios de / }).forEach((button) => fireEvent.click(button))
   return repository
 }
 
@@ -89,7 +96,9 @@ describe('CatalogEditor: loading', () => {
   })
 
   it('shows an error with «Reintentar» when the catalog cannot be read, and reloads', async () => {
-    const repository = fakeRepository({ load: vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue(catalog()) })
+    const repository = fakeRepository({
+      load: vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue(catalog()),
+    })
     vi.spyOn(console, 'error').mockImplementation(() => {})
     render(<CatalogEditor repository={repository} />)
 
@@ -111,7 +120,9 @@ describe('CatalogEditor: prices (RF-39, RF-58)', () => {
     expect(save).toBeEnabled()
     await act(async () => fireEvent.click(save))
 
-    expect(repository.updatePrices).toHaveBeenCalledWith('p-muzza', [{ variantId: 'v-entera', price: 17000, updatedAt: T0 }])
+    expect(repository.updatePrices).toHaveBeenCalledWith('p-muzza', [
+      { variantId: 'v-entera', price: 17000, updatedAt: T0 },
+    ])
     expect(within(card).getByRole('status')).toHaveTextContent('Guardado')
     expect(within(card).getByLabelText('Precio Entera de Muzzarella')).toHaveValue('17.000')
     expect(save).toBeDisabled()
@@ -179,10 +190,13 @@ describe('CatalogEditor: prices (RF-39, RF-58)', () => {
     expect(within(card).getByLabelText('Precio Entera de Muzzarella')).toBeDisabled()
     await act(async () => fireEvent.click(within(card).getByRole('button', { name: 'Guardar precios' })))
 
-    expect(repository.updatePrices).toHaveBeenCalledWith('p-muzza', [{ variantId: 'v-entera', price: null, updatedAt: T0 }])
+    expect(repository.updatePrices).toHaveBeenCalledWith('p-muzza', [
+      { variantId: 'v-entera', price: null, updatedAt: T0 },
+    ])
   })
 
   it('explains a conflict and offers to reload the catalog', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
     const repository = await renderEditor(
       fakeRepository({ updatePrices: vi.fn().mockRejectedValue(new AdminSaveError('conflict', 'stale')) }),
     )
@@ -191,7 +205,9 @@ describe('CatalogEditor: prices (RF-39, RF-58)', () => {
     fireEvent.change(within(card).getByLabelText('Precio Entera de Muzzarella'), { target: { value: '17000' } })
     await act(async () => fireEvent.click(within(card).getByRole('button', { name: 'Guardar precios' })))
 
-    expect(within(card).getByRole('alert')).toHaveTextContent('Otro cambio llegó antes. Recargá el catálogo para ver lo último.')
+    expect(within(card).getByRole('alert')).toHaveTextContent(
+      'Otro cambio llegó antes. Recargá el catálogo para ver lo último.',
+    )
     await act(async () => fireEvent.click(within(card).getByRole('button', { name: 'Recargar catálogo' })))
     expect(repository.load).toHaveBeenCalledTimes(2)
   })
@@ -206,7 +222,9 @@ describe('CatalogEditor: prices (RF-39, RF-58)', () => {
 
     fireEvent.change(within(card).getByLabelText('Precio Entera de Muzzarella'), { target: { value: '17000' } })
     await act(async () => fireEvent.click(within(card).getByRole('button', { name: 'Guardar precios' })))
-    expect(within(card).getByRole('alert')).toHaveTextContent('No pudimos guardar. Revisá tu conexión e intentá de nuevo.')
+    expect(within(card).getByRole('alert')).toHaveTextContent(
+      'No pudimos guardar. Revisá tu conexión e intentá de nuevo.',
+    )
 
     await act(async () => fireEvent.click(within(card).getByRole('button', { name: 'Reintentar' })))
     expect(repository.updatePrices).toHaveBeenCalledTimes(2)
@@ -243,7 +261,9 @@ describe('CatalogEditor: stock and visibility (RF-34, RF-31)', () => {
   it('shows a hidden product again', async () => {
     const repository = await renderEditor()
 
-    await act(async () => fireEvent.click(within(productCard('Napolitana')).getByRole('checkbox', { name: 'Visible: Napolitana' })))
+    await act(async () =>
+      fireEvent.click(within(productCard('Napolitana')).getByRole('checkbox', { name: 'Visible: Napolitana' })),
+    )
 
     expect(repository.updateProduct).toHaveBeenCalledWith('p-napo', { visible: true }, T0)
   })
@@ -310,16 +330,23 @@ describe('CatalogEditor: product data (RF-32, RF-35) and category name (RF-31)',
   it('keeps an unsaved category name while another row is saved', async () => {
     await renderEditor()
 
-    fireEvent.change(screen.getByLabelText('Nombre de la categoría Pizzas'), { target: { value: 'Pizzas a la piedra' } })
-    await act(async () => fireEvent.click(within(productCard('Muzzarella')).getByRole('checkbox', { name: 'Sin stock: Muzzarella' })))
+    fireEvent.change(screen.getByLabelText('Nombre de la categoría Pizzas'), {
+      target: { value: 'Pizzas a la piedra' },
+    })
+    await act(async () =>
+      fireEvent.click(within(productCard('Muzzarella')).getByRole('checkbox', { name: 'Sin stock: Muzzarella' })),
+    )
 
     expect(screen.getByLabelText('Nombre de la categoría Pizzas')).toHaveValue('Pizzas a la piedra')
   })
 
   it('drops the unsaved name only on an explicit reload of the catalog', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
     const repository = await renderEditor()
 
-    fireEvent.change(screen.getByLabelText('Nombre de la categoría Pizzas'), { target: { value: 'Pizzas a la piedra' } })
+    fireEvent.change(screen.getByLabelText('Nombre de la categoría Pizzas'), {
+      target: { value: 'Pizzas a la piedra' },
+    })
     await act(async () => fireEvent.click(screen.getAllByRole('button', { name: 'Recargar catálogo' })[0]))
     await screen.findByRole('heading', { level: 2, name: 'Pizzas' })
 
