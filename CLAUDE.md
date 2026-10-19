@@ -16,7 +16,7 @@ El repositorio comenzó con **React 19 + TypeScript + Vite 8 + ESLint + npm**. A
 3. **Prioridad actual** (U1 ya integrada en `main`): completar carrito, reglas de precios, lógica comercial, checkout y WhatsApp. El QR solo abre la carta pública; no hay modo QR especial.
 4. La administración restante (categorías, altas/bajas, variantes, ajustes porcentuales) sigue después y no debe bloquear ese recorrido; conservar modelos y componentes reutilizables.
 
-**No crear una API propia ni ampliar el administrador o la base de datos fuera de la unidad autorizada** (el administrador de U1 y el esquema local de Supabase ya existen). Si una funcionalidad futura necesita datos, usar un adaptador mock tipado y reemplazable. No desarrollar todas las fases en una sola solicitud.
+**No crear una API propia ni ampliar el administrador o la base de datos fuera de la unidad autorizada** (el administrador de U1 y el esquema local de Supabase ya existen). Para prototipos que aún no tienen fuente real, usar un adaptador mock tipado y reemplazable; el trabajo productivo reutiliza o extiende los adaptadores de Supabase existentes (`src/data/supabase-catalog-repository.ts`). No desarrollar todas las fases en una sola solicitud.
 
 ### Fuentes obligatorias
 

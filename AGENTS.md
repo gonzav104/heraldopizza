@@ -42,14 +42,14 @@ No ejecutar el seed SQL directamente: primero verificar esquema, claves, restric
 - Usar `npm` y respetar `package-lock.json`. No mezclar gestores de paquetes.
 - Consultar documentación vigente antes de usar APIs desconocidas o que hayan cambiado.
 
-La distribución actual de `src/` es la siguiente; `types/` no existe (los tipos del dominio están en `domain/`) y el resto de las carpetas se crea a medida que se necesita:
+Distribución de `src/`: las carpetas existen, pero los comentarios describen su responsabilidad prevista y no que todo esté terminado (por ejemplo, el carrito sigue solo en memoria y su persistencia, RF-15, está pendiente). `types/` no existe (los tipos del dominio están en `domain/`) y el resto de las carpetas se crea a medida que se necesita:
 
 ```text
 src/
   app/                 # arranque, providers, rutas
   components/ui/       # componentes base
   features/catalog/    # carta y variantes
-  features/cart/       # carrito y persistencia
+  features/cart/       # carrito (persistencia pendiente, RF-15)
   features/checkout/   # costos, datos del cliente, WhatsApp
   data/                # catálogo mock y adaptadores a Supabase
   domain/              # modelos del catálogo
