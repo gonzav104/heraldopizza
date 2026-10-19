@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { ADMIN_EMAIL, ADMIN_PASSWORD } from './local-admin.ts'
 import { localStackEnv } from './local-stack.ts'
 
@@ -42,13 +42,23 @@ async function signIn(page: Page) {
 
 const card = (page: Page, name: string) => page.getByRole('region', { name, exact: true })
 
+/** Each save group reports under its own prefix: «Estado», «Precios» or «Datos». */
+const saved = (scope: Locator, group: 'Estado' | 'Precios' | 'Datos') =>
+  scope.getByRole('status').filter({ hasText: `${group}: Guardado` })
+
+/** The price editor is collapsed until «Editar precios» is pressed. */
+async function openPrices(scope: Locator, product: string) {
+  await scope.getByRole('button', { name: `Editar precios de ${product}`, exact: true }).click()
+}
+
 test('a price saved in /admin is persisted and shown by the public menu', async ({ page, context }) => {
   await signIn(page)
   const muzza = card(page, 'Muzzarella')
 
+  await openPrices(muzza, 'Muzzarella')
   await muzza.getByLabel('Precio Entera de Muzzarella').fill('18.750')
   await muzza.getByRole('button', { name: 'Guardar precios' }).click()
-  await expect(muzza.getByRole('status')).toHaveText('Guardado')
+  await expect(saved(muzza, 'Precios')).toBeVisible()
 
   expect(await publicPrice('Muzzarella', 'Entera')).toBe(18750)
 
@@ -62,7 +72,7 @@ test('an out-of-stock product stays on the menu but cannot be ordered', async ({
   const fugazzeta = card(page, 'Fugazzeta')
 
   await fugazzeta.getByRole('checkbox', { name: 'Sin stock: Fugazzeta', exact: true }).check()
-  await expect(fugazzeta.getByRole('status')).toHaveText('Guardado')
+  await expect(saved(fugazzeta, 'Estado')).toBeVisible()
 
   const menu = await context.newPage()
   await menu.goto('/')
@@ -75,7 +85,7 @@ test('a hidden product disappears from the menu, and comes back when shown again
   const visible = napolitana.getByRole('checkbox', { name: 'Visible: Napolitana', exact: true })
 
   await visible.uncheck()
-  await expect(napolitana.getByRole('status')).toHaveText('Guardado')
+  await expect(saved(napolitana, 'Estado')).toBeVisible()
   const menu = await context.newPage()
   await menu.goto('/')
   await expect(menu.getByRole('heading', { level: 2, name: 'Pizzas', exact: true })).toBeVisible()
@@ -83,7 +93,7 @@ test('a hidden product disappears from the menu, and comes back when shown again
   await expect(menu.getByRole('button', { name: /^Sumar Napolitana Heraldo, Entera/ })).toBeVisible()
 
   await visible.check()
-  await expect(napolitana.getByRole('status')).toHaveText('Guardado')
+  await expect(saved(napolitana, 'Estado')).toBeVisible()
   await menu.reload()
   await expect(menu.getByRole('button', { name: /^Sumar Napolitana, Entera/ })).toBeVisible()
 })
@@ -96,7 +106,8 @@ test('a renamed product keeps its id, and the menu shows the new name', async ({
   const form = page.getByRole('form', { name: 'Datos de Especial' })
   await form.getByLabel('Nombre', { exact: true }).fill('  Especial de la casa  ')
   await form.getByRole('button', { name: 'Guardar datos' }).click()
-  await expect(card(page, 'Especial de la casa').getByRole('status')).toHaveText('Guardado')
+  await expect(page.getByRole('dialog')).toBeHidden()
+  await expect(saved(card(page, 'Especial de la casa'), 'Datos')).toBeVisible()
 
   expect(await productId('Especial de la casa')).toBe(idBefore)
 
@@ -112,11 +123,13 @@ test('two tabs editing the same price: the second save is refused as a conflict'
   await expect(other.getByRole('heading', { level: 2, name: 'Pizzas', exact: true })).toBeVisible()
 
   const first = card(page, 'Muzzarella')
+  await openPrices(first, 'Muzzarella')
   await first.getByLabel('Precio Media de Muzzarella').fill('11.100')
   await first.getByRole('button', { name: 'Guardar precios' }).click()
-  await expect(first.getByRole('status')).toHaveText('Guardado')
+  await expect(saved(first, 'Precios')).toBeVisible()
 
   const second = card(other, 'Muzzarella')
+  await openPrices(second, 'Muzzarella')
   await second.getByLabel('Precio Media de Muzzarella').fill('11.900')
   await second.getByRole('button', { name: 'Guardar precios' }).click()
   await expect(second.getByRole('alert')).toHaveText('Otro cambio llegó antes. Recargá el catálogo para ver lo último.')
