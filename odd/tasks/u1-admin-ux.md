@@ -14,11 +14,11 @@ Delivery: `feature-branch-chain` approved (2026-10-18), no publication/merge aut
 
 ## Tasks
 
-- T1 | S3–S5 | delegated, catalog unit | verified, commit pending | Protect drafts, granular save feedback and reload/exit; focused RED/GREEN + existing contract tests; commit pending.
-- T2 | S1–S4 | delegated, catalog unit | verified, commit pending | Category navigation, search/filters and focused editing with tests; commit pending.
-- T3 | S1–S5 | delegated, shell unit | verified, commit pending | Scoped visual workspace, responsive layout and auth presentation preserving behavior; commit pending.
-- T4 | S3–S5 | delegated verification | technical checks passed | Full relevant checks, browser screenshots/interactions and independent verification of async/draft invariants; commit pending.
-- T5 | S6–S7 | inline | documented, delivery pending | Reconcile roadmap/docs and deliver evidence, limitations and real usability trial status; commit pending.
+- T1 | S3–S5 | delegated, catalog unit | verified | Protect drafts, granular save feedback and reload/exit; focused RED/GREEN + existing contract tests; commit `bffe662`.
+- T2 | S1–S4 | delegated, catalog unit | verified | Category navigation, search/filters and focused editing with tests; commit `bffe662`.
+- T3 | S1–S5 | delegated, shell unit | verified | Scoped visual workspace, responsive layout and auth presentation preserving behavior; commit `e222d56`.
+- T4 | S3–S5 | delegated verification | technical checks passed; owner trial pending | 332 frontend tests, 138 local pgTAP, auth/lint/types/build/bundle, Chromium desktop/mobile and independent async/draft probes passed. Evidence in L10–L13; under-30-second owner trial remains unmeasured.
+- T5 | S6–S7 | inline | verified | Roadmap/docs reconciled in `bcfcc80`; delivery evidence and limitations recorded in this log.
 
 ## Log
 
@@ -120,3 +120,7 @@ Delivery: `feature-branch-chain` approved (2026-10-18), no publication/merge aut
 
 - L10 — Independent verification reproduced one candidate-caused retry-snapshot defect in both directions: price retry reverted acknowledged stock/token; status retry reverted acknowledged prices. Both original probes failed candidate and passed b99d8a4. Correction merges only the response scope into current state, preserving original request tokens. Committed regression preparation: RED 2 failed; GREEN 53 focused. Independent scoped recheck: original probes plus regressions, 4 passed.
 - L11 — Final technical evidence: 332 tests/35 files PASS; lint, typecheck, build and bundle PASS; Chromium 8 grouped interaction checks PASS with no page errors at desktop/mobile sizes. Local pgTAP 138/6 and auth PASS. No remote Supabase, schema, service, RPC or RLS changes. Browser persistence/errors are simulated, not a live end-to-end database round-trip. Physical-device/Safari testing and owner-timed under-30-second usability trial are unverified; no timing claim. Native review and work-unit commits remain pending.
+
+- L12 — Work-unit commits: `bcfcc80` tracking/roadmap (native passive); `bffe662` catalog (1,660 authored lines); `e222d56` access/session presentation (581 authored lines). Catalog native four-lens review granted by user «granted», approved and acknowledged; authority burned for lineage `review-759652ddbf26f2bf`. No blocking findings. Advisory R3-001: a failed data retry following a successful status save may conflict because both share the product token; original retry tokens deliberately remain unchanged. Track as a later UX improvement, no automatic rebase or additional correction in this review. Shell review assessment due for item 4; consent pending.
+
+- L13 — User consent verbatim for shell review: «granted». Native resilience/reliability review approved without findings; exact acknowledgement burned authority for lineage `review-c2b056c8382f28f4`. Both source work units are reviewed; no new source changes or repeated functional suites after review. Technical implementation is ready for owner visual/usability acceptance; S5 timing criterion is explicitly unverified. No merge, push, PR, remote Supabase access or image-management feature. Next product priority remains completing the existing menu/configurators/cart → checkout → WhatsApp flow and operational settings.
