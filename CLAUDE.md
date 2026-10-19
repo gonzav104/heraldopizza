@@ -13,10 +13,10 @@ El repositorio comenzó con **React 19 + TypeScript + Vite 8 + ESLint + npm**. A
 
 1. Preparar la base técnica con cambios acotados y comprobables.
 2. Construir una carta pública visualmente distintiva, basada en **chapa negra, madera y la identidad real del local**; diseño accesible y responsive.
-3. Implementar posteriormente las interacciones del catálogo, carrito, reglas de precios, checkout por WhatsApp y modo QR de consulta.
-4. Solo después conectar Supabase y desarrollar el panel del dueño, conservando modelos y componentes reutilizables.
+3. **Prioridad actual** (U1 ya integrada en `main`): completar carrito, reglas de precios, lógica comercial, checkout y WhatsApp. El QR solo abre la carta pública; no hay modo QR especial.
+4. La administración restante (categorías, altas/bajas, variantes, ajustes porcentuales) sigue después y no debe bloquear ese recorrido; conservar modelos y componentes reutilizables.
 
-**No crear el panel admin, la base de datos ni una API propia durante la fase inicial de frontend.** Si una funcionalidad futura necesita datos, usar un adaptador mock tipado y reemplazable. No desarrollar todas las fases en una sola solicitud.
+**No crear una API propia ni ampliar el administrador o la base de datos fuera de la unidad autorizada** (el administrador de U1 y el esquema local de Supabase ya existen). Si una funcionalidad futura necesita datos, usar un adaptador mock tipado y reemplazable. No desarrollar todas las fases en una sola solicitud.
 
 ### Fuentes obligatorias
 

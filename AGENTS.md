@@ -7,11 +7,11 @@ Guía compartida para asistentes de desarrollo que trabajen en este repositorio.
 Heraldo Pizza es una **carta digital web, mobile-first y de una sola página (SPA)** para un local gastronómico de Campana, Buenos Aires, Argentina.
 
 - **Público:** navegar el menú por categorías, consultar productos y promociones, armar un carrito y abrir WhatsApp con el pedido redactado.
-- **En el salón:** el QR abre un **modo consulta**, sin carrito ni pedido online; el cliente pide al mozo.
+- **QR:** el código QR solo abre la carta pública (la misma que ve cualquier cliente). No existe un modo QR especial.
 - **Administrador (etapa posterior):** el dueño gestiona productos, variantes, precios, imágenes, promociones, horarios, zonas de envío y configuración, sin editar código.
 - **Sin pagos online ni sistema de comandas:** WhatsApp es el canal de contacto; abrir el enlace no prueba que el cliente haya enviado el mensaje ni que el local lo haya aceptado.
 
-**Orden de implementación acordado:** (1) base técnica; (2) diseño y carta pública con datos locales; (3) carrito, checkout, WhatsApp y modo QR; (4) Supabase y panel administrador. El orden de desarrollo no cambia las prioridades MVP/F2 del documento funcional.
+**Orden de implementación acordado:** (1) base técnica; (2) diseño y carta pública con datos locales; (3) carrito, lógica comercial, checkout y WhatsApp; (4) Supabase y panel administrador. U1 (experiencia del administrador) ya está integrada en `main`; la **prioridad actual** es completar carrito, lógica comercial, checkout y WhatsApp, sin bloquearlo con administración restante. El orden de desarrollo no cambia las prioridades MVP/F2 del documento funcional.
 
 ## 2. Fuentes de verdad y decisiones pendientes
 
@@ -51,7 +51,6 @@ src/
   features/catalog/    # carta y variantes
   features/cart/       # carrito y persistencia
   features/checkout/   # costos, datos del cliente, WhatsApp
-  features/local-mode/ # acceso por QR en modo consulta
   data/                # mocks y futuros adaptadores a Supabase
   lib/                 # utilidades puras y formato monetario
   types/               # tipos compartidos solo cuando correspondan
@@ -65,15 +64,16 @@ Mantener las reglas completas del PDF como autoridad. Estas son las que más fá
 
 - **Importes:** pesos argentinos enteros (`ARS`), sin decimales; mostrar precios con formato local. El total es **orientativo** y lo confirma el local por WhatsApp. Centralizar las operaciones monetarias en funciones puras, con pruebas.
 - **Variantes:** cada variante tiene su propio precio. Las pizzas muestran **entera y media** en una misma fila. Una pizza mitad y mitad cuesta la **suma de los precios de dos medias**; cuenta como **una pizza** a efectos del recargo de envío.
-- **Empanadas:** por unidad y gusto; la docena surtida (gustos definidos por el local) es un producto aparte. No interpretar la docena surtida como 12 gustos a elección.
+- **Empanadas:** por unidad y gusto. La **docena surtida** (gustos definidos por el local) es un producto aparte y no se interpreta como 12 gustos a elección. La **docena de empanadas a elección** debe permitir seleccionar gustos y cantidades por gusto hasta completar exactamente **12 unidades**; no se puede agregar al carrito incompleta ni excedida.
 - **Disponibilidad:** sin stock implica visible, pero no comprable. Por encargo implica aviso de anticipación visible y presente en el mensaje. Una variante sin precio válido no se puede agregar.
-- **Promociones:** combos cerrados con precio propio, visibles solo cuando están activas y coinciden fecha y día de semana. No permitir cambiar sus componentes.
+- **Promociones:** las ocho promociones originales ya están definidas y verificadas (`src/data/prototype-promotions.ts`, `odd/tasks/hero-y-promos.md`); **no reconstruirlas ni pedir de nuevo los datos**. Lo pendiente es su integración productiva. Son combos cerrados con precio propio, visibles solo cuando están activas y coinciden fecha y día de semana (vigencia no suministrada: no inventarla). No permitir cambiar sus componentes, salvo la selección de gustos de la docena a elección descrita arriba.
 - **Carrito:** conservar al recargar, permitir cantidades, aclaración por ítem, edición y eliminación. No vaciar el carrito automáticamente al abrir WhatsApp (RF-21 es F2).
 - **Pedido:** nombre, retiro/delivery, dirección **solo obligatoria para delivery**, zona de envío, medio de pago y nota general. La zona se elige entre barrios/fábricas o `Otra zona (a consultar)`.
-- **Envío:** costo según zona; `Otra zona` deja costo a confirmar y el total sin ese costo. No hay monto mínimo de pedido. En delivery se agrega un recargo configurable de **$1.000 por cada pizza** (entera, media o mitad y mitad) y otro fijo por lluvia cuando corresponda.
+- **Envío:** costo según zona; `Otra zona` deja costo a confirmar y el total sin ese costo. No hay monto mínimo de pedido. En delivery se agrega un recargo configurable de **$1.000 por cada pizza** (entera, media o mitad y mitad).
+- **Lluvia:** solo se muestra una **aclaración informativa** sobre un posible recargo del servicio de reparto externo. No hay interruptor administrativo, ni recargo automático, ni importe de lluvia en el total o en el mensaje.
 - **Pagos:** delivery = efectivo o transferencia. Retiro = efectivo, transferencia, débito o crédito; crédito lleva **8 % de recargo**. No habilitar crédito ni débito en delivery. El recargo porcentual no aplica al envío.
-- **Recargo nocturno:** el documento establece $1.000 después de las 00:00, acumulable con lluvia, pero **RF-65 clasifica su automatización como F2**. No incluirla en el MVP sin decisión expresa.
-- **QR en el salón:** misma carta en modo consulta, sin acciones de carrito o checkout y con aviso `Hacé tu pedido al mozo`. Según RN-09, la marca de origen local vence a las **3 horas**; no hacerla permanente por accidente.
+- **Recargo nocturno:** el documento establece $1.000 después de las 00:00, pero **RF-65 clasifica su automatización como F2**. No incluirla en el MVP sin decisión expresa.
+- **QR:** enlace a la carta pública, sin modo especial, sesión temporal, marca de origen, vencimiento ni aviso al mozo. Reemplaza RF-51 y RN-09 (decisión del responsable, 2026-10-18); RF-50 conserva el acceso por QR. No bloquear carrito ni checkout según el origen de la visita.
 - **WhatsApp:** codificar correctamente el texto con productos, variantes, cantidades, observaciones, modalidad, dirección/zona si corresponde, pago, recargos y total orientativo. No generar pagos, pedidos o confirmaciones ficticias en la base.
 
 **Fuera de alcance:** registro de clientes, pago en línea, historial, fidelización, control de stock por unidades, cocina, seguimiento de pedidos, múltiples sucursales e integración con Fudo.
@@ -110,7 +110,7 @@ Mantener las reglas completas del PDF como autoridad. Estas son las que más fá
 - Antes de codificar: inspeccionar archivos existentes, explicar brevemente el alcance y identificar los RF/RNF/RN afectados.
 - Trabajar en **unidades pequeñas y verificables**. No reescribir partes no relacionadas ni ampliar el alcance sin aprobación.
 - Preferir lógica de precios/recargos/fechas/checkout en funciones puras, con tests que cubran casos normales, bordes y combinaciones.
-- Para UI: comprobar interacciones en móvil y escritorio mediante Playwright cuando esté disponible; verificar modo QR, navegación, teclado y estados relevantes.
+- Para UI: comprobar interacciones en móvil y escritorio mediante Playwright cuando esté disponible; verificar navegación, teclado y estados relevantes.
 - Revisar los scripts actuales de `package.json`. Inicialmente existen `npm run dev`, `npm run lint` y `npm run build`; **no afirmar que hay `npm test` antes de crearlo**.
 - Antes de finalizar una tarea: ejecutar los checks pertinentes, mostrar resultados reales y documentar lo que no pudo comprobarse.
 - Si falta un dato comercial importante, pedirlo; no bloquear la construcción visual por contenido todavía no suministrado si puede mostrarse un placeholder explícito.
