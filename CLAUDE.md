@@ -5,7 +5,7 @@
 
 ## Contexto para Claude Code
 
-Estás trabajando en **Heraldo Pizza** (`gonzav104/heraldopizza`), una carta digital SPA mobile-first para una pizzería de Campana (Argentina). El usuario quiere **construir primero el frontend público**, validar su aspecto y funcionamiento, y **dejar la administración con Supabase para más adelante**.
+Estás trabajando en **Heraldo Pizza** (`gonzav104/heraldopizza`), una carta digital SPA mobile-first para una pizzería de Campana (Argentina). El frontend público y el administrador de U1 ya están integrados con Supabase local; el trabajo actual completa el recorrido comercial, y la administración restante queda para después.
 
 El repositorio comenzó con **React 19 + TypeScript + Vite 8 + ESLint + npm**. Antes de presuponer instalaciones o rutas, comprobá `package.json` y el árbol real del proyecto.
 
@@ -13,10 +13,10 @@ El repositorio comenzó con **React 19 + TypeScript + Vite 8 + ESLint + npm**. A
 
 1. Preparar la base técnica con cambios acotados y comprobables.
 2. Construir una carta pública visualmente distintiva, basada en **chapa negra, madera y la identidad real del local**; diseño accesible y responsive.
-3. Implementar posteriormente las interacciones del catálogo, carrito, reglas de precios, checkout por WhatsApp y modo QR de consulta.
-4. Solo después conectar Supabase y desarrollar el panel del dueño, conservando modelos y componentes reutilizables.
+3. **Prioridad actual** (U1 ya integrada en `main`): completar carrito, reglas de precios, lógica comercial, checkout y WhatsApp. El QR solo abre la carta pública; no hay modo QR especial.
+4. La administración restante (categorías, altas/bajas, variantes, ajustes porcentuales) sigue después y no debe bloquear ese recorrido; conservar modelos y componentes reutilizables.
 
-**No crear el panel admin, la base de datos ni una API propia durante la fase inicial de frontend.** Si una funcionalidad futura necesita datos, usar un adaptador mock tipado y reemplazable. No desarrollar todas las fases en una sola solicitud.
+**No crear una API propia ni ampliar el administrador o la base de datos fuera de la unidad autorizada** (el administrador de U1 y el esquema local de Supabase ya existen). Para prototipos que aún no tienen fuente real, usar un adaptador mock tipado y reemplazable; el trabajo productivo reutiliza o extiende los adaptadores de Supabase existentes (`src/data/supabase-catalog-repository.ts`). No desarrollar todas las fases en una sola solicitud.
 
 ### Fuentes obligatorias
 

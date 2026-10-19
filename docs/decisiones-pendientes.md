@@ -11,13 +11,15 @@ Estas decisiones posteriores reemplazan las referencias históricas incompatible
 - **QR:** enlace a la misma carta pública, sin modo especial, sesiones temporales, vencimiento ni aviso al mozo. Reemplaza RF-51 y RN-09; RF-50 conserva el acceso mediante QR. La impresión espera la URL definitiva.
 - **Productos sin precio:** decisión A del 2026-10-16: se muestran como «Consultar en barra», sin compra; en productos mixtos solo se pueden pedir variantes con precio. La pregunta histórica sobre mostrarlos está resuelta.
 - **Imágenes:** administración fuera del MVP; no se incorpora a U1.
-- **Promociones:** las ocho promociones reales suministradas por el dueño ya están en `src/data/prototype-promotions.ts`. El commit `1922f02` y `odd/tasks/hero-y-promos.md` documentan presentación, incorporación al carrito y verificaciones. `dev-promotions.ts` las carga solo en desarrollo; `supabase-catalog-repository.ts` devuelve promociones vacías. Lo pendiente es la integración productiva, no obtener otra vez los datos ni reconstruir la sección. Vigencia no suministrada permanece sin inventar. La promo suministrada «Docena de empanadas a elección» y la regla general de combos cerrados requieren reconciliación antes de esa integración; U1 no modifica ninguna.
+- **Lluvia:** solo una aclaración informativa sobre un posible recargo del servicio de reparto externo. No hay interruptor administrativo ni recargo automático; no entra en el total ni en los cálculos. Reemplaza el recargo fijo por lluvia de RN-16 y resuelve la duda sobre su redacción («retiro» vs. envío).
+- **Docena de empanadas a elección:** debe permitir elegir gustos y cantidades por gusto hasta completar exactamente 12 unidades. La «Docena de empanadas surtidas» (gustos definidos por el local) sigue siendo un producto aparte.
+- **Promociones:** las ocho promociones reales suministradas por el dueño ya están en `src/data/prototype-promotions.ts`. El commit `1922f02` y `odd/tasks/hero-y-promos.md` documentan presentación, incorporación al carrito y verificaciones. `dev-promotions.ts` las carga solo en desarrollo; `supabase-catalog-repository.ts` devuelve promociones vacías. Lo pendiente es la integración productiva, no obtener otra vez los datos ni reconstruir la sección. Vigencia no suministrada permanece sin inventar. Ya están definidas y verificadas: no se reconstruyen. La docena a elección sigue la regla de 12 unidades de arriba, que reconcilia la regla general de combos cerrados (sus componentes no se editan, salvo esa selección de gustos).
 - **Prioridad después de U1:** completar menú → configuradores existentes → carrito → checkout → WhatsApp, con la configuración operativa necesaria. La administración restante no debe bloquear innecesariamente ese recorrido.
 
 Orden de trabajo actualizado:
 
 1. U1: experiencia del administrador, con contratos existentes y sin nuevas funciones comerciales.
-2. Cierre del recorrido comercial: persistencia/reconciliación del carrito (RF-17), configuración operativa necesaria, checkout y enlace WhatsApp real, reutilizando formulario y cálculos. Contemplar zonas, modalidades, pagos, recargo por pizza y lluvia; aclarar la redacción de RN-16 antes de implementarla. El recargo nocturno automático sigue en F2.
+2. Cierre del recorrido comercial: persistencia/reconciliación del carrito (RF-17), configuración operativa necesaria, checkout y enlace WhatsApp real, reutilizando formulario y cálculos. Contemplar zonas, modalidades, pagos y recargo por pizza; la lluvia es solo informativa (ver arriba). El recargo nocturno automático sigue en F2.
 3. Integración productiva de las promociones existentes y su administración, vigencia y cobro correcto de envío; asociación avanzada de productos RF-44 sigue en F2.
 4. Completar gestión administrativa: categorías (incluido su orden, MVP), altas/bajas y variantes; ajustes porcentuales con vista previa y redondeo (RF-40/41, MVP). Reordenar productos RF-37 sigue en F2.
 5. Aceptación integral, rendimiento, accesibilidad, datos del local/horarios e indicador abierto/cerrado RF-24, publicación autorizada y QR definitivo. Las dependencias comerciales necesarias se adelantan al punto 2.
@@ -32,12 +34,12 @@ La evidencia de «sin llamadas de red» de D11 describe el prototipo histórico;
 | 2 | Categorías (RF-01) | Menciona panchos y ensaimadas como categorías | No hay panchos; la ensaimada está dentro de Cafetería. Hay hamburguesas, picadas, papas fritas, pastas, cafetería y tragos de autor | Se usa el SQL (provisional) |
 | 3 | Productos sin precio vs RN-01 | RN-01: un producto visible necesita una variante con precio > 0 | 16 productos tienen todas sus variantes con precio `NULL` ("Consultar en barra"): 4 cafés, medialunas, 4 tragos clásicos y 7 de autor | Se contemplan en el modelo y **no se pueden agregar al carrito**. Falta definir si se muestran |
 | 4 | Recargo por pizza | RF-62: línea aparte. RN-15: "suma $1.000 a su precio" | — | Falta definir cómo se muestra |
-| 5 | Recargo por lluvia | RN-16 dice "al momento del retiro" | — | Parece referirse al envío; falta confirmar |
+| 5 | Recargo por lluvia | RN-16 dice "al momento del retiro" | — | Resuelto (2026-10-18): solo aclaración informativa, sin recargo automático |
 
 ## Datos faltantes
 
 - **Zonas de envío y costos** (RF-19, RF-63, RN-14): el PDF remite a un "documento técnico" que no está en el repo. Solo se conocen rangos (barrios de $2.500 a $18.000, fábricas de $3.000 a $10.000).
-- **Promociones** (RF-10 a RF-12): no hay ninguna cargada.
+- **Promociones** (RF-10 a RF-12): histórico; las ocho promociones reales ya están cargadas en `src/data/prototype-promotions.ts` (ver «Actualización vigente»). Falta su vigencia.
 - **Descripciones:** 36 productos tienen descripción `NULL`.
 - **Fotos de productos:** esta versión no las usa (decisión del dueño, ver abajo).
 - **Horario nocturno:** el turno es de 19 a 00, pero RN-16 habla de un recargo "desde las 00:00 hasta el fin del turno". Falta confirmar si el turno sigue después de medianoche.
@@ -56,7 +58,7 @@ Las trajo el responsable del proyecto después de revisar el prototipo de U2 («
 | D4 | Una mitad y mitad cuenta como **una pizza** para el recargo de envío. | RN-15, RF-62 | Sin cambios; se confirma la regla. |
 | D5 | Esta versión **no tiene fotos de productos**. Cada categoría lleva un recurso gráfico propio. | RF-03, RF-09 (F2), RF-36, RNF-02, RNF-03 | RF-03 deja de mostrar foto por producto. La carga de fotos del panel (RF-36) y las reglas de optimización (RNF-02, RNF-03) quedan sin uso hasta que se retome. |
 | D6 | Nueva categoría **Postres**: Chocotorta $ 10.500; Vigilante con dos variantes, membrillo con queso y batata con queso, $ 7.500 cada una; Durazno con dulce de leche $ 7.000. | RF-01, catálogo | Se agregó a `docs/seed_catalogo.sql` (no se ejecuta). Va en el orden 8, después de Pastas, y las categorías siguientes bajan un lugar (Licuados 9 … Tragos de autor 13). El dueño no definió la unidad de venta ni las descripciones: la variante se llama «Unidad» y la descripción queda vacía. |
-| D7 | La sección **Info** muestra solo dirección (con cómo llegar), horarios, contacto e Instagram. | RF-23 | Se quita la explicación del funcionamiento del salón. El modo consulta por QR (RF-50, RF-51, RN-09) no cambia: su aviso «Hacé tu pedido al mozo» se implementa en U9. |
+| D7 | La sección **Info** muestra solo dirección (con cómo llegar), horarios, contacto e Instagram. | RF-23 | Se quita la explicación del funcionamiento del salón. Histórico: esta decisión conservaba el modo consulta por QR; fue reemplazada el 2026-10-18 (el QR solo abre la carta pública, sin modo especial). |
 | D8 | Ícono oficial de Instagram junto al perfil real `@heraldopizza`, y un footer compacto. | RF-23 | Sin cambio de alcance. |
 
 **Pendiente de confirmar con el dueño:** la unidad de venta de la Chocotorta y del Durazno con dulce de leche (porción u otra), y si los postres llevan descripción.
@@ -67,7 +69,7 @@ Las pidió el responsable del proyecto después de aprobar el diseño de U2. Nin
 
 | # | Decisión | Requerimiento afectado | Cambio respecto de lo anterior |
 |---|----------|------------------------|-------------------------------|
-| D9 | La información del local vuelve a mostrar **cómo pedir, medios de pago y envío**: WhatsApp (coordinación y confirmación), retiro o envío, pagos según la modalidad, costo de envío según la zona, $ 1.000 por pizza en los envíos y sin pedido mínimo. | RF-23, RN-03, RN-11, RN-15 | Reemplaza la parte de D7 que sacaba esos datos de «Info». Los textos salen de las mismas reglas que usa el checkout. No se publican los costos por zona (RF-26 es F2 y falta la lista), ni el recargo por lluvia ni el nocturno. |
+| D9 | La información del local vuelve a mostrar **cómo pedir, medios de pago y envío**: WhatsApp (coordinación y confirmación), retiro o envío, pagos según la modalidad, costo de envío según la zona, $ 1.000 por pizza en los envíos y sin pedido mínimo. | RF-23, RN-03, RN-11, RN-15 | Reemplaza la parte de D7 que sacaba esos datos de «Info». Los textos salen de las mismas reglas que usa el checkout. No se publican los costos por zona (RF-26 es F2 y falta la lista) ni el recargo nocturno; la lluvia pasó a ser una aclaración informativa (2026-10-18). |
 | D10 | **PedidosYa** es un canal secundario: enlace solo en el pie y en «Info», nunca en el encabezado, el carrito ni el checkout. WhatsApp sigue siendo el canal principal. | — | La URL está en `src/data/store-info.ts` (`pedidosYaUrl`). El logo oficial queda pendiente: se agrega en `src/data/brand-assets.ts`; hasta entonces se muestra el nombre como texto. |
 | D11 | **Aviso de privacidad**: hoja «Privacidad» desde el pie, con cinco temas breves (qué datos, para qué, quién decide el envío, qué pasa al enviar, cómo consultar). | RF-18, RF-20 | Solo afirma lo que se comprobó: la página no usa cookies, almacenamiento, analítica ni llamadas de red, y lo escrito no sale del dispositivo. Un test (`privacy-claims.test.ts`) falla si el código empieza a usar alguna de esas cosas. El texto describe el flujo final de U8 (se abre WhatsApp con el mensaje listo); el prototipo todavía no lo abre. |
 | D12 | **Aviso de confirmación** junto al botón de WhatsApp. El botón pasa de «Enviar por WhatsApp» a **«Continuar en WhatsApp»**. | RF-20, RN-03 | El botón abre WhatsApp con el mensaje preparado y el cliente lo envía desde ahí, así que «Enviar» no era exacto. Al texto pedido se sumó «para que lo envíes». Sin pantalla ni casilla de aceptación. |
@@ -86,7 +88,7 @@ Las pidió el responsable del proyecto después de aprobar el diseño de U2. Nin
 1. **Archivo oficial del logo de PedidosYa** (SVG o PNG, de su portal de socios o de su ejecutivo de cuenta) y sus reglas de uso. El sitio de PedidosYa bloquea la descarga automática y no encontramos un kit público.
 2. ¿Los **precios y costos de envío en PedidosYa** son los mismos que en la carta? Si difieren, conviene aclararlo.
 3. **Lista de zonas de envío** (barrios y fábricas) con su costo (RF-19, RF-63). Hoy solo existe «Otra zona (a consultar)».
-4. **Recargo por lluvia**: cuándo aplica y si se informa al cliente (RN-16 dice «retiro», parece ser «envío»). **Recargo nocturno** (RF-65, F2): si se informa. Hoy ninguno de los dos se publica.
+4. ~~Recargo por lluvia~~ Resuelto: aclaración informativa, sin recargo automático. **Recargo nocturno** (RF-65, F2): si se informa. Hoy no se publica.
 5. ¿El **11 7058-2325** puede publicarse? El PDF dice que es una cuenta personal de WhatsApp, no Business. ¿Atiende llamadas? ¿Hay otro teléfono?
 6. Horario nocturno: ¿termina a las 00:00 o sigue después? (ya figuraba arriba).
 7. Unidad de venta de la Chocotorta y del Durazno con dulce de leche, y si llevan descripción (ya figuraba arriba).

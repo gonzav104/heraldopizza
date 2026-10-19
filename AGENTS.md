@@ -7,11 +7,11 @@ Guía compartida para asistentes de desarrollo que trabajen en este repositorio.
 Heraldo Pizza es una **carta digital web, mobile-first y de una sola página (SPA)** para un local gastronómico de Campana, Buenos Aires, Argentina.
 
 - **Público:** navegar el menú por categorías, consultar productos y promociones, armar un carrito y abrir WhatsApp con el pedido redactado.
-- **En el salón:** el QR abre un **modo consulta**, sin carrito ni pedido online; el cliente pide al mozo.
-- **Administrador (etapa posterior):** el dueño gestiona productos, variantes, precios, imágenes, promociones, horarios, zonas de envío y configuración, sin editar código.
+- **QR:** el código QR solo abre la carta pública (la misma que ve cualquier cliente). No existe un modo QR especial.
+- **Administrador:** existe en `/admin` (U1, `src/features/admin`) con acceso autenticado y edición de precios, disponibilidad y datos de productos sobre Supabase. Está pendiente completar la gestión de categorías, altas/bajas, variantes, ajustes porcentuales, promociones, horarios, zonas de envío y configuración, sin editar código; las imágenes están fuera del MVP.
 - **Sin pagos online ni sistema de comandas:** WhatsApp es el canal de contacto; abrir el enlace no prueba que el cliente haya enviado el mensaje ni que el local lo haya aceptado.
 
-**Orden de implementación acordado:** (1) base técnica; (2) diseño y carta pública con datos locales; (3) carrito, checkout, WhatsApp y modo QR; (4) Supabase y panel administrador. El orden de desarrollo no cambia las prioridades MVP/F2 del documento funcional.
+**Orden de implementación acordado:** (1) base técnica; (2) diseño y carta pública con datos locales; (3) carrito, lógica comercial, checkout y WhatsApp; (4) Supabase y panel administrador. U1 (experiencia del administrador) ya está integrada en `main`; la **prioridad actual** es completar carrito, lógica comercial, checkout y WhatsApp, sin bloquearlo con administración restante. El orden de desarrollo no cambia las prioridades MVP/F2 del documento funcional.
 
 ## 2. Fuentes de verdad y decisiones pendientes
 
@@ -31,9 +31,9 @@ No ejecutar el seed SQL directamente: primero verificar esquema, claves, restric
 
 ## 3. Stack y estado real
 
-**Ya inicializado:** React 19, TypeScript, Vite 8, ESLint y npm (`package.json` es la referencia para versiones y scripts efectivos).
+**Ya instalado y en uso:** React 19, TypeScript, Vite 8, ESLint, npm, Tailwind CSS v4, Lucide React, Zustand, Vitest, Testing Library, Playwright (E2E) y `@supabase/supabase-js`. Supabase (PostgreSQL con RLS y Auth, migraciones y pruebas en `supabase/`) se usa en el stack local. `package.json` es la referencia para versiones y scripts efectivos.
 
-**Tecnologías planificadas, no presuponer instaladas:** Tailwind CSS v4, shadcn/ui, Lucide React, React Router, Zustand, React Hook Form, Zod, Vitest, Testing Library y Playwright. Supabase (PostgreSQL, Auth y Storage) se integra después.
+**Planificadas o sin usar, no presuponer instaladas:** shadcn/ui, React Router, React Hook Form y Zod (no figuran en `package.json`). Supabase Storage no se usa: las imágenes están fuera del MVP.
 
 - Preferir TypeScript estricto; evitar `any` sin justificación documentada.
 - Mantener componentes accesibles y reutilizables; separar presentación, estado, casos de uso, adaptadores de datos y cálculos.
@@ -42,22 +42,22 @@ No ejecutar el seed SQL directamente: primero verificar esquema, claves, restric
 - Usar `npm` y respetar `package-lock.json`. No mezclar gestores de paquetes.
 - Consultar documentación vigente antes de usar APIs desconocidas o que hayan cambiado.
 
-La siguiente distribución es una **propuesta**, no una estructura ya implementada:
+Distribución de `src/`: las carpetas existen, pero los comentarios describen su responsabilidad prevista y no que todo esté terminado (por ejemplo, el carrito sigue solo en memoria y su persistencia, RF-15, está pendiente). `types/` no existe (los tipos del dominio están en `domain/`) y el resto de las carpetas se crea a medida que se necesita:
 
 ```text
 src/
   app/                 # arranque, providers, rutas
   components/ui/       # componentes base
   features/catalog/    # carta y variantes
-  features/cart/       # carrito y persistencia
+  features/cart/       # carrito (persistencia pendiente, RF-15)
   features/checkout/   # costos, datos del cliente, WhatsApp
-  features/local-mode/ # acceso por QR en modo consulta
-  data/                # mocks y futuros adaptadores a Supabase
+  data/                # catálogo mock y adaptadores a Supabase
+  domain/              # modelos del catálogo
+  features/admin/      # administrador (/admin)
   lib/                 # utilidades puras y formato monetario
-  types/               # tipos compartidos solo cuando correspondan
 ```
 
-Crear carpetas **a medida que se necesiten**, no todo por adelantado. El módulo administrador se agrega después y comparte modelos sin acoplarse al frontend público.
+Crear carpetas **a medida que se necesiten**, no todo por adelantado. El módulo administrador ya existe y comparte modelos sin acoplarse al frontend público.
 
 ## 4. Reglas de negocio que no se pueden romper
 
@@ -65,15 +65,16 @@ Mantener las reglas completas del PDF como autoridad. Estas son las que más fá
 
 - **Importes:** pesos argentinos enteros (`ARS`), sin decimales; mostrar precios con formato local. El total es **orientativo** y lo confirma el local por WhatsApp. Centralizar las operaciones monetarias en funciones puras, con pruebas.
 - **Variantes:** cada variante tiene su propio precio. Las pizzas muestran **entera y media** en una misma fila. Una pizza mitad y mitad cuesta la **suma de los precios de dos medias**; cuenta como **una pizza** a efectos del recargo de envío.
-- **Empanadas:** por unidad y gusto; la docena surtida (gustos definidos por el local) es un producto aparte. No interpretar la docena surtida como 12 gustos a elección.
+- **Empanadas:** por unidad y gusto. La **docena surtida** (gustos definidos por el local) es un producto aparte y no se interpreta como 12 gustos a elección. La **docena de empanadas a elección** debe permitir seleccionar gustos y cantidades por gusto hasta completar exactamente **12 unidades**; no se puede agregar al carrito incompleta ni excedida.
 - **Disponibilidad:** sin stock implica visible, pero no comprable. Por encargo implica aviso de anticipación visible y presente en el mensaje. Una variante sin precio válido no se puede agregar.
-- **Promociones:** combos cerrados con precio propio, visibles solo cuando están activas y coinciden fecha y día de semana. No permitir cambiar sus componentes.
+- **Promociones:** las ocho promociones originales ya están definidas y verificadas (`src/data/prototype-promotions.ts`, `odd/tasks/hero-y-promos.md`); **no reconstruirlas ni pedir de nuevo los datos**. Lo pendiente es su integración productiva. Son combos cerrados con precio propio, visibles solo cuando están activas y coinciden fecha y día de semana (vigencia no suministrada: no inventarla). No permitir cambiar sus componentes, salvo la selección de gustos de la docena a elección descrita arriba.
 - **Carrito:** conservar al recargar, permitir cantidades, aclaración por ítem, edición y eliminación. No vaciar el carrito automáticamente al abrir WhatsApp (RF-21 es F2).
 - **Pedido:** nombre, retiro/delivery, dirección **solo obligatoria para delivery**, zona de envío, medio de pago y nota general. La zona se elige entre barrios/fábricas o `Otra zona (a consultar)`.
-- **Envío:** costo según zona; `Otra zona` deja costo a confirmar y el total sin ese costo. No hay monto mínimo de pedido. En delivery se agrega un recargo configurable de **$1.000 por cada pizza** (entera, media o mitad y mitad) y otro fijo por lluvia cuando corresponda.
+- **Envío:** costo según zona; `Otra zona` deja costo a confirmar y el total sin ese costo. No hay monto mínimo de pedido. En delivery se agrega un recargo configurable de **$1.000 por cada pizza** (entera, media o mitad y mitad).
+- **Lluvia:** solo se muestra una **aclaración informativa** sobre un posible recargo del servicio de reparto externo. No hay interruptor administrativo, ni recargo automático, ni importe de lluvia en el total o en el mensaje.
 - **Pagos:** delivery = efectivo o transferencia. Retiro = efectivo, transferencia, débito o crédito; crédito lleva **8 % de recargo**. No habilitar crédito ni débito en delivery. El recargo porcentual no aplica al envío.
-- **Recargo nocturno:** el documento establece $1.000 después de las 00:00, acumulable con lluvia, pero **RF-65 clasifica su automatización como F2**. No incluirla en el MVP sin decisión expresa.
-- **QR en el salón:** misma carta en modo consulta, sin acciones de carrito o checkout y con aviso `Hacé tu pedido al mozo`. Según RN-09, la marca de origen local vence a las **3 horas**; no hacerla permanente por accidente.
+- **Recargo nocturno:** el documento establece $1.000 después de las 00:00, pero **RF-65 clasifica su automatización como F2**. No incluirla en el MVP sin decisión expresa.
+- **QR:** enlace a la carta pública, sin modo especial, sesión temporal, marca de origen, vencimiento ni aviso al mozo. Reemplaza RF-51 y RN-09 (decisión del responsable, 2026-10-18); RF-50 conserva el acceso por QR. No bloquear carrito ni checkout según el origen de la visita.
 - **WhatsApp:** codificar correctamente el texto con productos, variantes, cantidades, observaciones, modalidad, dirección/zona si corresponde, pago, recargos y total orientativo. No generar pagos, pedidos o confirmaciones ficticias en la base.
 
 **Fuera de alcance:** registro de clientes, pago en línea, historial, fidelización, control de stock por unidades, cocina, seguimiento de pedidos, múltiples sucursales e integración con Fudo.
@@ -94,7 +95,7 @@ Mantener las reglas completas del PDF como autoridad. Estas son las que más fá
 - Nunca insertar secretos, contraseñas, tokens, `service_role` o credenciales de administrador en código cliente, mensajes, capturas o commits.
 - Variables de entorno locales fuera de Git; `.env.example` puede contener **solo nombres y valores ficticios**. Las claves públicas de Supabase no reemplazan RLS.
 - Supabase MCP se ha previsto para **un proyecto concreto y en modo `read_only`**. No modificar ni desactivar esa protección, ejecutar migraciones, borrar datos ni crear políticas sin autorización explícita.
-- Para el futuro panel: autenticación del administrador, sin registro público; escrituras protegidas por RLS y validaciones reales del lado servidor/base, no por ocultar botones.
+- Para el panel administrador: autenticación del administrador, sin registro público; escrituras protegidas por RLS y validaciones reales del lado servidor/base, no por ocultar botones.
 - No conectar herramientas a producción ni ejecutar SQL destructivo automáticamente. Probar operaciones de administración en un entorno de desarrollo.
 - El repositorio puede ser público: revisar datos y archivos antes de versionarlos, especialmente documentos con contactos, credenciales o información privada.
 
@@ -110,7 +111,7 @@ Mantener las reglas completas del PDF como autoridad. Estas son las que más fá
 - Antes de codificar: inspeccionar archivos existentes, explicar brevemente el alcance y identificar los RF/RNF/RN afectados.
 - Trabajar en **unidades pequeñas y verificables**. No reescribir partes no relacionadas ni ampliar el alcance sin aprobación.
 - Preferir lógica de precios/recargos/fechas/checkout en funciones puras, con tests que cubran casos normales, bordes y combinaciones.
-- Para UI: comprobar interacciones en móvil y escritorio mediante Playwright cuando esté disponible; verificar modo QR, navegación, teclado y estados relevantes.
+- Para UI: comprobar interacciones en móvil y escritorio mediante Playwright cuando esté disponible; verificar navegación, teclado y estados relevantes.
 - Revisar los scripts actuales de `package.json`. Inicialmente existen `npm run dev`, `npm run lint` y `npm run build`; **no afirmar que hay `npm test` antes de crearlo**.
 - Antes de finalizar una tarea: ejecutar los checks pertinentes, mostrar resultados reales y documentar lo que no pudo comprobarse.
 - Si falta un dato comercial importante, pedirlo; no bloquear la construcción visual por contenido todavía no suministrado si puede mostrarse un placeholder explícito.
