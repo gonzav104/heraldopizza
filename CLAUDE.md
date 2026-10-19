@@ -5,7 +5,7 @@
 
 ## Contexto para Claude Code
 
-Estás trabajando en **Heraldo Pizza** (`gonzav104/heraldopizza`), una carta digital SPA mobile-first para una pizzería de Campana (Argentina). El usuario quiere **construir primero el frontend público**, validar su aspecto y funcionamiento, y **dejar la administración con Supabase para más adelante**.
+Estás trabajando en **Heraldo Pizza** (`gonzav104/heraldopizza`), una carta digital SPA mobile-first para una pizzería de Campana (Argentina). El frontend público y el administrador de U1 ya están integrados con Supabase local; el trabajo actual completa el recorrido comercial, y la administración restante queda para después.
 
 El repositorio comenzó con **React 19 + TypeScript + Vite 8 + ESLint + npm**. Antes de presuponer instalaciones o rutas, comprobá `package.json` y el árbol real del proyecto.
 

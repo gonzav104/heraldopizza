@@ -8,7 +8,7 @@ Heraldo Pizza es una **carta digital web, mobile-first y de una sola página (SP
 
 - **Público:** navegar el menú por categorías, consultar productos y promociones, armar un carrito y abrir WhatsApp con el pedido redactado.
 - **QR:** el código QR solo abre la carta pública (la misma que ve cualquier cliente). No existe un modo QR especial.
-- **Administrador (etapa posterior):** el dueño gestiona productos, variantes, precios, imágenes, promociones, horarios, zonas de envío y configuración, sin editar código.
+- **Administrador:** existe en `/admin` (U1, `src/features/admin`) con acceso autenticado y edición de precios, disponibilidad y datos de productos sobre Supabase. Está pendiente completar la gestión de categorías, altas/bajas, variantes, ajustes porcentuales, promociones, horarios, zonas de envío y configuración, sin editar código; las imágenes están fuera del MVP.
 - **Sin pagos online ni sistema de comandas:** WhatsApp es el canal de contacto; abrir el enlace no prueba que el cliente haya enviado el mensaje ni que el local lo haya aceptado.
 
 **Orden de implementación acordado:** (1) base técnica; (2) diseño y carta pública con datos locales; (3) carrito, lógica comercial, checkout y WhatsApp; (4) Supabase y panel administrador. U1 (experiencia del administrador) ya está integrada en `main`; la **prioridad actual** es completar carrito, lógica comercial, checkout y WhatsApp, sin bloquearlo con administración restante. El orden de desarrollo no cambia las prioridades MVP/F2 del documento funcional.
@@ -31,9 +31,9 @@ No ejecutar el seed SQL directamente: primero verificar esquema, claves, restric
 
 ## 3. Stack y estado real
 
-**Ya inicializado:** React 19, TypeScript, Vite 8, ESLint y npm (`package.json` es la referencia para versiones y scripts efectivos).
+**Ya instalado y en uso:** React 19, TypeScript, Vite 8, ESLint, npm, Tailwind CSS v4, Lucide React, Zustand, Vitest, Testing Library, Playwright (E2E) y `@supabase/supabase-js`. Supabase (PostgreSQL con RLS y Auth, migraciones y pruebas en `supabase/`) se usa en el stack local. `package.json` es la referencia para versiones y scripts efectivos.
 
-**Tecnologías planificadas, no presuponer instaladas:** Tailwind CSS v4, shadcn/ui, Lucide React, React Router, Zustand, React Hook Form, Zod, Vitest, Testing Library y Playwright. Supabase (PostgreSQL, Auth y Storage) se integra después.
+**Planificadas o sin usar, no presuponer instaladas:** shadcn/ui, React Router, React Hook Form y Zod (no figuran en `package.json`). Supabase Storage no se usa: las imágenes están fuera del MVP.
 
 - Preferir TypeScript estricto; evitar `any` sin justificación documentada.
 - Mantener componentes accesibles y reutilizables; separar presentación, estado, casos de uso, adaptadores de datos y cálculos.
@@ -42,7 +42,7 @@ No ejecutar el seed SQL directamente: primero verificar esquema, claves, restric
 - Usar `npm` y respetar `package-lock.json`. No mezclar gestores de paquetes.
 - Consultar documentación vigente antes de usar APIs desconocidas o que hayan cambiado.
 
-La siguiente distribución es una **propuesta**, no una estructura ya implementada:
+La distribución actual de `src/` es la siguiente; `types/` no existe (los tipos del dominio están en `domain/`) y el resto de las carpetas se crea a medida que se necesita:
 
 ```text
 src/
@@ -51,12 +51,13 @@ src/
   features/catalog/    # carta y variantes
   features/cart/       # carrito y persistencia
   features/checkout/   # costos, datos del cliente, WhatsApp
-  data/                # mocks y futuros adaptadores a Supabase
+  data/                # catálogo mock y adaptadores a Supabase
+  domain/              # modelos del catálogo
+  features/admin/      # administrador (/admin)
   lib/                 # utilidades puras y formato monetario
-  types/               # tipos compartidos solo cuando correspondan
 ```
 
-Crear carpetas **a medida que se necesiten**, no todo por adelantado. El módulo administrador se agrega después y comparte modelos sin acoplarse al frontend público.
+Crear carpetas **a medida que se necesiten**, no todo por adelantado. El módulo administrador ya existe y comparte modelos sin acoplarse al frontend público.
 
 ## 4. Reglas de negocio que no se pueden romper
 
@@ -94,7 +95,7 @@ Mantener las reglas completas del PDF como autoridad. Estas son las que más fá
 - Nunca insertar secretos, contraseñas, tokens, `service_role` o credenciales de administrador en código cliente, mensajes, capturas o commits.
 - Variables de entorno locales fuera de Git; `.env.example` puede contener **solo nombres y valores ficticios**. Las claves públicas de Supabase no reemplazan RLS.
 - Supabase MCP se ha previsto para **un proyecto concreto y en modo `read_only`**. No modificar ni desactivar esa protección, ejecutar migraciones, borrar datos ni crear políticas sin autorización explícita.
-- Para el futuro panel: autenticación del administrador, sin registro público; escrituras protegidas por RLS y validaciones reales del lado servidor/base, no por ocultar botones.
+- Para el panel administrador: autenticación del administrador, sin registro público; escrituras protegidas por RLS y validaciones reales del lado servidor/base, no por ocultar botones.
 - No conectar herramientas a producción ni ejecutar SQL destructivo automáticamente. Probar operaciones de administración en un entorno de desarrollo.
 - El repositorio puede ser público: revisar datos y archivos antes de versionarlos, especialmente documentos con contactos, credenciales o información privada.
 
