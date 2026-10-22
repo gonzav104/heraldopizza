@@ -4,8 +4,7 @@ import { InstagramIcon } from '@/components/ui/InstagramIcon'
 import { PedidosYaLink } from '@/components/ui/PedidosYaLink'
 import { Sheet } from '@/components/ui/Sheet'
 import { instagramUrl, storeInfo } from '@/data/store-info'
-import { CREDIT_SURCHARGE_PERCENT, DELIVERY_SURCHARGE_PER_PIZZA, paymentOptions, type FulfillmentMode } from '@/features/checkout/prototype-order'
-import { formatArs } from '@/lib/money'
+import { CREDIT_SURCHARGE_PERCENT, paymentOptions, type FulfillmentMode } from '@/features/checkout/prototype-order'
 
 function Fact({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
   return (
@@ -49,8 +48,8 @@ function paymentSentence(mode: FulfillmentMode): string {
 }
 
 /**
- * Store info (D7, D9): where, when, how to order and pay, what delivery costs, and Instagram. Everything comes from
- * the requirements; whatever the owner has not confirmed (zone prices, rain and night surcharges) is not shown.
+ * Store info (D7, D9): where, when, how to order and pay, how delivery is paid, and Instagram. Everything comes from
+ * the requirements and the owner's decisions (2026-10-22: the motito is paid apart; its rates are in the checkout).
  */
 export function StoreInfoSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
@@ -97,8 +96,8 @@ export function StoreInfoSheet({ open, onClose }: { open: boolean; onClose: () =
         </Fact>
 
         <Fact icon={<Bike className="size-5" />} title="Envío">
-          <p>El costo del envío depende de tu zona y lo confirma el local por WhatsApp.</p>
-          <p>Cada pizza (entera, media o mitad y mitad) suma {formatArs(DELIVERY_SURCHARGE_PER_PIZZA)} en los envíos.</p>
+          <p>Los precios son los mismos para retiro y envío.</p>
+          <p>El reparto en motito se paga aparte, con tarifa según el destino, y lo confirma el local por WhatsApp.</p>
           <p>No hay pedido mínimo.</p>
         </Fact>
 

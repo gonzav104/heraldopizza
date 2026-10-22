@@ -1,10 +1,9 @@
-import { CloudRain } from 'lucide-react'
+import { Bike, CloudRain, Moon } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { useCheckoutStore } from './checkout-store'
-import { RAIN_NOTICE } from './notices'
+import { NIGHT_NOTICE, RAIN_NOTICE } from './notices'
 import { OrderTotalsCard } from './OrderTotalsCard'
-import { ZonePicker } from './ZonePicker'
 import {
   checkoutFieldOrder,
   paymentOptions,
@@ -21,7 +20,6 @@ const fieldIds: Record<CheckoutField, string> = {
   name: 'datos-nombre',
   mode: 'datos-modalidad',
   address: 'datos-direccion',
-  zone: 'datos-zona',
   payment: 'datos-pago',
 }
 
@@ -40,11 +38,13 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 }
 
 /**
- * Order details (RF-18, RF-57): name, pickup or delivery, address and zone only for delivery, payment by mode,
- * and a general note. Errors appear after the first submit attempt, and focus moves to the first invalid field.
+ * Order details (RF-18, RF-57): name, pickup or delivery, the address only for delivery, payment by mode, and a
+ * general note. No zone: the motito is paid apart, and its rates open in their own view («Consultar tarifas de
+ * reparto»), so the form stays short. Errors appear after the first submit attempt, and focus moves to the first
+ * invalid field.
  */
-export function CheckoutForm({ totals, onValid }: { totals: OrderTotals; onValid: () => void }) {
-  const { details, setText, setMode, setZone, setPayment } = useCheckoutStore()
+export function CheckoutForm({ totals, onValid, onShowRates }: { totals: OrderTotals; onValid: () => void; onShowRates: () => void }) {
+  const { details, setText, setMode, setPayment } = useCheckoutStore()
   const [attempted, setAttempted] = useState(false)
   const errors = attempted ? validateCheckout(details) : {}
 
@@ -96,10 +96,6 @@ export function CheckoutForm({ totals, onValid }: { totals: OrderTotals; onValid
 
       {details.mode === 'envio' ? (
         <>
-          <p className="-mt-2 flex gap-2 rounded-xl bg-chapa px-3.5 py-2.5 text-[0.875rem] leading-snug text-crema-muted ring-1 ring-chapa-edge">
-            <CloudRain aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-mostaza" />
-            {RAIN_NOTICE}
-          </p>
           <div>
             <label htmlFor={fieldIds.address} className={labelClass}>
               Dirección
@@ -112,14 +108,39 @@ export function CheckoutForm({ totals, onValid }: { totals: OrderTotals; onValid
               autoComplete="street-address"
               autoCapitalize="words"
               enterKeyHint="next"
-              placeholder="Calle, número, piso o depto."
+              placeholder="Calle, número, barrio, piso o depto."
               aria-invalid={errors.address ? true : undefined}
               aria-describedby={errors.address ? 'direccion-error' : undefined}
               className={inputClass}
             />
             <FieldError id="direccion-error" message={errors.address} />
           </div>
-          <ZonePicker value={details.zoneId} onChange={setZone} error={errors.zone} firstInputId={fieldIds.zone} />
+          <section aria-labelledby="motito-titulo" className="rounded-2xl bg-chapa p-4 ring-1 ring-chapa-edge">
+            <h3 id="motito-titulo" className="flex items-center gap-2 text-[1rem] font-bold">
+              <Bike aria-hidden="true" className="size-5 text-mostaza" />
+              Tarifas de la motito
+            </h3>
+            <p className="mt-1 text-[0.9375rem] leading-snug text-crema-muted">
+              El reparto se paga aparte, según el destino, y no se suma al total.
+            </p>
+            <button
+              type="button"
+              onClick={onShowRates}
+              className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-chapa-high px-4 font-bold text-mostaza ring-1 ring-chapa-edge transition-colors hover:bg-chapa-edge"
+            >
+              Consultar tarifas de reparto
+            </button>
+            <ul className="mt-3 flex flex-col gap-2 text-[0.875rem] leading-snug text-crema-muted">
+              <li className="flex gap-2">
+                <CloudRain aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-mostaza" />
+                {RAIN_NOTICE}
+              </li>
+              <li className="flex gap-2">
+                <Moon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-mostaza" />
+                {NIGHT_NOTICE}
+              </li>
+            </ul>
+          </section>
         </>
       ) : null}
 

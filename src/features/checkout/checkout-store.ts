@@ -10,7 +10,6 @@ interface CheckoutState {
   details: CheckoutDetails
   setText: (field: TextField, value: string) => void
   setMode: (mode: FulfillmentMode) => void
-  setZone: (zoneId: string) => void
   setPayment: (payment: CheckoutDetails['payment']) => void
 }
 
@@ -18,7 +17,6 @@ export const useCheckoutStore = create<CheckoutState>()((set) => ({
   details: emptyCheckout,
   setText: (field, value) => set((state) => ({ details: { ...state.details, [field]: value } })),
   setMode: (mode) => set((state) => ({ details: withMode(state.details, mode) })),
-  setZone: (zoneId) => set((state) => ({ details: { ...state.details, zoneId } })),
   setPayment: (payment) => set((state) => ({ details: { ...state.details, payment } })),
 }))
 

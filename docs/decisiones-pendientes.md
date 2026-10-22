@@ -28,14 +28,14 @@ La evidencia de «sin llamadas de red» de D11 describe el prototipo histórico;
 
 ## Decisiones de P3 — reglas de entrega y pago (2026-10-22)
 
-- **Recargo por pizza:** se muestra como **línea aparte** (RF-62). Resuelve la inconsistencia n.º 4.
-- **Pizzas de promociones:** cada pizza de una promoción suma el recargo por pizza en los envíos. `deliveryPizzas` es explícito por promoción: `0` sin pizzas, un entero positivo con la cantidad confirmada, `null` pendiente. Se multiplica por la cantidad pedida y nunca se infiere del título. Las ocho promociones están en `null` hasta que el dueño confirme cuántas pizzas incluye cada una.
-- **Importes desconocidos:** el envío de «Otra zona (a consultar)» y el recargo de pizzas de promos sin confirmar se muestran «A confirmar». El total pasa a «Total parcial» y aclara qué excluye; «Total orientativo» solo cuando no falta nada.
-- **Lluvia:** aviso informativo solo con envío, sin importes: «Los días de lluvia, el servicio de reparto puede cobrar un adicional. El local te lo confirma antes de completar el pedido.»
-- **Crédito:** 8 % solo sobre los productos y solo en retiro, redondeado al peso entero más cercano.
-- **Zonas:** cada zona admite un costo conocido o pendiente; sigue existiendo solo «Otra zona (a consultar)» hasta recibir la lista oficial.
+Reemplazan las reglas anteriores de recargo por pizza, zonas y lluvia (incluida una primera versión de P3 del mismo día):
 
-**Pendiente de confirmar con el dueño:** cuántas pizzas incluye cada una de las ocho promociones (incluidas las dos docenas, que no se asumen en 0).
+- **Sin recargo por pizza:** cancelado. Los precios de la comida son los mismos para retiro y envío; no hay recargo en filas, precios, total ni mensaje. Deja sin efecto RN-15, RF-62 y D4, y la inconsistencia n.º 4.
+- **Motito:** el cliente paga el reparto aparte, con tarifa según el destino. El checkout no calcula la tarifa ni pide zona o barrio; el total orientativo incluye solo productos y, si corresponde, el 8 % del crédito. El mensaje lleva la dirección completa y la aclaración de que el reparto se paga aparte y lo confirma el local.
+- **Tarifas oficiales:** lista del dueño en `src/data/delivery-rates.ts`, en dos grupos (barrios y localidades; fábricas), con Siderca en ambos y precios distintos. Se consulta con buscador desde «Consultar tarifas de reparto», solo con envío. Si el destino no figura o hay dudas, se consulta al local, que confirma el precio final. Sin APIs geográficas.
+- **Campos obligatorios:** nombre y apellido (dos palabras), modalidad, medio de pago y dirección solo para envío.
+- **Pagos:** envío, efectivo o transferencia; retiro, además débito y crédito. Crédito: 8 % solo sobre los productos, solo en retiro, redondeado al peso entero más cercano.
+- **Aclaraciones solo con envío, sin cálculos:** «Lluvia: puede aplicarse un adicional de $1.000 si llueve al momento del retiro» y «Después de las 00:00: puede aplicarse un adicional de $1.000 hasta finalizar el turno». Reemplazan la aclaración de lluvia anterior.
 
 ## Inconsistencias entre PDF y SQL
 
@@ -44,12 +44,12 @@ La evidencia de «sin llamadas de red» de D11 describe el prototipo histórico;
 | 1 | Volumen del catálogo | 70 productos en 10 categorías | 81 productos en 12 categorías; 84 en 13 desde que se agregó Postres (ver abajo) | Se usa el SQL (provisional) |
 | 2 | Categorías (RF-01) | Menciona panchos y ensaimadas como categorías | No hay panchos; la ensaimada está dentro de Cafetería. Hay hamburguesas, picadas, papas fritas, pastas, cafetería y tragos de autor | Se usa el SQL (provisional) |
 | 3 | Productos sin precio vs RN-01 | RN-01: un producto visible necesita una variante con precio > 0 | 16 productos tienen todas sus variantes con precio `NULL` ("Consultar en barra"): 4 cafés, medialunas, 4 tragos clásicos y 7 de autor | Se contemplan en el modelo y **no se pueden agregar al carrito**. Falta definir si se muestran |
-| 4 | Recargo por pizza | RF-62: línea aparte. RN-15: "suma $1.000 a su precio" | — | Resuelto (2026-10-22): línea aparte |
+| 4 | Recargo por pizza | RF-62: línea aparte. RN-15: "suma $1.000 a su precio" | — | Sin efecto (2026-10-22): el recargo por pizza fue cancelado |
 | 5 | Recargo por lluvia | RN-16 dice "al momento del retiro" | — | Resuelto (2026-10-18): solo aclaración informativa, sin recargo automático |
 
 ## Datos faltantes
 
-- **Zonas de envío y costos** (RF-19, RF-63, RN-14): el PDF remite a un "documento técnico" que no está en el repo. Solo se conocen rangos (barrios de $2.500 a $18.000, fábricas de $3.000 a $10.000).
+- ~~**Zonas de envío y costos**~~ Resuelto (2026-10-22): lista oficial de tarifas de la motito en `src/data/delivery-rates.ts`; se paga aparte y no se pide zona.
 - **Promociones** (RF-10 a RF-12): histórico; las ocho promociones reales ya están cargadas en `src/data/prototype-promotions.ts` (ver «Actualización vigente»). Falta su vigencia.
 - **Descripciones:** 36 productos tienen descripción `NULL`.
 - **Fotos de productos:** esta versión no las usa (decisión del dueño, ver abajo).

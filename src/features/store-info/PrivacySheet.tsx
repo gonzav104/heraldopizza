@@ -37,7 +37,7 @@ export function PrivacySheet({ open, onClose }: { open: boolean; onClose: () => 
         <Topic title="Qué datos te pedimos">
           <p>
             Para preparar tu pedido te pedimos tu nombre y apellido, si es envío o retiro y la forma de pago. Si es envío,
-            también tu dirección y tu zona. Las aclaraciones de cada producto y la nota general son opcionales.
+            también tu dirección. Las aclaraciones de cada producto y la nota general son opcionales.
           </p>
         </Topic>
 

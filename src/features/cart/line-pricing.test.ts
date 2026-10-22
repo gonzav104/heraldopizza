@@ -24,7 +24,6 @@ const promo: Promotion = {
   activeFrom: '',
   activeTo: '',
   weekdays: [],
-  deliveryPizzas: null,
 }
 
 const index = indexCatalog(prototypeCategories, prototypeProducts, [promo])
@@ -56,7 +55,6 @@ describe('resolveLine', () => {
       title: 'Muzzarella',
       detail: 'Media pizza',
       subtotal: 10500,
-      pizzaUnits: 1,
       messageLabel: 'Media pizza de Muzzarella',
       shortLabel: 'media pizza de Muzzarella',
     })
@@ -97,7 +95,6 @@ describe('resolveLine', () => {
       detail: 'Muzzarella + Napolitana Heraldo',
       unitPrice: 25000,
       subtotal: 50000,
-      pizzaUnits: 2,
       messageLabel: 'Pizza mitad y mitad (Muzzarella + Napolitana Heraldo)',
       shortLabel: 'mitad y mitad de Muzzarella y Napolitana Heraldo',
     })
@@ -107,22 +104,7 @@ describe('resolveLine', () => {
     expect(resolveLine({ id: 'p', kind: 'promotion', promotionId: 'promo-1', quantity: 1, note: '' }, index)).toMatchObject({
       title: 'Combo de prueba',
       subtotal: 20000,
-      // Its pizzas are not confirmed (null): unknown, never 0.
-      pizzaUnits: null,
     })
-  })
-
-  it("counts a promotion's confirmed pizzas times the quantity, and 0 when it has none (P3)", () => {
-    const catalog = indexCatalog(prototypeCategories, prototypeProducts, [
-      { ...promo, id: 'dos', deliveryPizzas: 2 },
-      { ...promo, id: 'sin-pizzas', deliveryPizzas: 0 },
-      promo,
-    ])
-    expect(resolveLine({ id: 'a', kind: 'promotion', promotionId: 'dos', quantity: 3, note: '' }, catalog)?.pizzaUnits).toBe(6)
-    expect(resolveLine({ id: 'b', kind: 'promotion', promotionId: 'sin-pizzas', quantity: 2, note: '' }, catalog)?.pizzaUnits).toBe(0)
-
-    const summary = reconcileOrder([{ id: 'c', kind: 'promotion', promotionId: promo.id, quantity: 1, note: '' }], catalog)
-    expect(summary).toMatchObject({ pizzaCount: 0, pizzasToConfirm: true })
   })
 
   it('carries the made-to-order notice (RF-06)', () => {
@@ -143,7 +125,7 @@ describe('halfAndHalfPrice', () => {
 })
 
 describe('reconcileOrder', () => {
-  it('counts items, the products subtotal, and pizzas for the delivery surcharge (RF-62)', () => {
+  it('counts items and the products subtotal', () => {
     const lines: OrderLine[] = [
       productLine('Muzzarella', 'Entera', 1),
       productLine('Especial', 'Media', 2),
@@ -163,8 +145,6 @@ describe('reconcileOrder', () => {
     expect(summary.itemCount).toBe(11)
     // 16.000 + 2 × 13.500 + (10.500 + 13.500) + 6 × 3.000 + 9.500
     expect(summary.productsSubtotal).toBe(94500)
-    // One whole, two halves, one half-and-half: each counts once.
-    expect(summary.pizzaCount).toBe(4)
   })
 
   it('keeps lines that cannot be priced as issues, never counting them as $ 0', () => {
@@ -206,7 +186,6 @@ describe('reconcileOrder: lines the current catalog cannot price (P2)', () => {
     ])
     expect(summary.productsSubtotal).toBe(variant('Especial', 'Entera').price)
     expect(summary.itemCount).toBe(1)
-    expect(summary.pizzaCount).toBe(1)
   })
 
   it('marks a variant without a published price as unavailable (RN-01, policy A)', () => {
