@@ -1,12 +1,13 @@
 import { PrimaryAction } from '@/components/ui/PrimaryAction'
-import { CartLines, EmptyOrder, ProductsSubtotal } from './CartLines'
+import { CartLines, CheckoutBlockedNote, EmptyOrder, OrderIssues, ProductsSubtotal } from './CartLines'
+import { isEmptyOrder, isReadyForCheckout } from './line-pricing'
 import { OrderStorageNotice } from './OrderStorageNotice'
 import { itemCountLabel, useOrderSummary } from './useOrderSummary'
 
 /** Desktop order panel (≥ 1024 px): the same content as the cart step, always in view next to the menu. */
 export function OrderPanel({ onContinue }: { onContinue: () => void }) {
   const summary = useOrderSummary()
-  const empty = summary.itemCount === 0
+  const empty = isEmptyOrder(summary)
 
   return (
     <section
@@ -17,16 +18,19 @@ export function OrderPanel({ onContinue }: { onContinue: () => void }) {
         <h2 id="panel-pedido-titulo" className="type-display text-[1.5rem]">
           Tu pedido
         </h2>
-        {empty ? null : <p className="text-[0.875rem] font-bold">{itemCountLabel(summary.itemCount)}</p>}
+        {summary.itemCount === 0 ? null : <p className="text-[0.875rem] font-bold">{itemCountLabel(summary.itemCount)}</p>}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-5">
         <OrderStorageNotice placement="cart" />
-        {empty ? <EmptyOrder /> : <CartLines summary={summary} />}
+        {empty ? <EmptyOrder /> : null}
+        <OrderIssues issues={summary.issues} />
+        <CartLines summary={summary} />
       </div>
       {empty ? null : (
         <div className="flex flex-col gap-3 border-t border-chapa-edge p-5">
           <ProductsSubtotal amount={summary.productsSubtotal} />
-          <PrimaryAction onClick={onContinue} aria-haspopup="dialog" label="Continuar" />
+          {summary.issues.length > 0 ? <CheckoutBlockedNote /> : null}
+          <PrimaryAction onClick={onContinue} disabled={!isReadyForCheckout(summary)} aria-haspopup="dialog" label="Continuar" />
         </div>
       )}
     </section>

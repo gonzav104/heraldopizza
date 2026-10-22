@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Product } from '@/domain/catalog'
 import { prototypeCategories, prototypeProducts } from '@/data/prototype-catalog'
-import { indexCatalog, summarizeOrder } from '@/features/cart/line-pricing'
+import { indexCatalog, reconcileOrder } from '@/features/cart/line-pricing'
 import type { OrderLine } from '@/features/cart/order-lines'
 import {
   OTHER_ZONE,
@@ -168,7 +168,7 @@ describe('buildOrderMessage', () => {
         note: '',
       },
     ]
-    const summary = summarizeOrder(lines, index)
+    const summary = reconcileOrder(lines, index)
     const message = buildOrderMessage(delivery, summary, computeTotals(summary, delivery))
 
     expect(plain(message)).toBe(
@@ -201,7 +201,7 @@ describe('buildOrderMessage', () => {
     const lines: OrderLine[] = [
       { id: 'a', kind: 'product', productId: product('Ensaimada').id, variantId: variantId('Ensaimada', 'Grande'), quantity: 1, note: '' },
     ]
-    const summary = summarizeOrder(lines, index)
+    const summary = reconcileOrder(lines, index)
     const message = buildOrderMessage(details, summary, computeTotals(summary, details))
 
     expect(plain(message)).toBe(

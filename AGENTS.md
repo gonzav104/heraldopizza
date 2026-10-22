@@ -42,7 +42,7 @@ No ejecutar el seed SQL directamente: primero verificar esquema, claves, restric
 - Usar `npm` y respetar `package-lock.json`. No mezclar gestores de paquetes.
 - Consultar documentación vigente antes de usar APIs desconocidas o que hayan cambiado.
 
-Distribución de `src/`: las carpetas existen, pero los comentarios describen su responsabilidad prevista y no que todo esté terminado (por ejemplo, el carrito ya se conserva al recargar, RF-17, pero la reconciliación contra el catálogo vigente está pendiente). `types/` no existe (los tipos del dominio están en `domain/`) y el resto de las carpetas se crea a medida que se necesita:
+Distribución de `src/`: las carpetas existen, pero los comentarios describen su responsabilidad prevista y no que todo esté terminado (por ejemplo, el carrito se conserva al recargar, RF-17, y se reconcilia con la carta cargada, P2, pero todavía no se vuelve a consultar la carta antes de enviar). `types/` no existe (los tipos del dominio están en `domain/`) y el resto de las carpetas se crea a medida que se necesita:
 
 ```text
 src/
