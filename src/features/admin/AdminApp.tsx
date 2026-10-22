@@ -4,6 +4,8 @@ import './admin.css'
 import type { AdminAuth, AdminSession } from '@/features/admin/admin-auth'
 import type { AdminCatalogRepository } from '@/features/admin/catalog/admin-catalog'
 import { CatalogEditor } from '@/features/admin/catalog/CatalogEditor'
+import type { AdminPromotionsRepository } from '@/features/admin/promotions/admin-promotions'
+import { PromotionsEditor } from '@/features/admin/promotions/PromotionsEditor'
 
 /**
  * Where the panel stands. «restoring» and «checking» render one neutral screen, so neither the login nor the panel
@@ -147,11 +149,13 @@ const SECTIONS: { id: Section; label: string; region: string }[] = [
 function Panel({
   session,
   catalog,
+  promotions,
   onSignOut,
   signOutFailed,
 }: {
   session: AdminSession
   catalog: AdminCatalogRepository
+  promotions: AdminPromotionsRepository
   onSignOut: () => Promise<void>
   signOutFailed: boolean
 }) {
@@ -242,7 +246,7 @@ function Panel({
           {id === 'catalog' ? (
             <CatalogEditor repository={catalog} onWorkChange={reportCatalog} />
           ) : (
-            <PromotionsPlaceholder onWorkChange={reportPromotions} />
+            <PromotionsEditor repository={promotions} onWorkChange={reportPromotions} />
           )}
         </section>
       ))}
@@ -250,17 +254,19 @@ function Panel({
   )
 }
 
-/** Stand-in until the promotions editor lands (P5b-3): it holds no work. */
-function PromotionsPlaceholder({ onWorkChange }: { onWorkChange: (work: Work) => void }) {
-  useEffect(() => onWorkChange(idle), [onWorkChange])
-  return <p className="admin-muted">La administración de promociones todavía no está disponible.</p>
-}
-
 /**
  * The admin panel (U4): restores the saved session, asks soy_administrador() whether to show the panel, and offers
  * sign-in and sign-out. The answer only shapes the interface; row level security guards every write.
  */
-export function AdminApp({ auth, catalog }: { auth: AdminAuth; catalog: AdminCatalogRepository }) {
+export function AdminApp({
+  auth,
+  catalog,
+  promotions,
+}: {
+  auth: AdminAuth
+  catalog: AdminCatalogRepository
+  promotions: AdminPromotionsRepository
+}) {
   const [phase, setPhase] = useState<Phase>({ kind: 'restoring' })
   const [signOutFailed, setSignOutFailed] = useState(false)
 
@@ -374,6 +380,14 @@ export function AdminApp({ auth, catalog }: { auth: AdminAuth; catalog: AdminCat
         </AdminStatus>
       )
     case 'admin':
-      return <Panel session={phase.session} catalog={catalog} onSignOut={signOut} signOutFailed={signOutFailed} />
+      return (
+        <Panel
+          session={phase.session}
+          catalog={catalog}
+          promotions={promotions}
+          onSignOut={signOut}
+          signOutFailed={signOutFailed}
+        />
+      )
   }
 }
