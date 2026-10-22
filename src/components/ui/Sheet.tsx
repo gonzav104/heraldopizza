@@ -52,6 +52,11 @@ interface SheetProps {
   /** Runs once the dialog has closed (e.g. to scroll to a section chosen inside it). */
   onAfterClose?: () => void
   width?: 'md' | 'lg'
+  /**
+   * When it changes, the sheet's own scrolling body goes back to the top (the page never moves): for content that
+   * swaps in place, such as the order's details and its «Tarifas de la motito» view.
+   */
+  scrollResetKey?: string
 }
 
 /**
@@ -70,8 +75,10 @@ export function Sheet({
   dismissOnBackdrop = true,
   onAfterClose,
   width = 'md',
+  scrollResetKey,
 }: SheetProps) {
   const dialog = useRef<HTMLDialogElement>(null)
+  const body = useRef<HTMLDivElement>(null)
   const opener = useRef<Element | null>(null)
   const afterClose = useRef(onAfterClose)
   useKeyboardInset(open, dialog)
@@ -94,6 +101,11 @@ export function Sheet({
       afterClose.current?.()
     }
   }, [open])
+
+  // Before paint, so the swapped content never shows the previous scroll position.
+  useLayoutEffect(() => {
+    if (body.current) body.current.scrollTop = 0
+  }, [scrollResetKey])
 
   return (
     <dialog
@@ -123,7 +135,7 @@ export function Sheet({
             <CloseButton onClose={onClose} tone={headerTone} />
           </div>
         ) : null}
-        <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div ref={body} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {header ? null : (
             <div className="sticky top-0 z-10 flex h-0 justify-end">
               <CloseButton onClose={onClose} tone="chapa" floating />

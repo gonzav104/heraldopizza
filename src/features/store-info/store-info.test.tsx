@@ -21,8 +21,11 @@ describe('store info (D7, D8, D9)', () => {
     expect(within(sheet).getByText('Retiro en el local o envío a domicilio.')).toBeInTheDocument()
     expect(within(sheet).getByText('Envío: efectivo o transferencia.')).toBeInTheDocument()
     expect(within(sheet).getByText('Retiro: efectivo, transferencia, débito o crédito (el crédito suma un 8 %).')).toBeInTheDocument()
-    expect(within(sheet).getByText(/El costo del envío depende de tu zona y lo confirma el local por WhatsApp/)).toBeInTheDocument()
-    expect(within(sheet).getByText(/Cada pizza \(entera, media o mitad y mitad\) suma \$\s1\.000 en los envíos/)).toBeInTheDocument()
+    expect(within(sheet).getByText('Los precios son los mismos para retiro y envío.')).toBeInTheDocument()
+    expect(
+      within(sheet).getByText('El reparto en motito se paga aparte, con tarifa según el destino, y lo confirma el local por WhatsApp.'),
+    ).toBeInTheDocument()
+    expect(within(sheet).queryByText(/por pizza|cada pizza/i)).not.toBeInTheDocument()
     expect(within(sheet).getByText('No hay pedido mínimo.')).toBeInTheDocument()
     expect(within(sheet).getByRole('link', { name: 'Instagram de Heraldo Pizza (@heraldopizza)' })).toHaveAttribute(
       'href',

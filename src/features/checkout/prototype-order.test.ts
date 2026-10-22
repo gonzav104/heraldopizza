@@ -4,15 +4,15 @@ import { prototypeCategories, prototypeProducts } from '@/data/prototype-catalog
 import { indexCatalog, reconcileOrder } from '@/features/cart/line-pricing'
 import type { OrderLine } from '@/features/cart/order-lines'
 import {
-  OTHER_ZONE,
   buildOrderMessage,
   computeTotals,
   emptyCheckout,
   paymentOptions,
+  totalsSummary,
   validateCheckout,
   withMode,
-  zoneOptions,
   type CheckoutDetails,
+  type OrderTotals,
 } from './prototype-order'
 
 const product = (name: string): Product => {
@@ -27,14 +27,14 @@ const variantId = (name: string, variantName: string) => {
 }
 
 const index = indexCatalog(prototypeCategories, prototypeProducts, [])
+const products = (productsSubtotal: number) => ({ productsSubtotal })
 // Intl uses a no-break space after "$"; compare with plain spaces.
 const plain = (text: string) => text.replace(/\u00a0/g, ' ')
 
 const delivery: CheckoutDetails = {
   name: 'Ana Gómez',
   mode: 'envio',
-  address: 'Rivadavia 100',
-  zoneId: OTHER_ZONE.id,
+  address: 'Rivadavia 100, Barrio Centro',
   payment: 'efectivo',
   note: '',
 }
@@ -48,13 +48,6 @@ describe('paymentOptions (RN-11, RF-57)', () => {
     const options = paymentOptions('retiro')
     expect(options.map((option) => option.id)).toEqual(['efectivo', 'transferencia', 'debito', 'credito'])
     expect(options.find((option) => option.id === 'credito')?.note).toBe('+8 %')
-  })
-})
-
-describe('zoneOptions', () => {
-  it('holds only the pinned "Otra zona (a consultar)" until the real list exists (RF-63)', () => {
-    expect(zoneOptions).toEqual([OTHER_ZONE])
-    expect(OTHER_ZONE.label).toBe('Otra zona (a consultar)')
   })
 })
 
@@ -85,10 +78,22 @@ describe('validateCheckout', () => {
     expect(validateCheckout({ ...delivery, name: '  María   de los Ángeles Pérez ' }).name).toBeUndefined()
   })
 
-  it('requires address and zone only for delivery', () => {
-    const errors = validateCheckout({ ...delivery, address: ' ', zoneId: null })
-    expect(Object.keys(errors).sort()).toEqual(['address', 'zone'])
-    expect(validateCheckout({ ...delivery, mode: 'retiro', address: '', zoneId: null })).toEqual({})
+  it('requires the address only for delivery, and never a zone', () => {
+    expect(validateCheckout({ ...delivery, address: ' ' })).toEqual({ address: 'Escribí la dirección para el envío.' })
+    expect(validateCheckout({ ...delivery, mode: 'retiro', address: '' })).toEqual({})
+    expect(validateCheckout(delivery)).toEqual({})
+  })
+
+  it('validates the four fields by mode: name, mode, payment, and the address for delivery', () => {
+    expect(validateCheckout({ ...emptyCheckout, mode: 'envio' })).toEqual({
+      name: 'Escribí tu nombre y apellido.',
+      address: 'Escribí la dirección para el envío.',
+      payment: 'Elegí cómo vas a pagar.',
+    })
+    expect(validateCheckout({ ...emptyCheckout, mode: 'retiro' })).toEqual({
+      name: 'Escribí tu nombre y apellido.',
+      payment: 'Elegí cómo vas a pagar.',
+    })
   })
 
   it('rejects a card payment on delivery', () => {
@@ -101,39 +106,72 @@ describe('validateCheckout', () => {
 })
 
 describe('computeTotals', () => {
-  it('adds $ 1.000 per pizza on delivery and leaves the shipping cost to confirm (RN-15, RF-62)', () => {
-    expect(computeTotals({ productsSubtotal: 47000, pizzaCount: 2 }, delivery)).toEqual({
+  it('charges the same products for pickup and delivery: no per-pizza surcharge, no shipping in the total', () => {
+    expect(computeTotals(products(47000), delivery)).toEqual({ products: 47000, creditSurcharge: null, delivery: true, total: 47000 })
+    expect(computeTotals(products(47000), { ...delivery, mode: 'retiro' })).toEqual({
       products: 47000,
-      pizzaSurcharge: { count: 2, unit: 1000, amount: 2000 },
-      shippingToConfirm: true,
       creditSurcharge: null,
-      total: 49000,
+      delivery: false,
+      total: 47000,
     })
   })
 
-  it('adds no pizza surcharge on delivery without pizzas', () => {
-    expect(computeTotals({ productsSubtotal: 6000, pizzaCount: 0 }, delivery).pizzaSurcharge).toBeNull()
+  it('applies the 8 % credit surcharge on products only, for pickup, rounded to the nearest peso (RN-17)', () => {
+    const pickup = { ...delivery, mode: 'retiro' as const, payment: 'credito' as const }
+    expect(computeTotals(products(10010), pickup)).toMatchObject({ creditSurcharge: 801, total: 10811 })
+    // 10.006 × 8 % = 800,48 → 800; 10.025 × 8 % = 802 exactly.
+    expect(computeTotals(products(10006), pickup).creditSurcharge).toBe(800)
+    expect(computeTotals(products(10025), pickup).creditSurcharge).toBe(802)
   })
 
-  it('adds no delivery charges for pickup', () => {
-    expect(computeTotals({ productsSubtotal: 16000, pizzaCount: 1 }, { ...delivery, mode: 'retiro' })).toEqual({
-      products: 16000,
-      pizzaSurcharge: null,
-      shippingToConfirm: false,
-      creditSurcharge: null,
-      total: 16000,
-    })
+  it('adds nothing for debit, cash, or transfer', () => {
+    for (const payment of ['debito', 'efectivo', 'transferencia'] as const) {
+      expect(computeTotals(products(20000), { ...delivery, mode: 'retiro', payment }).total).toBe(20000)
+    }
   })
 
-  it('applies the 8 % credit surcharge on products only, in whole pesos (RN-17)', () => {
-    const totals = computeTotals({ productsSubtotal: 10010, pizzaCount: 1 }, { ...delivery, mode: 'retiro', payment: 'credito' })
-    expect(totals.creditSurcharge).toBe(801)
-    expect(totals.total).toBe(10811)
+  it('never applies the credit surcharge on delivery, even if a stale state still says credit', () => {
+    expect(computeTotals(products(20000), { ...delivery, payment: 'credito' })).toMatchObject({ creditSurcharge: null, total: 20000 })
+  })
+
+  it('switching to delivery and back keeps the totals consistent with the mode', () => {
+    let details: CheckoutDetails = { ...delivery, mode: 'retiro', payment: 'credito' }
+    expect(computeTotals(products(20000), details).total).toBe(21600)
+    details = withMode(details, 'envio')
+    expect(details.payment).toBeNull()
+    expect(computeTotals(products(20000), details).total).toBe(20000)
+  })
+})
+
+describe('totalsSummary: the rows shared by the summary card and the message', () => {
+  const rows = (totals: OrderTotals) => totalsSummary(totals).rows.map(({ label, value }) => plain(`${label}: ${value}`))
+
+  it('for delivery, lists the products and says the motito is paid apart, outside the total', () => {
+    const summary = totalsSummary(computeTotals(products(60500), delivery))
+    expect(rows(computeTotals(products(60500), delivery))).toEqual(['Productos: $ 60.500', 'Reparto en motito: Se paga aparte'])
+    expect(summary.total).toEqual({ label: 'Total orientativo', value: expect.stringContaining('60.500') })
+    expect(summary.notes).toEqual([
+      'No incluye el reparto en motito: se paga aparte, con tarifa según el destino, y lo confirma el local.',
+      'El local confirma el total.',
+    ])
+  })
+
+  it('for pickup with credit, lists the products and the 8 %, with nothing paid apart', () => {
+    const summary = totalsSummary(computeTotals(products(35000), { ...delivery, mode: 'retiro', payment: 'credito' }))
+    expect(summary.rows.map((row) => row.label)).toEqual(['Productos', 'Recargo crédito 8 %'])
+    expect(summary.notes).toEqual(['El local confirma el total.'])
+  })
+
+  it('adds up to the total: the rows with an amount are exactly what the total holds', () => {
+    for (const details of [delivery, { ...delivery, mode: 'retiro' as const, payment: 'credito' as const }]) {
+      const totals = computeTotals(products(43210), details)
+      expect(totalsSummary(totals).rows.reduce((total, row) => total + (row.amount ?? 0), 0)).toBe(totals.total)
+    }
   })
 })
 
 describe('buildOrderMessage', () => {
-  it('writes a delivery order with notes, the pizza surcharge, and the shipping to confirm', () => {
+  it('writes a delivery order with the full address, notes, and the motito paid apart, with no surcharges', () => {
     const lines: OrderLine[] = [
       {
         id: 'a',
@@ -176,8 +214,7 @@ describe('buildOrderMessage', () => {
         '*Pedido para Heraldo Pizza*',
         'Nombre: Ana Gómez',
         'Modalidad: Envío',
-        'Dirección: Rivadavia 100',
-        'Zona: Otra zona (a consultar)',
+        'Dirección: Rivadavia 100, Barrio Centro',
         '',
         '*Productos*',
         '• 1 × Muzzarella (Entera): $ 16.000',
@@ -186,11 +223,13 @@ describe('buildOrderMessage', () => {
         '• 1 × Pizza mitad y mitad (Muzzarella + Napolitana Heraldo): $ 25.000',
         '• 2 × Empanada de carne picada: $ 6.000',
         '',
-        'Recargo por pizza (3 × $ 1.000): $ 3.000',
-        'Envío: a confirmar',
+        'Productos: $ 60.500',
+        'Reparto en motito: Se paga aparte',
+        '',
         'Pago: Efectivo',
         '',
-        '*Total orientativo: $ 63.500*',
+        '*Total orientativo: $ 60.500*',
+        'No incluye el reparto en motito: se paga aparte, con tarifa según el destino, y lo confirma el local.',
         'El local confirma el total.',
       ].join('\n'),
     )
@@ -213,7 +252,9 @@ describe('buildOrderMessage', () => {
         '*Productos*',
         '• 1 × Ensaimada (Grande): $ 35.000',
         '',
+        'Productos: $ 35.000',
         'Recargo crédito 8 %: $ 2.800',
+        '',
         'Pago: Crédito',
         'Por encargo: Ensaimada. Pedir con 1 o 2 días de anticipación.',
         'Nota: Paso a las 21',

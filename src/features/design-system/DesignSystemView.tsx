@@ -20,7 +20,7 @@ import { indexCatalog, reconcileOrder } from '@/features/cart/line-pricing'
 import type { OrderLine } from '@/features/cart/order-lines'
 import { MessageBubble } from '@/features/checkout/MessagePreview'
 import { OrderTotalsCard } from '@/features/checkout/OrderTotalsCard'
-import { OTHER_ZONE, buildOrderMessage, computeTotals, type CheckoutDetails } from '@/features/checkout/prototype-order'
+import { buildOrderMessage, computeTotals, type CheckoutDetails } from '@/features/checkout/prototype-order'
 import { DisabledSendButton } from '@/features/checkout/MessagePreview'
 import { PrivacySheet } from '@/features/store-info/PrivacySheet'
 import { SiteFooter } from '@/features/store-info/SiteFooter'
@@ -75,7 +75,7 @@ const sampleLines: OrderLine[] = [
     note: '',
   },
 ]
-const sampleDetails: CheckoutDetails = { name: 'Nombre de prueba', mode: 'envio', address: 'Dirección de prueba 123', zoneId: OTHER_ZONE.id, payment: 'efectivo', note: '' }
+const sampleDetails: CheckoutDetails = { name: 'Nombre de prueba', mode: 'envio', address: 'Dirección de prueba 123', payment: 'efectivo', note: '' }
 const pizzaFlavors = halfAndHalfCandidates(prototypeProducts, prototypeCategories)
 const sampleSummary = reconcileOrder(sampleLines, indexCatalog(prototypeCategories, prototypeProducts, []))
 const sampleTotals = computeTotals(sampleSummary, sampleDetails)

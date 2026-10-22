@@ -41,8 +41,6 @@ export interface ResolvedLine {
   shortLabel: string
   unitPrice: Ars
   subtotal: Ars
-  /** Pizzas this line adds to the per-pizza delivery surcharge (RF-62). */
-  pizzaUnits: number
   madeToOrder: MadeToOrderNote[]
 }
 
@@ -109,7 +107,6 @@ export function reconcileLine(line: OrderLine, index: CatalogIndex): ResolvedLin
       if (!hasOrderablePrice(variant)) {
         return issue(line, 'unavailable', product.name, detail, 'Se consulta en barra: no se puede pedir por acá.')
       }
-      const surcharged = index.categories.get(product.categoryId)?.appliesDeliverySurcharge ?? false
       return {
         line,
         title: product.name,
@@ -118,7 +115,6 @@ export function reconcileLine(line: OrderLine, index: CatalogIndex): ResolvedLin
         shortLabel: halfPizza ? `media pizza de ${product.name}` : detail ? `${product.name} ${lowerFirst(detail)}` : product.name,
         unitPrice: variant.price,
         subtotal: variant.price * line.quantity,
-        pizzaUnits: surcharged ? line.quantity : 0,
         madeToOrder: madeToOrderOf([product]),
       }
     }
@@ -150,8 +146,6 @@ export function reconcileLine(line: OrderLine, index: CatalogIndex): ResolvedLin
         shortLabel: `mitad y mitad de ${first.name} y ${second.name}`,
         unitPrice: price.total,
         subtotal: price.total * line.quantity,
-        // A half-and-half counts as one pizza (RN-10).
-        pizzaUnits: line.quantity,
         madeToOrder: madeToOrderOf([first, second]),
       }
     }
@@ -167,8 +161,6 @@ export function reconcileLine(line: OrderLine, index: CatalogIndex): ResolvedLin
         shortLabel: `la promo ${promotion.title}`,
         unitPrice: promotion.price,
         subtotal: promotion.price * line.quantity,
-        // PROTOTYPE: promotions have no component list yet, so they add no pizza surcharge. U10 decides.
-        pizzaUnits: 0,
         madeToOrder: [],
       }
     }
@@ -191,7 +183,6 @@ export interface OrderSummary {
   /** Units across priced lines ("3 productos"). */
   itemCount: number
   productsSubtotal: Ars
-  pizzaCount: number
 }
 
 /** The order against the catalog already loaded: priced lines, issues, and totals from the priced lines only. */
@@ -203,7 +194,6 @@ export function reconcileOrder(lines: OrderLine[], index: CatalogIndex): OrderSu
     issues: reconciled.filter(isIssue),
     itemCount: resolved.reduce((total, item) => total + item.line.quantity, 0),
     productsSubtotal: resolved.reduce((total, item) => total + item.subtotal, 0),
-    pizzaCount: resolved.reduce((total, item) => total + item.pizzaUnits, 0),
   }
 }
 

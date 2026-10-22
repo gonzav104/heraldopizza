@@ -4,6 +4,7 @@ import { PrimaryAction } from '@/components/ui/PrimaryAction'
 import { Sheet } from '@/components/ui/Sheet'
 import { useCheckoutStore, hasTypedText } from '@/features/checkout/checkout-store'
 import { CHECKOUT_FORM_ID, CheckoutForm } from '@/features/checkout/CheckoutForm'
+import { DeliveryRatesView } from '@/features/checkout/DeliveryRatesView'
 import { DisabledSendButton, MessagePreview } from '@/features/checkout/MessagePreview'
 import { buildOrderMessage, computeTotals } from '@/features/checkout/prototype-order'
 import { formatArs } from '@/lib/money'
@@ -35,11 +36,14 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
   const details = useCheckoutStore((state) => state.details)
   const [current, setCurrent] = useState<OrderStep>(step ?? 'cart')
   const [requested, setRequested] = useState(step)
+  // «Tarifas de la motito» opens as a view of the details step, not as a second sheet (sheets never stack).
+  const [ratesOpen, setRatesOpen] = useState(false)
   const title = useRef<HTMLHeadingElement>(null)
 
   // A new opening starts at the step the opener asked for.
   if (step !== requested) {
     setRequested(step)
+    setRatesOpen(false)
     if (step) setCurrent(step)
   }
 
@@ -49,14 +53,15 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
   // requested step is dropped too, so removing the last issue never skips «Continuar».
   if (!ready && current !== 'cart') setCurrent('cart')
   const shownStep: OrderStep = ready ? current : 'cart'
+  const showingRates = ratesOpen && shownStep === 'details'
   const totals = computeTotals(summary, details)
 
   // Moving between steps puts focus on the new step's heading, so screen readers hear where they are.
   useEffect(() => {
     if (step) title.current?.focus({ preventScroll: true })
-  }, [shownStep, step])
+  }, [shownStep, step, showingRates])
 
-  const back = () => setCurrent(shownStep === 'preview' ? 'details' : 'cart')
+  const back = () => (showingRates ? setRatesOpen(false) : setCurrent(shownStep === 'preview' ? 'details' : 'cart'))
 
   const footer =
     shownStep === 'cart' ? (
@@ -69,8 +74,12 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
       ) : (
         <PrimaryAction onClick={onClose} label="Ver la carta" />
       )
+    ) : showingRates ? (
+      // Distinct keys: React must not turn the pressed «Volver» into the submit button while the click is still being
+      // handled, or the browser would submit the form right after it.
+      <PrimaryAction key="volver-datos" onClick={() => setRatesOpen(false)} label="Volver a tus datos" />
     ) : shownStep === 'details' ? (
-      <PrimaryAction type="submit" form={CHECKOUT_FORM_ID} label="Ver mensaje" amount={formatArs(totals.total)} />
+      <PrimaryAction key="ver-mensaje" type="submit" form={CHECKOUT_FORM_ID} label="Ver mensaje" amount={formatArs(totals.total)} />
     ) : (
       <DisabledSendButton />
     )
@@ -83,6 +92,7 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
       headerTone="pino"
       dismissOnBackdrop={shownStep !== 'details' || !hasTypedText(details)}
       footer={footer}
+      scrollResetKey={showingRates ? 'tarifas' : 'datos'}
       header={
         <>
           {shownStep !== 'cart' ? (
@@ -102,7 +112,7 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
               tabIndex={-1}
               className="type-display text-[1.5rem] leading-none focus-visible:outline-pino-ink"
             >
-              {steps[shownStep].title}
+              {showingRates ? 'Tarifas de la motito' : steps[shownStep].title}
             </h2>
             <p className="mt-1 text-[0.8125rem] font-semibold">Paso {steps[shownStep].number} de 3</p>
           </div>
@@ -117,7 +127,10 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
           <CartLines summary={summary} />
         </div>
       ) : null}
-      {shownStep === 'details' ? <CheckoutForm totals={totals} onValid={() => setCurrent('preview')} /> : null}
+      {showingRates ? <DeliveryRatesView /> : null}
+      {shownStep === 'details' && !showingRates ? (
+        <CheckoutForm totals={totals} onValid={() => setCurrent('preview')} onShowRates={() => setRatesOpen(true)} />
+      ) : null}
       {shownStep === 'preview' ? <MessagePreview message={buildOrderMessage(details, summary, totals)} /> : null}
     </Sheet>
   )
