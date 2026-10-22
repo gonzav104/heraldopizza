@@ -52,6 +52,8 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
   // P2: the details and the message exist only for an order with nothing to review, whatever step was requested. The
   // requested step is dropped too, so removing the last issue never skips «Continuar».
   if (!ready && current !== 'cart') setCurrent('cart')
+  // Going back to the cart also closes the motito rates, so a later «Continuar» opens the data form (P6a).
+  if (!ready && ratesOpen) setRatesOpen(false)
   const shownStep: OrderStep = ready ? current : 'cart'
   const showingRates = ratesOpen && shownStep === 'details'
   const totals = computeTotals(summary, details)

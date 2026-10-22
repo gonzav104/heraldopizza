@@ -146,6 +146,29 @@ describe('checkout prototype', () => {
     expect(screen.getByRole('button', { name: /^Ver mensaje.*16\.000/ })).toBeInTheDocument()
   })
 
+  it('does not bring the rates view back after the order was invalidated while it was open (P6a-1)', async () => {
+    const view = render(<Storefront categories={prototypeCategories} products={prototypeProducts} promotions={[]} />)
+    fireEvent.click(screen.getByRole('button', { name: /^Sumar Muzzarella, Entera/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Ver tu pedido/ }))
+    let sheet = await screen.findByRole('dialog', { name: 'Tu pedido' })
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Continuar' }))
+    fireEvent.click(within(sheet).getByRole('radio', { name: 'Envío' }))
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Consultar tarifas de reparto' }))
+    expect(within(sheet).getByRole('heading', { level: 2, name: 'Tarifas de la motito' })).toBeInTheDocument()
+
+    // A fresh catalog says the Muzzarella is out of stock: the sheet goes back to the cart.
+    const outOfStock = prototypeProducts.map((product) => (product.name === 'Muzzarella' ? { ...product, inStock: false } : product))
+    view.rerender(<Storefront categories={prototypeCategories} products={outOfStock} promotions={[]} />)
+    sheet = screen.getByRole('dialog', { name: 'Tu pedido' })
+    expect(within(sheet).getByRole('heading', { level: 2, name: 'Tu pedido' })).toBeInTheDocument()
+
+    // Back in stock: «Continuar» opens the data form, not the rates.
+    view.rerender(<Storefront categories={prototypeCategories} products={prototypeProducts} promotions={[]} />)
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Continuar' }))
+    expect(within(sheet).getByRole('heading', { level: 2, name: 'Tus datos' })).toBeInTheDocument()
+    expect(within(sheet).getByRole('radio', { name: 'Envío' })).toBeChecked()
+  })
+
   it('opens «Tarifas de la motito» from delivery as its own view, searchable, and comes back with the data kept', async () => {
     const sheet = await openDetails()
     expect(within(sheet).queryByRole('button', { name: 'Consultar tarifas de reparto' })).not.toBeInTheDocument()
