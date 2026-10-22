@@ -168,7 +168,12 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
         <CheckoutForm totals={totals} onValid={openMessage} onShowRates={() => setRatesOpen(true)} />
       ) : null}
       {shownStep === 'preview' && !verified ? (
-        <VerificationPanel verification={verification} onRetry={() => live && void check(live)} onAccept={accept} />
+        <VerificationPanel
+          // A verified order that no longer matches what is on screen needs a new check, never a blank step.
+          verification={verification.status === 'verified' ? { status: 'unverified', cartChanged: true } : verification}
+          onRetry={() => live && void check(live)}
+          onAccept={accept}
+        />
       ) : null}
       {shownStep === 'preview' && verified ? <MessagePreview message={buildOrderMessage(details, summary, totals)} /> : null}
     </Sheet>

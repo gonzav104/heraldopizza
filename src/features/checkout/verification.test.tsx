@@ -93,6 +93,49 @@ describe('final check before WhatsApp (P6a-3)', () => {
     expect(bubble()).toHaveTextContent('1 × Muzzarella (Entera): $ 17.000')
   })
 
+  it('keeps a price change pending acceptance when the customer goes back and opens the message again', async () => {
+    const { repository, calls } = await openDetails()
+    seeMessage()
+    await act(async () => calls[1].resolve(muzzaPriced(17000)))
+    back()
+    seeMessage()
+
+    expect(repository.load).toHaveBeenCalledTimes(2)
+    const changes = within(sheet()).getByRole('region', { name: 'Cambiaron precios' })
+    expect(within(changes).getByRole('listitem')).toHaveTextContent('1 × Muzzarella (Entera): $ 16.000 → $ 17.000')
+    expect(bubble()).toBeNull()
+    fireEvent.click(within(sheet()).getByRole('button', { name: 'Aceptar el total actualizado' }))
+    expect(bubble()).toHaveTextContent('$ 17.000')
+  })
+
+  it('shows an unaccepted change again when it expired before the customer came back', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-24T20:00:00Z'))
+    const { repository, calls } = await openDetails()
+    seeMessage()
+    await act(async () => calls[1].resolve(muzzaPriced(17000)))
+    back()
+    vi.setSystemTime(new Date('2026-10-24T20:11:00Z'))
+    seeMessage()
+    expect(repository.load).toHaveBeenCalledTimes(3)
+    await act(async () => calls[2].resolve(muzzaPriced(17000)))
+    expect(within(sheet()).getByRole('region', { name: 'Cambiaron precios' })).toHaveTextContent('$ 16.000 → $ 17.000')
+    expect(bubble()).toBeNull()
+  })
+
+  it('asks to check again, instead of showing nothing, if the order changes while its message is on screen', async () => {
+    const { calls } = await openDetails()
+    seeMessage()
+    await act(async () => calls[1].resolve(catalogA))
+    act(() => useOrderStore.getState().setNote(useOrderStore.getState().lines[0].id, 'bien cocida'))
+
+    expect(bubble()).toBeNull()
+    expect(within(sheet()).getByRole('status')).toHaveTextContent('Tu pedido cambió mientras lo verificábamos.')
+    fireEvent.click(within(sheet()).getByRole('button', { name: 'Verificar de nuevo' }))
+    await act(async () => calls[2].resolve(catalogA))
+    expect(bubble()).toHaveTextContent('Aclaración: bien cocida')
+  })
+
   it('goes back to the cart, keeping the line, when the fresh catalog makes the order invalid', async () => {
     const { calls } = await openDetails()
     seeMessage()

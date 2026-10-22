@@ -92,10 +92,20 @@ export function useOrderVerification() {
   /**
    * Opening the message step. A check that is still current (under 10 minutes, same day in Argentina) for the same
    * cart is reused: only the checkout data changed, so the message is rebuilt, and a different total is accepted again.
-   * Anything else checks with a fresh catalog.
+   * A change still waiting for acceptance stays waiting: the menu already shows the new prices, so checking again
+   * would find nothing to compare and skip the acceptance. Anything else checks with a fresh catalog.
    */
   const enter = useCallback(
     (live: OrderSnapshot) => {
+      if (
+        verification.status === 'changed' &&
+        verification.fresh.cart === live.cart &&
+        isVerificationCurrent(new Date(verification.at), new Date())
+      ) {
+        const { at, seen } = verification
+        setVerification({ status: 'changed', at, seen, fresh: live, comparison: compareOrders(seen, live) })
+        return
+      }
       if (
         verification.status === 'verified' &&
         verification.snapshot.cart === live.cart &&
@@ -109,7 +119,8 @@ export function useOrderVerification() {
         )
         return
       }
-      void check(live)
+      // An expired change that was never accepted is checked against what the customer last saw, so it is shown again.
+      void check(verification.status === 'changed' && verification.seen.cart === live.cart ? verification.seen : live)
     },
     [verification, check],
   )

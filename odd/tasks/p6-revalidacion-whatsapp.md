@@ -25,3 +25,4 @@ Objective: re-check the order against a fresh catalog before WhatsApp (P6a) and 
 
 - L1 (2026-10-22) User's request: «Heraldo Pizza — Autorizar P6a y preparación de P6b» (decisions A–D, units P6a-1..P6b-1, tests, limits), quoted in S1–S7.
 - L2 Implementation notes: refreshCatalog returns the applied catalog so the check reconciles against exactly what the menu shows; verification states in useOrderVerification; WhatsAppAction replaces DisabledSendButton. Chromium 360/1280 (price change, network failure, verified): no horizontal scroll, no console errors. .env files are not readable in this environment: .env.example was not edited.
+- L3 Independent verifier: no blockers; A1 (a pending price change could be skipped by going back and opening the message again) and A2 (a verified view going blank if the order changed) fixed in the next commit with RED tests; A3 (.env.local not readable, cannot confirm it does not set VITE_WHATSAPP_ENABLED) reported to the user.
