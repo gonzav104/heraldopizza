@@ -1,9 +1,11 @@
 import { ArrowUpRight, Eye, EyeOff, LogOut } from 'lucide-react'
-import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useState, type FormEvent, type ReactNode } from 'react'
 import './admin.css'
 import type { AdminAuth, AdminSession } from '@/features/admin/admin-auth'
 import type { AdminCatalogRepository } from '@/features/admin/catalog/admin-catalog'
 import { CatalogEditor } from '@/features/admin/catalog/CatalogEditor'
+import type { AdminPromotionsRepository } from '@/features/admin/promotions/admin-promotions'
+import { PromotionsEditor } from '@/features/admin/promotions/PromotionsEditor'
 
 /**
  * Where the panel stands. «restoring» and «checking» render one neutral screen, so neither the login nor the panel
@@ -135,22 +137,44 @@ function LoginForm({ auth, onSignedIn }: { auth: AdminAuth; onSignedIn: (session
   )
 }
 
+type Section = 'catalog' | 'promotions'
+type Work = { dirty: boolean; saving: boolean }
+const idle: Work = { dirty: false, saving: false }
+
+const SECTIONS: { id: Section; label: string; region: string }[] = [
+  { id: 'catalog', label: 'Carta', region: 'Gestión del catálogo' },
+  { id: 'promotions', label: 'Promociones', region: 'Gestión de promociones' },
+]
+
 function Panel({
   session,
   catalog,
+  promotions,
   onSignOut,
   signOutFailed,
 }: {
   session: AdminSession
   catalog: AdminCatalogRepository
+  promotions: AdminPromotionsRepository
   onSignOut: () => Promise<void>
   signOutFailed: boolean
 }) {
-  const [work, setWork] = useState({ dirty: false, saving: false })
+  const [section, setSection] = useState<Section>('catalog')
+  // A section loads the first time it is opened and then stays mounted, hidden, so its unsaved edits survive a switch.
+  const [visited, setVisited] = useState<Section[]>(['catalog'])
+  const [work, setWork] = useState<Record<Section, Work>>({ catalog: idle, promotions: idle })
+  const reportCatalog = useCallback((next: Work) => setWork((current) => ({ ...current, catalog: next })), [])
+  const reportPromotions = useCallback((next: Work) => setWork((current) => ({ ...current, promotions: next })), [])
   const [leaving, setLeaving] = useState(false)
-  const exitBlocked = work.saving || leaving
+  const saving = work.catalog.saving || work.promotions.saving
+  const dirty = work.catalog.dirty || work.promotions.dirty
+  const exitBlocked = saving || leaving
   const mayLeave = () =>
-    !exitBlocked && (!work.dirty || window.confirm('Tenés cambios sin guardar. Si salís, se perderán. ¿Querés salir?'))
+    !exitBlocked && (!dirty || window.confirm('Tenés cambios sin guardar. Si salís, se perderán. ¿Querés salir?'))
+  const open = (next: Section) => {
+    setSection(next)
+    setVisited((current) => (current.includes(next) ? current : [...current, next]))
+  }
 
   return (
     <main className="admin-theme admin-workspace">
@@ -193,15 +217,39 @@ function Panel({
             </button>
           </nav>
         </div>
+        <nav aria-label="Secciones del panel" className="admin-sections" inert={leaving}>
+          {SECTIONS.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              aria-current={section === id ? 'page' : undefined}
+              aria-label={work[id].dirty ? `${label} (cambios sin guardar)` : undefined}
+              disabled={saving}
+              onClick={() => open(id)}
+            >
+              {label}
+              {work[id].dirty ? <span aria-hidden="true" className="admin-section-dot" /> : null}
+            </button>
+          ))}
+        </nav>
       </header>
-      <section className="admin-content" aria-label="Gestión del catálogo" inert={leaving}>
-        {signOutFailed ? (
+      {signOutFailed ? (
+        <div className="admin-content admin-content-banner">
           <p role="alert" className="admin-error admin-banner">
             {SIGN_OUT_FAILED}
           </p>
-        ) : null}
-        <CatalogEditor repository={catalog} onWorkChange={setWork} />
-      </section>
+        </div>
+      ) : null}
+      {SECTIONS.filter(({ id }) => visited.includes(id)).map(({ id, region }) => (
+        // hidden takes the inactive section out of the page, the keyboard, and the accessibility tree.
+        <section key={id} className="admin-content" aria-label={region} hidden={section !== id} inert={leaving}>
+          {id === 'catalog' ? (
+            <CatalogEditor repository={catalog} onWorkChange={reportCatalog} />
+          ) : (
+            <PromotionsEditor repository={promotions} onWorkChange={reportPromotions} />
+          )}
+        </section>
+      ))}
     </main>
   )
 }
@@ -210,7 +258,15 @@ function Panel({
  * The admin panel (U4): restores the saved session, asks soy_administrador() whether to show the panel, and offers
  * sign-in and sign-out. The answer only shapes the interface; row level security guards every write.
  */
-export function AdminApp({ auth, catalog }: { auth: AdminAuth; catalog: AdminCatalogRepository }) {
+export function AdminApp({
+  auth,
+  catalog,
+  promotions,
+}: {
+  auth: AdminAuth
+  catalog: AdminCatalogRepository
+  promotions: AdminPromotionsRepository
+}) {
   const [phase, setPhase] = useState<Phase>({ kind: 'restoring' })
   const [signOutFailed, setSignOutFailed] = useState(false)
 
@@ -324,6 +380,14 @@ export function AdminApp({ auth, catalog }: { auth: AdminAuth; catalog: AdminCat
         </AdminStatus>
       )
     case 'admin':
-      return <Panel session={phase.session} catalog={catalog} onSignOut={signOut} signOutFailed={signOutFailed} />
+      return (
+        <Panel
+          session={phase.session}
+          catalog={catalog}
+          promotions={promotions}
+          onSignOut={signOut}
+          signOutFailed={signOutFailed}
+        />
+      )
   }
 }

@@ -259,6 +259,47 @@
   margin: auto;
 }
 
+.admin-theme .admin-sections {
+  max-width: 1480px;
+  margin: auto;
+  padding: 0 2rem;
+  display: flex;
+  gap: 0.25rem;
+}
+
+.admin-theme .admin-sections button {
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: var(--admin-muted);
+  font-weight: 700;
+}
+
+.admin-theme .admin-sections button:hover:not(:disabled) {
+  color: var(--admin-ink);
+}
+
+.admin-theme .admin-sections button[aria-current='page'] {
+  border-bottom-color: var(--admin-accent);
+  color: var(--admin-ink);
+}
+
+.admin-theme .admin-section-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: #b7791f;
+}
+
+.admin-theme .admin-content-banner {
+  padding-bottom: 0;
+}
+
 @media (max-width: 760px) {
   .admin-theme .admin-header-inner {
     padding: 0.75rem 1rem;
@@ -284,6 +325,15 @@
 
   .admin-theme .admin-content {
     padding: 1.25rem 1rem;
+  }
+
+  .admin-theme .admin-sections {
+    padding: 0 1rem;
+  }
+
+  .admin-theme .admin-sections button {
+    flex: 1;
+    justify-content: center;
   }
 
   .admin-theme .admin-login {

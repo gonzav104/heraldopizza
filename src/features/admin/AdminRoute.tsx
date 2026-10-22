@@ -1,15 +1,20 @@
 import { AdminApp } from '@/features/admin/AdminApp'
 import { SupabaseAdminCatalog } from '@/features/admin/catalog/supabase-admin-catalog'
+import { SupabaseAdminPromotions } from '@/features/admin/promotions/supabase-admin-promotions'
 import { SupabaseAdminAuth, createAdminClient } from '@/features/admin/supabase-admin-auth'
 
-// Created once, when this lazy module loads: one Supabase client per page, shared by authentication and the catalog,
+// Created once, when this lazy module loads: one Supabase client per page, shared by authentication, the catalog, and the promotions,
 // even under StrictMode's double render.
 const services = createServices()
 
 function createServices() {
   try {
     const client = createAdminClient()
-    return { auth: new SupabaseAdminAuth(client), catalog: new SupabaseAdminCatalog(client) }
+    return {
+      auth: new SupabaseAdminAuth(client),
+      catalog: new SupabaseAdminCatalog(client),
+      promotions: new SupabaseAdminPromotions(client),
+    }
   } catch (error) {
     console.error('The admin panel is not configured', error)
     return null
@@ -31,5 +36,5 @@ export default function AdminRoute() {
     )
   }
 
-  return <AdminApp auth={services.auth} catalog={services.catalog} />
+  return <AdminApp auth={services.auth} catalog={services.catalog} promotions={services.promotions} />
 }

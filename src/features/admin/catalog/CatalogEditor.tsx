@@ -1,32 +1,17 @@
-import { useCallback, useEffect, useId, useState, type FormEvent, type ReactNode } from 'react'
-import {
-  AdminSaveError,
-  type AdminCatalogRepository,
-  type AdminCategory,
-  type AdminProduct,
-  type AdminVariant,
-  type SaveFailure,
-} from '@/features/admin/catalog/admin-catalog'
+import { useCallback, useEffect, useId, useState, type FormEvent } from 'react'
+import type { AdminCatalogRepository, AdminCategory, AdminProduct, AdminVariant } from '@/features/admin/catalog/admin-catalog'
 import { Sheet } from '@/components/ui/Sheet'
 import './catalog-workspace.css'
 import { parsePrice, validateName, validateProductEdit } from '@/features/admin/catalog/catalog-edits'
+import { formatPrice } from '@/features/admin/shared/admin-save'
+import { Toggle, Unsaved } from '@/features/admin/shared/SaveFeedback'
+import { useSave } from '@/features/admin/shared/use-save'
 
 /**
  * Catalog editor of the admin panel (U5): names, descriptions, made-to-order, stock, visibility, and prices of the
  * existing catalog. Every save shows the row the database returned; nothing is updated optimistically. The public
  * menu reads the catalog when it loads, so changes appear there on reload.
  */
-
-const FAILURE_MESSAGE: Record<SaveFailure, string> = {
-  validation: 'La base no aceptó el cambio. Revisá los datos.',
-  conflict: 'Otro cambio llegó antes. Recargá el catálogo para ver lo último.',
-  'not-found': 'Ese dato ya no existe. Recargá el catálogo.',
-  forbidden: 'Tu cuenta no puede guardar cambios.',
-  unavailable: 'No pudimos guardar. Revisá tu conexión e intentá de nuevo.',
-}
-
-type Feedback =
-  { kind: 'idle' } | { kind: 'saving' } | { kind: 'saved' } | { kind: 'failed'; reason: SaveFailure; retry: () => void }
 
 const inputClass = 'admin-input'
 const buttonClass = 'admin-button'
@@ -65,119 +50,6 @@ function matches(product: AdminProduct, category: AdminCategory, filters: Filter
         : filters.attention === 'order'
           ? product.madeToOrder
           : product.variants.some((v) => v.price === null)))
-  )
-}
-
-function Unsaved({ children }: { children: ReactNode }) {
-  return <p className="text-[0.875rem] font-semibold text-mostaza">{children}</p>
-}
-
-const formatPrice = (price: number) => String(price).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-
-function failureReason(error: unknown): SaveFailure {
-  return error instanceof AdminSaveError ? error.reason : 'unavailable'
-}
-
-/** Runs one save and reports it through the shared feedback of a card or a category. */
-function useSave(onReload: () => void, label = '') {
-  const [feedback, setFeedback] = useState<Feedback>({ kind: 'idle' })
-  const run = useCallback(async function save(action: () => Promise<void>): Promise<boolean> {
-    setFeedback({ kind: 'saving' })
-    try {
-      await action()
-      setFeedback({ kind: 'saved' })
-      return true
-    } catch (error) {
-      const reason = failureReason(error)
-      setFeedback({ kind: 'failed', reason, retry: () => void save(action) })
-      return false
-    }
-  }, [])
-  // A new edit makes the last «Guardado» or error stale; a save in progress keeps its status.
-  const clear = useCallback(
-    () => setFeedback((current) => (current.kind === 'saving' ? current : { kind: 'idle' })),
-    [],
-  )
-  const view = <SaveFeedback feedback={feedback} onReload={onReload} label={label} />
-  return { run, clear, view, failed: feedback.kind === 'failed', saving: feedback.kind === 'saving' }
-}
-
-function SaveFeedback({ feedback, onReload, label }: { feedback: Feedback; onReload: () => void; label: string }) {
-  if (feedback.kind === 'idle') return null
-  if (feedback.kind === 'saving' || feedback.kind === 'saved') {
-    return (
-      <p role="status" className="text-[0.9375rem] font-semibold text-crema-muted">
-        {label ? `${label}: ` : ''}
-        {feedback.kind === 'saving' ? 'Guardando…' : 'Guardado'}
-      </p>
-    )
-  }
-  const reload = feedback.reason === 'conflict' || feedback.reason === 'not-found'
-  return (
-    <div className="flex flex-wrap items-center gap-3">
-      <p role="alert" className="text-[0.9375rem] font-semibold text-mostaza">
-        {FAILURE_MESSAGE[feedback.reason]}
-      </p>
-      {reload ? (
-        <button type="button" onClick={onReload} className={buttonClass}>
-          Recargar catálogo
-        </button>
-      ) : feedback.reason === 'unavailable' ? (
-        <button type="button" onClick={feedback.retry} className={buttonClass}>
-          Reintentar
-        </button>
-      ) : null}
-    </div>
-  )
-}
-
-/**
- * A checkbox that saves on change. While the save runs it shows the requested state, so the tap visibly registers;
- * when the save ends it shows the saved row again (the new state, or the old one if the save failed).
- */
-function Toggle({
-  label,
-  checked,
-  disabled,
-  onChange,
-  description,
-}: {
-  label: string
-  checked: boolean
-  disabled: boolean
-  onChange: (checked: boolean) => Promise<unknown>
-  description?: ReactNode
-}) {
-  const descriptionId = useId()
-  const [pending, setPending] = useState<boolean | null>(null)
-  const change = async (next: boolean) => {
-    setPending(next)
-    try {
-      await onChange(next)
-    } finally {
-      setPending(null)
-    }
-  }
-  return (
-    <div className="flex flex-col gap-1">
-      <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 font-semibold">
-        <input
-          type="checkbox"
-          aria-label={label}
-          aria-describedby={description ? descriptionId : undefined}
-          checked={pending ?? checked}
-          disabled={disabled}
-          onChange={(event) => void change(event.target.checked)}
-          className="size-5 accent-[var(--color-heraldo)]"
-        />
-        <span aria-hidden="true">{label.split(':')[0]}</span>
-      </label>
-      {description ? (
-        <p id={descriptionId} className="text-[0.875rem] text-crema-muted">
-          {description}
-        </p>
-      ) : null}
-    </div>
   )
 }
 
