@@ -1,0 +1,29 @@
+# P5a — Promociones reales con Supabase
+
+Objective: load the eight official promotions from the local Supabase stack into the public menu, with stable commercial codes that keep saved carts working. Branch: `feat/p5a-promociones-supabase` (from `main` at `22a1a5e`). Delivery: work-unit commits; push, PR, and merge only with the user's authorization. Test runners: pgTAP (`npm run db:test`), Vitest, Playwright E2E; browser checks in Chromium.
+
+## Specs
+
+- S1 Identity: «`id`: UUID interno, clave primaria de PostgreSQL.» «`codigo`: identificador comercial único, estable e inmutable.» «`Promotion.id`: debe seguir exponiendo el código comercial.» «Los ocho códigos originales deben conservarse exactamente, especialmente `promo-docena-eleccion`.» «No modifiques la versión v1 del carrito si la extensión actual continúa siendo compatible.» «Las promociones nuevas que se creen en P5b tendrán un código `promo-...` generado automáticamente, independiente del título y no editable por el administrador.»
+- S2 Commercial rules: «Conservá exactamente los precios, títulos y descripciones proporcionados por el dueño.» «Sin fechas configuradas significa sin restricción de fecha.» «Sin días configurados significa todos los días.» «Evaluá la vigencia en PostgreSQL según `America/Argentina/Buenos_Aires`.» «Las promociones desactivadas o vencidas no aparecen en la carta pública.» «La administración futura debe poder consultar promociones inactivas.» «No permitas borrado físico como operación administrativa.» «La docena a elección debe conservar `flavorChoice` con su categoría y sus 12 unidades.» «Si la categoría necesaria para configurar una promoción está oculta al público, esa promoción tampoco debe mostrarse.» «No agregues imágenes ni Storage en P5a.»
+- S3 Security: «No otorgues `USAGE` general de `privado` al rol `anon` sin demostrar que no amplía indebidamente sus capacidades.» «Preferí expresar la condición de vigencia directamente en la política RLS». Verify: «`anon` solo puede leer promociones visibles y vigentes.» «Un usuario autenticado no administrador tampoco puede modificarlas.» «El administrador puede gestionar los campos autorizados.» «`codigo` no puede modificarse, incluso mediante intentos directos.» «Los roles públicos no pueden borrar promociones.» «Los permisos efectivos coinciden con el inventario de seguridad actualizado.»
+- S4 Seed: «Creá un seed separado para las ocho promociones.» «Debe ser idempotente y preservar los cambios administrativos posteriores.» «Utilizá UUID internos estables y los códigos comerciales originales.» «El seed debe comprobarse contra los datos autorizados, sin inventar contenido.» «No uses un mecanismo que sobrescriba precios o estados administrados cada vez que se ejecuta.»
+- S5 Public adapter: «Dos GET en paralelo como máximo para catálogo y promociones, sin N+1.» «Mismo `AbortSignal` para ambas operaciones.» «Validación estricta del contrato de datos.» «Manejo coherente de errores.» «Sin cookies ni datos personales del cliente en las consultas.» «Sin duplicar promociones entre Supabase y el prototipo.» «El prototipo puede mantenerse como fixture para tests y `#sistema`, pero no como fuente comercial de la carta pública.» «Actualizá los tests y el aviso de privacidad para reflejar las solicitudes reales.» «Mantené la comprobación del bundle de producción.» «No utilices títulos de promociones para calcular sus componentes o precios.»
+- S6 Cart compatibility: cases 1–8 (old cart with `promo-docena-eleccion`; dozen with saved flavors; deactivated; expired; nonexistent; price change; mixed cart; malformed data). «Cuando una promoción deje de estar disponible, la línea debe mantenerse visible y señalar «Esta promoción ya no está disponible», permitiendo eliminarla y bloqueando el checkout mientras exista el problema.» «No borres silenciosamente líneas ni sustituyas promociones.»
+- S7 Validation: pgTAP, Vitest, typecheck, lint, build, bundle check; Chromium at 360 and 1280 px with the eight promotions from local Supabase, the dozen, cart recovery, and a deactivated promotion. Independent verifiers for database, security, and contract changes.
+- S8 Limits: no P5b, product search, visual improvements, or real WhatsApp; no changes to business rules, prices, motito rates, or payments; no production migrations; no push, PR, or merge.
+
+## Tasks
+
+| ID | Specs | Route | Status | Commit / evidence |
+|---|---|---|---|---|
+| T1 Migration, constraints, grants, RLS + pgTAP | S1–S3 | inline (high risk: items 1, 2) | pending | |
+| T2 Separate idempotent seed + integrity tests | S1, S2, S4 | inline (high risk: item 1) | pending | |
+| T3 Adapter, mapper, privacy notice and test | S5 | inline (high risk: item 3) | pending | |
+| T4 Cart compatibility, unavailable message, E2E, docs | S6, S7 | inline | pending | |
+
+## Log
+
+- L1 (2026-10-22) User's request: approval of alternative B and the P5a implementation, verbatim in the session prompt «Heraldo Pizza — Aprobación e implementación local de P5a» (sections 1–9, quoted in S1–S8 above).
+- L2 Local target verified before any reset: `supabase status` shows `linked_project: null`, DB at 127.0.0.1:54322, containers `supabase_*_heraldopizza`. Local data equals the seed (13 categories, 84 products, 110 variants, 0 edited rows). The only data outside migrations and seeds is one local admin user; backed up (auth.users, auth.identities, administradores) outside the repository before resetting.
+- L3 Design adjustments from the approval: validity inline in the read policy (no `USAGE` on `privado` for `anon`); `codigo` gets a database default `promo-<hex>` and is excluded from the admin's INSERT and UPDATE column grants, plus a trigger that rejects any change; unavailable promotion lines read «Esta promoción ya no está disponible.»
