@@ -6,7 +6,7 @@
 -- Same scope as catalogo_rls: roles and JWT claims are set directly. Local stack only; every change is rolled back.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(26);
+select plan(32);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-0000000000a1', 'admin@example.test'),
@@ -112,6 +112,26 @@ select matches(
   'its code is generated'
 );
 select throws_ok($$delete from public.promociones$$, '42501', null, 'not even the administrator deletes promotions');
+-- What a combo is made of is fixed once it exists: only its commercial fields change (Codex P2 on PR #29).
+select throws_ok(
+  $$update public.promociones set eleccion_categoria_id = (select id from public.categorias where nombre = 'Empanadas'),
+      eleccion_unidades = 12 where codigo = 'promo-tres-muzzarella'$$,
+  '42501', null, 'the administrator cannot turn a closed combo into one with a flavor choice'
+);
+select throws_ok(
+  $$update public.promociones set eleccion_categoria_id = '00000000-0000-4000-8000-00000000d001'
+    where codigo = 'promo-docena-eleccion'$$,
+  '42501', null, 'the administrator cannot change the flavor category of the dozen to choose'
+);
+select throws_ok(
+  $$update public.promociones set eleccion_unidades = 6 where codigo = 'promo-docena-eleccion'$$,
+  '42501', null, 'the administrator cannot change the 12 units of the dozen to choose'
+);
+select lives_ok(
+  $$insert into public.promociones (titulo, precio, orden, eleccion_categoria_id, eleccion_unidades)
+    values ('Promo con gustos', 2000, 51, (select id from public.categorias where nombre = 'Empanadas'), 6)$$,
+  'the administrator still sets the flavor choice when creating a promotion'
+);
 reset role;
 
 -- ---------------------------------------------------------------------------------------------------------------
@@ -120,6 +140,13 @@ select is(has_schema_privilege('anon', 'privado', 'USAGE'), false, 'anon holds n
 select is(has_table_privilege('anon', 'public.promociones', 'SELECT'), true, 'anon may select promotions');
 select is(has_table_privilege('anon', 'public.promociones', 'INSERT, UPDATE, DELETE'), false, 'anon holds no write privilege');
 select is(has_table_privilege('authenticated', 'public.promociones', 'DELETE'), false, 'authenticated holds no delete privilege');
+select is(has_table_privilege('authenticated', 'public.promociones', 'UPDATE'), false, 'authenticated holds no table-wide update that would bypass the column grants');
+select is(
+  has_column_privilege('authenticated', 'public.promociones', 'eleccion_categoria_id', 'UPDATE')
+    or has_column_privilege('authenticated', 'public.promociones', 'eleccion_unidades', 'UPDATE'),
+  false,
+  'authenticated cannot update the flavor choice'
+);
 select is(has_column_privilege('authenticated', 'public.promociones', 'codigo', 'UPDATE'), false, 'authenticated cannot update codigo');
 select is(has_column_privilege('authenticated', 'public.promociones', 'codigo', 'INSERT'), false, 'authenticated cannot insert codigo');
 select is(has_column_privilege('authenticated', 'public.promociones', 'id', 'UPDATE'), false, 'authenticated cannot update id');

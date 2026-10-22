@@ -76,11 +76,12 @@ alter table public.promociones enable row level security;
 revoke all on table public.promociones from anon, authenticated;
 
 -- Everyone may read (the policies filter). Only signed-in users may write, through the columns below, and the
--- policies let only administrators do it. No role may delete, and no role may set or change the code.
+-- policies let only administrators do it. No role may delete, and no role may set or change the code. The flavor
+-- choice is set only when a promotion is created: what a combo is made of never changes afterwards.
 grant select on table public.promociones to anon, authenticated;
 grant insert (titulo, descripcion, precio, visible, orden, vigente_desde, vigente_hasta, dias_semana, eleccion_categoria_id, eleccion_unidades)
   on table public.promociones to authenticated;
-grant update (titulo, descripcion, precio, visible, orden, vigente_desde, vigente_hasta, dias_semana, eleccion_categoria_id, eleccion_unidades)
+grant update (titulo, descripcion, precio, visible, orden, vigente_desde, vigente_hasta, dias_semana)
   on table public.promociones to authenticated;
 
 -- Public read: visible, within its dates and weekdays on Argentina's clock, and never a combo whose flavor category

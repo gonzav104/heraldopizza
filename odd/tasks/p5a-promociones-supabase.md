@@ -20,7 +20,8 @@ Objective: load the eight official promotions from the local Supabase stack into
 | T1 Migration, constraints, grants, RLS + pgTAP | S1–S3 | inline (high risk: items 1, 2) | done | `6d45672`; pgTAP RED (table missing) → GREEN |
 | T2 Separate idempotent seed + integrity tests | S1, S2, S4 | inline (high risk: item 1) | done | `f45dd4e`; Vitest RED (seed missing) → GREEN; idempotency run twice |
 | T3 Adapter, mapper, privacy notice and test | S5 | inline (high risk: item 3) | done | `073441b`; RED (no promotions request) → GREEN |
-| T4 Cart compatibility, unavailable message, E2E, docs | S6, S7 | inline | done | this commit; message RED → GREEN; compat tests pass as regression |
+| T4 Cart compatibility, unavailable message, E2E, docs | S6, S7 | inline | done | `47c5fb7`; message RED → GREEN; compat tests pass as regression |
+| T5 Codex P2: flavor choice fixed after creation | S3 | inline (high risk: item 2) | done | this commit; pgTAP RED (5 failing) → GREEN (197 on clean DB) |
 
 ## Log
 
@@ -31,3 +32,5 @@ Objective: load the eight official promotions from the local Supabase stack into
 - L5 T2: local `db reset` after re-checking the target (linked_project null, 127.0.0.1:54322). Seed run twice after an admin-like edit (price 99999, hidden): `INSERT 0 0` both times, edit preserved, then restored.
 - L6 T3: two GETs in parallel (categorias, promociones) with one shared signal; strict mapper; the public menu stops using the prototype promotions; privacy notice «La carta, las promociones y sus precios…». Local API: anon reads 8, 7 after switching one off, DELETE refused (401).
 - L7 T4: unavailable promotion line «Una promoción» / «Esta promoción ya no está disponible.». Compatibility tests for cases 1–8 from the real seed rows; E2E 6/6 (new promotions spec); Chromium 360/1280: 8 promotions, dozen, cart recovered after reload, switched-off promotion flagged and checkout blocked, no console errors.
+- L8 (2026-10-22) PR #29 published (head 47c5fb7), CI green. Codex P2 findings: (1) admin could UPDATE eleccion_categoria_id/eleccion_unidades; (2) an open tab keeps an expired promotion until reload.
+- L9 (2026-10-22) User: «Autorizo corregir el hallazgo 1 en la misma rama» — remove both columns from authenticated UPDATE, keep INSERT, fix the existing migration (not deployed). «El hallazgo 2 queda diferido explícitamente para la unidad de reconsulta del catálogo antes de habilitar WhatsApp real.» Recorded in docs/decisiones-pendientes.md.

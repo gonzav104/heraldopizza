@@ -69,12 +69,12 @@ select results_eq(
     'authenticated INSERT eleccion_unidades', 'authenticated INSERT orden', 'authenticated INSERT precio',
     'authenticated INSERT titulo', 'authenticated INSERT vigente_desde', 'authenticated INSERT vigente_hasta',
     'authenticated INSERT visible',
-    'authenticated UPDATE descripcion', 'authenticated UPDATE dias_semana', 'authenticated UPDATE eleccion_categoria_id',
-    'authenticated UPDATE eleccion_unidades', 'authenticated UPDATE orden', 'authenticated UPDATE precio',
+    'authenticated UPDATE descripcion', 'authenticated UPDATE dias_semana', 'authenticated UPDATE orden',
+    'authenticated UPDATE precio',
     'authenticated UPDATE titulo', 'authenticated UPDATE vigente_desde', 'authenticated UPDATE vigente_hasta',
     'authenticated UPDATE visible'
   ],
-  'promotions: authenticated writes only the planned columns, never codigo, id, or the timestamps'
+  'promotions: authenticated writes only the planned columns, never codigo, id, or the timestamps; the flavor choice only on insert'
 );
 
 select is(
