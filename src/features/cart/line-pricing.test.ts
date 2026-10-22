@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Product, Promotion } from '@/domain/catalog'
 import { prototypeCategories, prototypeProducts } from '@/data/prototype-catalog'
+import { prototypePromotions } from '@/data/prototype-promotions'
 import { halfAndHalfPrice, indexCatalog, reconcileOrder, resolveLine } from './line-pricing'
 import type { HalfOrderLine, OrderLine, ProductOrderLine } from './order-lines'
 
@@ -293,5 +294,96 @@ describe('reconcileOrder: lines the current catalog cannot price (P2)', () => {
 
     expect(summary.issues.map((item) => item.line)).toEqual([lines[0], lines[2]])
     expect(summary.lines.map((item) => item.line)).toEqual([lines[1], lines[3]])
+  })
+})
+
+describe('reconcileOrder: the dozen to choose (P4)', () => {
+  const dozen = prototypePromotions.find((item) => item.title === 'Docena de empanadas a elección')
+  const assorted = prototypePromotions.find((item) => item.title === 'Docena de empanadas surtidas')
+  if (!dozen || !assorted) throw new Error('prototype promotions')
+  const carne = product('Empanada de carne picada')
+  const jyq = product('Empanada de jamón y queso')
+  const pollo = product('Empanada de pollo')
+  const catalogWith = (...changed: Product[]) =>
+    indexCatalog(
+      prototypeCategories,
+      prototypeProducts.map((item) => changed.find((other) => other.id === item.id) ?? item),
+      prototypePromotions,
+    )
+  const promos = catalogWith()
+  const picks = (...entries: [Product | string, number][]) =>
+    entries.map(([item, quantity]) => ({ productId: typeof item === 'string' ? item : item.id, quantity }))
+  const dozenLine = (flavors: { productId: string; quantity: number }[] | undefined, quantity = 1): OrderLine => ({
+    id: 'd',
+    kind: 'promotion',
+    promotionId: dozen.id,
+    quantity,
+    note: '',
+    ...(flavors ? { flavors } : {}),
+  })
+  const issueOf = (line: OrderLine, catalog = promos) => reconcileOrder([line], catalog).issues[0]
+
+  it('prices a full dozen at the promotion price, whatever the flavors, and lists them in menu order', () => {
+    const summary = reconcileOrder([dozenLine(picks([pollo, 3], [carne, 5], [jyq, 4]), 2)], promos)
+
+    expect(summary.issues).toEqual([])
+    expect(summary.lines[0]).toMatchObject({
+      title: 'Docena de empanadas a elección',
+      detail: 'Promo',
+      parts: ['5 Carne picada', '3 Pollo', '4 Jamón y queso'],
+      unitPrice: dozen.price,
+      subtotal: dozen.price * 2,
+    })
+    expect(summary.itemCount).toBe(2)
+  })
+
+  it('keeps the assorted dozen as a closed combo, with no flavors', () => {
+    const line: OrderLine = { id: 's', kind: 'promotion', promotionId: assorted.id, quantity: 1, note: '' }
+    expect(reconcileOrder([line], promos).lines[0]).toMatchObject({ title: 'Docena de empanadas surtidas', parts: [], subtotal: assorted.price })
+  })
+
+  it('asks to rebuild a dozen saved without flavors, never pricing or inventing them', () => {
+    expect(issueOf(dozenLine(undefined))).toMatchObject({
+      kind: 'incompatible',
+      title: 'Docena de empanadas a elección',
+      reason: 'No tiene los gustos elegidos: quitala y armala de nuevo.',
+    })
+  })
+
+  it.each([
+    ['unreadable saved flavors', []],
+    ['a total other than 12', picks([carne, 5], [pollo, 3])],
+  ])('marks %s as incompatible', (_, flavors) => {
+    expect(issueOf(dozenLine(flavors))).toMatchObject({ kind: 'incompatible', reason: 'Los gustos guardados no son válidos: quitala y armala de nuevo.' })
+  })
+
+  it('marks a flavor that is no longer in the catalog as missing, naming the ones that are', () => {
+    expect(issueOf(dozenLine(picks([carne, 6], ['empanada-borrada', 6])))).toMatchObject({
+      kind: 'missing',
+      detail: '6 Carne picada',
+      reason: 'Un gusto elegido ya no está en la carta: quitala y armala de nuevo.',
+    })
+  })
+
+  it('marks a product that is no longer a flavor of the dozen as incompatible', () => {
+    const moved = { ...pollo, categoryId: product('Muzzarella').categoryId }
+    expect(issueOf(dozenLine(picks([carne, 9], [pollo, 3])), catalogWith(moved))).toMatchObject({
+      kind: 'incompatible',
+      reason: 'Empanada de pollo ya no se puede elegir en esta docena.',
+    })
+    expect(issueOf(dozenLine(picks([carne, 9], [product('Muzzarella'), 3])))).toMatchObject({ kind: 'incompatible' })
+  })
+
+  it('marks a flavor out of stock or without a unit price as unavailable, and prices it again when it is back', () => {
+    const line = dozenLine(picks([carne, 9], [pollo, 3]))
+    expect(issueOf(line, catalogWith({ ...pollo, inStock: false }))).toMatchObject({ kind: 'unavailable', reason: 'Pollo: sin stock por ahora.' })
+    const unpriced = { ...pollo, variants: pollo.variants.map((variant) => ({ ...variant, price: null })) }
+    expect(issueOf(line, catalogWith(unpriced))).toMatchObject({ kind: 'unavailable', reason: 'Pollo: no se puede pedir por ahora.' })
+    expect(reconcileOrder([line], promos).lines).toHaveLength(1)
+  })
+
+  it('marks flavors on a promotion that has no flavor choice as incompatible', () => {
+    const line: OrderLine = { id: 's', kind: 'promotion', promotionId: assorted.id, quantity: 1, note: '', flavors: picks([carne, 12]) }
+    expect(issueOf(line)).toMatchObject({ kind: 'incompatible', reason: 'Esta promo no se arma con gustos: quitala y volvé a agregarla.' })
   })
 })

@@ -57,7 +57,7 @@ function isBoardCandidate(product: Product): boolean {
   return product.variants.length === 1 && product.description === null && product.variants[0].price !== null
 }
 
-function commonLeadingWords(names: string[]): string {
+export function commonLeadingWords(names: string[]): string {
   const split = names.map((name) => name.split(' '))
   const shortest = Math.min(...split.map((words) => words.length))
   const prefix: string[] = []

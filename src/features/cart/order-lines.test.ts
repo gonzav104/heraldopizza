@@ -5,6 +5,7 @@ import {
   normalizeNote,
   quantityOf,
   removeLine,
+  restoreLines,
   setLineNote,
   setLineQuantity,
   type OrderLine,
@@ -126,5 +127,69 @@ describe('quantityOf', () => {
     expect(quantityOf(lines, 'muzza', 'muzza:1')).toBe(3)
     expect(quantityOf(lines, 'muzza', 'muzza:2')).toBe(4)
     expect(quantityOf(lines, 'otra', 'otra:1')).toBe(0)
+  })
+})
+
+describe('dozen to choose: picked flavors (P4)', () => {
+  const dozen = (flavors: { productId: string; quantity: number }[], note = '') =>
+    ({ kind: 'promotion', promotionId: 'docena', quantity: 1, note, flavors }) as const
+
+  it('keeps the flavors sorted, so the same picks in another order are the same dozen and merge', () => {
+    const first = addLine([], dozen([{ productId: 'pollo', quantity: 3 }, { productId: 'carne', quantity: 9 }]), idFactory())
+    expect(first[0]).toMatchObject({ flavors: [{ productId: 'carne', quantity: 9 }, { productId: 'pollo', quantity: 3 }] })
+
+    const merged = addLine(first, dozen([{ productId: 'carne', quantity: 9 }, { productId: 'pollo', quantity: 3 }]), idFactory())
+    expect(merged).toHaveLength(1)
+    expect(merged[0].quantity).toBe(2)
+  })
+
+  it('keeps different picks, or the same picks with another note, as separate dozens', () => {
+    const ids = idFactory()
+    let lines = addLine([], dozen([{ productId: 'carne', quantity: 12 }]), ids)
+    lines = addLine(lines, dozen([{ productId: 'carne', quantity: 6 }, { productId: 'pollo', quantity: 6 }]), ids)
+    lines = addLine(lines, dozen([{ productId: 'carne', quantity: 12 }], 'bien calientes'), ids)
+    expect(lines).toHaveLength(3)
+  })
+
+  it('never merges a dozen with picks into the same promotion without them', () => {
+    const ids = idFactory()
+    let lines = addLine([], { kind: 'promotion', promotionId: 'docena', quantity: 1, note: '' }, ids)
+    lines = addLine(lines, dozen([{ productId: 'carne', quantity: 12 }]), ids)
+    expect(lines).toHaveLength(2)
+  })
+})
+
+describe('restoreLines: saved flavors (P4)', () => {
+  const saved = (flavors: unknown) => ({ kind: 'promotion', promotionId: 'docena', quantity: 1, note: '', flavors })
+
+  it('restores well-formed flavors, sorted', () => {
+    expect(restoreLines([saved([{ productId: 'pollo', quantity: 3 }, { productId: 'carne', quantity: 9 }])])).toEqual({
+      lines: [{ kind: 'promotion', promotionId: 'docena', quantity: 1, note: '', flavors: [{ productId: 'carne', quantity: 9 }, { productId: 'pollo', quantity: 3 }] }],
+      discarded: 0,
+    })
+  })
+
+  it('keeps a promotion saved before P4, without flavors, exactly as it was', () => {
+    expect(restoreLines([{ kind: 'promotion', promotionId: 'docena', quantity: 2, note: '' }])?.lines).toEqual([
+      { kind: 'promotion', promotionId: 'docena', quantity: 2, note: '' },
+    ])
+  })
+
+  it.each([
+    ['not a list', 'carne'],
+    ['an entry that is not an object', ['carne']],
+    ['an empty id', [{ productId: '', quantity: 12 }]],
+    ['a fractional quantity', [{ productId: 'carne', quantity: 11.5 }, { productId: 'pollo', quantity: 0.5 }]],
+    ['a zero quantity', [{ productId: 'carne', quantity: 12 }, { productId: 'pollo', quantity: 0 }]],
+    ['a repeated flavor', [{ productId: 'carne', quantity: 6 }, { productId: 'carne', quantity: 6 }]],
+  ])('keeps the dozen, marked as unusable, when its saved flavors have %s', (_, flavors) => {
+    expect(restoreLines([saved(flavors)])).toEqual({
+      lines: [{ kind: 'promotion', promotionId: 'docena', quantity: 1, note: '', flavors: [] }],
+      discarded: 0,
+    })
+  })
+
+  it('keeps well-formed flavors that do not add up to 12: the catalog check flags them', () => {
+    expect(restoreLines([saved([{ productId: 'carne', quantity: 5 }])])?.lines[0]).toMatchObject({ flavors: [{ productId: 'carne', quantity: 5 }] })
   })
 })

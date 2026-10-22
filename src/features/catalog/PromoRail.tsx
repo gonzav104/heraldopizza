@@ -98,7 +98,14 @@ export function PromoCard({ promotion, quantity, onAdd }: PromoCardProps) {
         {promotion.description ? <p className="text-[0.9375rem] leading-snug text-white/90">{promotion.description}</p> : null}
       </div>
       <div className="texture-pino mt-auto px-3 py-3 shadow-[inset_0_1px_0_rgb(255_255_255/0.35),inset_0_8px_14px_-10px_rgb(0_0_0/0.6)]">
-        <PricePill price={promotion.price} size="lg" quantity={quantity} actionLabel={`Sumar ${promotion.title}`} onAdd={onAdd} />
+        <PricePill
+          price={promotion.price}
+          size="lg"
+          quantity={quantity}
+          // The dozen to choose opens its configurator instead of adding at once (P4).
+          actionLabel={promotion.flavorChoice ? `Elegir los gustos de ${promotion.title}` : `Sumar ${promotion.title}`}
+          onAdd={onAdd}
+        />
       </div>
     </article>
   )
@@ -108,7 +115,7 @@ export function PromoCard({ promotion, quantity, onAdd }: PromoCardProps) {
  * Active promotions first (RF-10): one swipeable row at every width, so the section never pushes the menu far down.
  * Renders nothing without promotions.
  */
-export function PromoRail({ promotions }: { promotions: Promotion[] }) {
+export function PromoRail({ promotions, onChoose }: { promotions: Promotion[]; onChoose: (promotion: Promotion) => void }) {
   const lines = useOrderStore((state) => state.lines)
   const add = useOrderStore((state) => state.add)
   if (promotions.length === 0) return null
@@ -129,7 +136,9 @@ export function PromoRail({ promotions }: { promotions: Promotion[] }) {
             <PromoCard
               promotion={promotion}
               quantity={lines.reduce((total, line) => (line.kind === 'promotion' && line.promotionId === promotion.id ? total + line.quantity : total), 0)}
-              onAdd={() => add({ kind: 'promotion', promotionId: promotion.id, quantity: 1, note: '' })}
+              onAdd={() =>
+                promotion.flavorChoice ? onChoose(promotion) : add({ kind: 'promotion', promotionId: promotion.id, quantity: 1, note: '' })
+              }
             />
           </li>
         ))}

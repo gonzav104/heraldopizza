@@ -1,7 +1,8 @@
 import type { Ars, Category, Product, Promotion } from '@/domain/catalog'
 import { hasOrderablePrice } from '@/domain/catalog'
+import { choiceFlavors, flavorLabeler, isPickable, unitVariant } from '@/features/catalog/dozen'
 import { halfPrice, isWholeHalf, madeToOrderDetail, visibleVariantName } from '@/features/catalog/presentation'
-import type { OrderLine } from './order-lines'
+import type { FlavorPick, OrderLine, PromotionOrderLine } from './order-lines'
 
 // Reconciles order lines with the catalog already loaded (P2). Prices are looked up here, never stored in the order,
 // so a stale price cannot survive in the saved order (RF-17). A line the current catalog cannot price is never dropped
@@ -42,6 +43,8 @@ export interface ResolvedLine {
   unitPrice: Ars
   subtotal: Ars
   madeToOrder: MadeToOrderNote[]
+  /** What the line holds, one entry per row («5 Carne picada»): the dozen's flavors, shared by the cart and the message. */
+  parts: string[]
 }
 
 /**
@@ -116,6 +119,7 @@ export function reconcileLine(line: OrderLine, index: CatalogIndex): ResolvedLin
         unitPrice: variant.price,
         subtotal: variant.price * line.quantity,
         madeToOrder: madeToOrderOf([product]),
+        parts: [],
       }
     }
     case 'half': {
@@ -147,24 +151,77 @@ export function reconcileLine(line: OrderLine, index: CatalogIndex): ResolvedLin
         unitPrice: price.total,
         subtotal: price.total * line.quantity,
         madeToOrder: madeToOrderOf([first, second]),
+        parts: [],
       }
     }
     case 'promotion': {
       const promotion = index.promotions.get(line.promotionId)
       if (!promotion) return issue(line, 'missing', 'Una promo que ya no está en la carta', null, GONE)
       if (promotion.price <= 0) return issue(line, 'unavailable', promotion.title, 'Promo', 'No tiene precio publicado.')
+      const flavors = reconcileFlavors(line, promotion, index)
+      if ('reason' in flavors) return flavors
       return {
         line,
         title: promotion.title,
         detail: 'Promo',
         messageLabel: `${promotion.title} (Promo)`,
         shortLabel: `la promo ${promotion.title}`,
+        // A fixed price, whatever the flavors (P4).
         unitPrice: promotion.price,
         subtotal: promotion.price * line.quantity,
         madeToOrder: [],
+        parts: flavors.parts,
       }
     }
   }
+}
+
+const REBUILD = 'quitala y armala de nuevo.'
+
+/**
+ * The flavors of a promotion line against the catalog (P4). A closed combo has none. The dozen to choose needs readable
+ * flavors adding up to its units, each still in the catalog, still one of its flavors, and orderable now. Nothing is
+ * ever substituted: any problem keeps the line as an issue the customer removes.
+ */
+function reconcileFlavors(line: PromotionOrderLine, promotion: Promotion, index: CatalogIndex): { parts: string[] } | LineIssue {
+  const choice = promotion.flavorChoice
+  const fail = (kind: LineIssueKind, reason: string, picks: FlavorPick[] = []) =>
+    issue(line, kind, promotion.title, flavorParts(picks, promotion, index).join(', ') || 'Promo', reason)
+  if (!choice) {
+    return line.flavors === undefined ? { parts: [] } : fail('incompatible', 'Esta promo no se arma con gustos: quitala y volvé a agregarla.')
+  }
+  const picks = line.flavors
+  if (picks === undefined) return fail('incompatible', `No tiene los gustos elegidos: ${REBUILD}`)
+  const total = picks.reduce((sum, pick) => sum + pick.quantity, 0)
+  if (picks.length === 0 || total !== choice.units) return fail('incompatible', `Los gustos guardados no son válidos: ${REBUILD}`)
+  const known = picks.filter((pick) => index.products.has(pick.productId))
+  if (known.length < picks.length) return fail('missing', `Un gusto elegido ya no está en la carta: ${REBUILD}`, known)
+  const flavors = choiceFlavors(choice, [...index.products.values()])
+  for (const pick of picks) {
+    const product = index.products.get(pick.productId)
+    if (product && !flavors.includes(product)) return fail('incompatible', `${product.name} ya no se puede elegir en esta docena.`, picks)
+  }
+  const label = flavorLabeler(flavors)
+  for (const pick of picks) {
+    const product = index.products.get(pick.productId)
+    if (!product || isPickable(product)) continue
+    const reason = product.inStock && unitVariant(product) ? 'no se puede pedir por ahora.' : 'sin stock por ahora.'
+    return fail('unavailable', `${label(product)}: ${reason}`, picks)
+  }
+  return { parts: flavorParts(picks, promotion, index) }
+}
+
+/** «5 Carne picada», in menu order, for the flavors the catalog still has. */
+function flavorParts(picks: FlavorPick[], promotion: Promotion, index: CatalogIndex): string[] {
+  const choice = promotion.flavorChoice
+  if (!choice) return []
+  const flavors = choiceFlavors(choice, [...index.products.values()])
+  const label = flavorLabeler(flavors)
+  return picks
+    .map((pick) => ({ pick, product: index.products.get(pick.productId) }))
+    .filter((entry): entry is { pick: FlavorPick; product: Product } => entry.product !== undefined)
+    .sort((a, b) => a.product.order - b.product.order)
+    .map(({ pick, product }) => `${pick.quantity} ${label(product)}`)
 }
 
 const isIssue = (item: ResolvedLine | LineIssue): item is LineIssue => 'reason' in item

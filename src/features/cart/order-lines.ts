@@ -20,13 +20,25 @@ export interface HalfOrderLine {
   note: string
 }
 
-/** Closed combo added as a single line (RF-12). */
+/** One flavor picked for a combo the customer fills in, and how many units of it (P4). */
+export interface FlavorPick {
+  productId: string
+  quantity: number
+}
+
+/** Combo added as a single line (RF-12). */
 export interface PromotionOrderLine {
   id: string
   kind: 'promotion'
   promotionId: string
   quantity: number
   note: string
+  /**
+   * The flavors of a combo the customer fills in (the dozen to choose), sorted by product id, without repeats. Absent
+   * for a closed combo and in carts saved before P4. An empty list marks saved flavors that could not be read: the
+   * catalog check then asks the customer to remove the line and build it again.
+   */
+  flavors?: FlavorPick[]
 }
 
 export type OrderLine = ProductOrderLine | HalfOrderLine | PromotionOrderLine
@@ -38,6 +50,18 @@ export const NOTE_MAX_LENGTH = 120
 
 export function normalizeNote(note: string): string {
   return note.trim().slice(0, NOTE_MAX_LENGTH)
+}
+
+/** Picks in a stable order and without zero quantities, so the same flavors always compare equal. */
+export function normalizeFlavors(picks: FlavorPick[]): FlavorPick[] {
+  return picks.filter((pick) => pick.quantity > 0).sort((a, b) => (a.productId < b.productId ? -1 : a.productId > b.productId ? 1 : 0))
+}
+
+function sameFlavors(a: FlavorPick[] | undefined, b: FlavorPick[] | undefined): boolean {
+  if (a === undefined || b === undefined) return a === b
+  const left = normalizeFlavors(a)
+  const right = normalizeFlavors(b)
+  return left.length === right.length && left.every((pick, index) => pick.productId === right[index].productId && pick.quantity === right[index].quantity)
 }
 
 /** Same item and same note: adding it again merges quantities instead of creating a new line. */
@@ -54,7 +78,8 @@ function isSameItem(line: OrderLine, input: NewOrderLine): boolean {
           (line.firstProductId === input.secondProductId && line.secondProductId === input.firstProductId))
       )
     case 'promotion':
-      return line.kind === 'promotion' && line.promotionId === input.promotionId
+      // A dozen to choose is the same item only with the same flavors (P4).
+      return line.kind === 'promotion' && line.promotionId === input.promotionId && sameFlavors(line.flavors, input.flavors)
   }
 }
 
@@ -65,6 +90,25 @@ export function isValidNewLine(input: NewOrderLine): boolean {
 }
 
 const isId = (value: unknown): value is string => typeof value === 'string' && value !== ''
+
+/**
+ * Saved flavors (P4): `undefined` when the line had none, the sorted picks when every one is well formed, or an empty
+ * list when they cannot be read (wrong shape, empty id, quantity that is not a positive whole number, a repeat). Their
+ * total and whether the flavors still exist are checked against the catalog later, never here.
+ */
+function restoreFlavors(value: unknown): FlavorPick[] | undefined {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value)) return []
+  const picks: FlavorPick[] = []
+  for (const entry of value) {
+    if (typeof entry !== 'object' || entry === null) return []
+    const { productId, quantity } = entry as Record<string, unknown>
+    if (!isId(productId) || typeof quantity !== 'number' || !Number.isSafeInteger(quantity) || quantity <= 0) return []
+    if (picks.some((pick) => pick.productId === productId)) return []
+    picks.push({ productId, quantity })
+  }
+  return normalizeFlavors(picks)
+}
 
 /** One saved line, checked field by field; `null` when it is not a line the order could have created. */
 function restoreLine(value: unknown): NewOrderLine | null {
@@ -78,7 +122,8 @@ function restoreLine(value: unknown): NewOrderLine | null {
   } else if (item.kind === 'half' && isId(item.firstProductId) && isId(item.secondProductId)) {
     line = { kind: 'half', firstProductId: item.firstProductId, secondProductId: item.secondProductId, ...common }
   } else if (item.kind === 'promotion' && isId(item.promotionId)) {
-    line = { kind: 'promotion', promotionId: item.promotionId, ...common }
+    const flavors = restoreFlavors(item.flavors)
+    line = { kind: 'promotion', promotionId: item.promotionId, ...common, ...(flavors ? { flavors } : {}) }
   }
   return line && isValidNewLine(line) ? line : null
 }
@@ -100,7 +145,8 @@ export function addLine(lines: OrderLine[], input: NewOrderLine, createId: () =>
   if (existing) {
     return lines.map((line) => (line === existing ? { ...line, quantity: line.quantity + input.quantity } : line))
   }
-  return [...lines, { ...input, note: normalizeNote(input.note), id: createId() }]
+  const flavors = input.kind === 'promotion' && input.flavors ? { flavors: normalizeFlavors(input.flavors) } : {}
+  return [...lines, { ...input, ...flavors, note: normalizeNote(input.note), id: createId() }]
 }
 
 export function setLineQuantity(lines: OrderLine[], id: string, quantity: number): OrderLine[] {

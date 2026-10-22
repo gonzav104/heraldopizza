@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Product } from '@/domain/catalog'
 import { prototypeCategories, prototypeProducts } from '@/data/prototype-catalog'
+import { prototypePromotions } from '@/data/prototype-promotions'
 import { indexCatalog, reconcileOrder } from '@/features/cart/line-pricing'
 import type { OrderLine } from '@/features/cart/order-lines'
 import {
@@ -263,5 +264,39 @@ describe('buildOrderMessage', () => {
         'El local confirma el total.',
       ].join('\n'),
     )
+  })
+
+  it('lists the flavors of each dozen to choose under it, the same ones the cart shows (P4)', () => {
+    const dozen = prototypePromotions.find((item) => item.title === 'Docena de empanadas a elección')
+    if (!dozen) throw new Error('dozen')
+    const id = (name: string) => product(name).id
+    const lines: OrderLine[] = [
+      {
+        id: 'd1',
+        kind: 'promotion',
+        promotionId: dozen.id,
+        quantity: 1,
+        note: 'bien calientes',
+        flavors: [
+          { productId: id('Empanada de carne picada'), quantity: 5 },
+          { productId: id('Empanada de jamón y queso'), quantity: 4 },
+          { productId: id('Empanada de pollo'), quantity: 3 },
+        ],
+      },
+    ]
+    const summary = reconcileOrder(lines, indexCatalog(prototypeCategories, prototypeProducts, prototypePromotions))
+    const details = { ...delivery, mode: 'retiro' as const }
+    const message = plain(buildOrderMessage(details, summary, computeTotals(summary, details)))
+
+    expect(message).toContain(
+      [
+        '• 1 × Docena de empanadas a elección (Promo): $ 36.000',
+        '  5 Carne picada',
+        '  3 Pollo',
+        '  4 Jamón y queso',
+        '  Aclaración: bien calientes',
+      ].join('\n'),
+    )
+    expect(summary.lines[0].parts).toEqual(['5 Carne picada', '3 Pollo', '4 Jamón y queso'])
   })
 })

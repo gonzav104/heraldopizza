@@ -80,6 +80,13 @@ function CartLine({ item }: { item: ResolvedLine }) {
             <div className="min-w-0">
               <p className="leading-tight font-bold [font-stretch:104%]">{item.title}</p>
               {item.detail ? <p className="text-[0.875rem] text-crema-muted">{item.detail}</p> : null}
+              {item.parts.length > 0 ? (
+                <ul aria-label="Gustos" className="mt-1 text-[0.875rem] leading-snug">
+                  {item.parts.map((part) => (
+                    <li key={part}>{part}</li>
+                  ))}
+                </ul>
+              ) : null}
               {line.note && !editing ? (
                 <p className="mt-1 text-[0.875rem] leading-snug">
                   <span className="text-crema-muted">Aclaración:</span> {line.note}
