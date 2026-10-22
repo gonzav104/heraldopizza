@@ -189,6 +189,32 @@ describe('checkout prototype', () => {
     expect(screen.getByRole('button', { name: /^Ver mensaje/ })).not.toBe(back)
   })
 
+  it('starts the rates view and the form from the top, keeping the data and never submitting (Codex P2)', async () => {
+    const sheet = await openDetails()
+    fireEvent.change(within(sheet).getByLabelText('Nombre y apellido'), { target: { value: 'Ana Gómez' } })
+    fireEvent.click(within(sheet).getByRole('radio', { name: 'Envío' }))
+    fireEvent.change(within(sheet).getByLabelText('Dirección'), { target: { value: 'Rivadavia 100' } })
+    fireEvent.click(within(sheet).getByRole('radio', { name: 'Efectivo' }))
+    // The sheet body is the scroll container; jsdom does not scroll, so its position is set by hand.
+    const body = sheet.querySelector<HTMLElement>('.overflow-y-auto')
+    if (!body) throw new Error('sheet body')
+    Object.defineProperty(body, 'scrollTop', { value: 420, writable: true, configurable: true })
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Consultar tarifas de reparto' }))
+    expect(within(sheet).getByRole('heading', { level: 2, name: 'Tarifas de la motito' })).toBeInTheDocument()
+    expect(body.scrollTop).toBe(0)
+
+    body.scrollTop = 900
+    fireEvent.click(screen.getByRole('button', { name: 'Volver a tus datos' }))
+
+    expect(within(sheet).getByRole('heading', { name: 'Tus datos' })).toBeInTheDocument()
+    expect(body.scrollTop).toBe(0)
+    expect(within(sheet).getByLabelText('Nombre y apellido')).toHaveValue('Ana Gómez')
+    expect(within(sheet).getByLabelText('Dirección')).toHaveValue('Rivadavia 100')
+    expect(within(sheet).getByRole('radio', { name: 'Efectivo' })).toBeChecked()
+    expect(within(sheet).getByRole('heading', { name: 'Tus datos' })).toHaveFocus()
+  })
+
   it('writes in the message exactly the rows the summary shows', async () => {
     const sheet = await openDetails()
     fireEvent.change(within(sheet).getByLabelText('Nombre y apellido'), { target: { value: 'Ana Gómez' } })

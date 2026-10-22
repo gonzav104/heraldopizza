@@ -92,6 +92,7 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
       headerTone="pino"
       dismissOnBackdrop={shownStep !== 'details' || !hasTypedText(details)}
       footer={footer}
+      scrollResetKey={showingRates ? 'tarifas' : 'datos'}
       header={
         <>
           {shownStep !== 'cart' ? (
