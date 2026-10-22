@@ -1,5 +1,7 @@
 import type { Ars } from '@/domain/catalog'
 
+export { AdminSaveError, type SaveFailure } from '@/features/admin/shared/admin-save'
+
 /**
  * The catalog as the admin panel edits it (U5). Every row carries `updatedAt`, the token read from the database: a save
  * sends it back and is refused if the row changed in the meantime (optimistic lock). Tokens are kept as the exact text
@@ -56,22 +58,6 @@ export interface PriceChange {
   price: Ars | null
   /** The token read with the variant. */
   updatedAt: string
-}
-
-/**
- * Why a save failed. «conflict» covers a row that changed since it was read (or that this account may not write: the
- * database cannot tell the two apart without revealing more), so the panel asks to reload.
- */
-export type SaveFailure = 'validation' | 'conflict' | 'not-found' | 'forbidden' | 'unavailable'
-
-export class AdminSaveError extends Error {
-  override name = 'AdminSaveError'
-  readonly reason: SaveFailure
-
-  constructor(reason: SaveFailure, message: string, options?: ErrorOptions) {
-    super(message, options)
-    this.reason = reason
-  }
 }
 
 /** Port between the panel and the catalog storage. Each save returns the row as the database now holds it. */

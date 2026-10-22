@@ -8,8 +8,8 @@ import {
   type CategoryChanges,
   type PriceChange,
   type ProductChanges,
-  type SaveFailure,
 } from '@/features/admin/catalog/admin-catalog'
+import { saveError } from '@/features/admin/shared/admin-save'
 
 /**
  * Supabase adapter of the admin catalog (U5), used only inside the lazy admin chunk. Writes go through row level
@@ -75,23 +75,6 @@ function toCategoryFields(row: Row): Omit<AdminCategory, 'products'> {
     visible: flag(row.visible, 'category visibility'),
     updatedAt: text(row.actualizado_en, 'category token'),
   }
-}
-
-/** The database error codes the panel tells apart (see actualizar_precios_producto and the table constraints). */
-const failureByCode: Record<string, SaveFailure> = {
-  HP422: 'validation',
-  '23514': 'validation',
-  '23502': 'validation',
-  HP404: 'not-found',
-  HP409: 'conflict',
-  HP403: 'forbidden',
-  '42501': 'forbidden',
-}
-
-function saveError(error: unknown): AdminSaveError {
-  const code = (error as { code?: unknown } | null)?.code
-  const reason = typeof code === 'string' ? (failureByCode[code] ?? 'unavailable') : 'unavailable'
-  return new AdminSaveError(reason, `Save failed (${typeof code === 'string' ? code : 'no code'})`, { cause: error })
 }
 
 function productPayload(changes: ProductChanges): Row {

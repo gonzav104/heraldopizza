@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { AdminApp } from '@/features/admin/AdminApp'
 import type { AdminAuth, AdminSession, SignInResult } from '@/features/admin/admin-auth'
@@ -384,5 +384,55 @@ describe('AdminApp: leaving pending work', () => {
     expect(auth.signOut).not.toHaveBeenCalled()
     await act(async () => save.reject(new Error('offline')))
     expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeEnabled()
+  })
+})
+
+describe('AdminApp: sections (P5b)', () => {
+  const sections = () => screen.getByRole('navigation', { name: 'Secciones del panel' })
+
+  it('offers Carta and Promociones, opens Carta, and keeps an unvisited section out of the page', async () => {
+    const fake = fakeAuth()
+    render(<AdminApp auth={fake.auth} catalog={editableCatalog()} />)
+    await settle(fake.session, owner)
+    await settle(fake.admin[0], true)
+    const nav = sections()
+    expect(within(nav).getAllByRole('button').map((button) => button.textContent)).toEqual(['Carta', 'Promociones'])
+    expect(within(nav).getByRole('button', { name: 'Carta' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('region', { name: 'Gestión del catálogo' })).toBeVisible()
+    expect(screen.queryByRole('region', { name: 'Gestión de promociones' })).not.toBeInTheDocument()
+  })
+
+  it('keeps an unsaved catalog edit across sections, hides the inactive one, and loads the catalog only once', async () => {
+    const repository = editableCatalog()
+    const load = vi.spyOn(repository, 'load')
+    const { price } = await openEditablePanel(repository)
+    fireEvent.click(within(sections()).getByRole('button', { name: 'Promociones' }))
+
+    expect(within(sections()).getByRole('button', { name: /^Promociones/ })).toHaveAttribute('aria-current', 'page')
+    expect(within(sections()).getByRole('button', { name: 'Carta (cambios sin guardar)' })).toBeInTheDocument()
+    expect(price.closest('section[aria-label="Gestión del catálogo"]')).toHaveAttribute('hidden')
+    expect(screen.queryByRole('textbox', { name: /Precio.*Entera/i })).not.toBeInTheDocument()
+
+    fireEvent.click(within(sections()).getByRole('button', { name: /^Carta/ }))
+    expect(screen.getByRole('textbox', { name: /Precio.*Entera/i })).toHaveValue('17000')
+    expect(load).toHaveBeenCalledTimes(1)
+  })
+
+  it('asks before signing out with an unsaved edit in a section that is not on screen', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const { auth } = await openEditablePanel()
+    fireEvent.click(within(sections()).getByRole('button', { name: /^Promociones/ }))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' })))
+    expect(confirm).toHaveBeenCalled()
+    expect(auth.signOut).not.toHaveBeenCalled()
+  })
+
+  it('blocks switching sections while a save is running', async () => {
+    const save = deferred<Awaited<ReturnType<AdminCatalogRepository['updatePrices']>>>()
+    await openEditablePanel({ ...editableCatalog(), updatePrices: () => save.promise })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar precios' }))
+    expect(within(sections()).getByRole('button', { name: /^Promociones/ })).toBeDisabled()
+    await act(async () => save.reject(new Error('offline')))
+    expect(within(sections()).getByRole('button', { name: /^Promociones/ })).toBeEnabled()
   })
 })
