@@ -1,4 +1,4 @@
-import type { Catalog, Category, Product, Variant } from '@/domain/catalog'
+import type { Catalog, Category, Product, Promotion, Variant, Weekday } from '@/domain/catalog'
 
 /** The catalog response does not have the shape the menu expects. Nothing is guessed: the menu shows an error. */
 export class CatalogDataError extends Error {
@@ -101,4 +101,63 @@ export function mapCatalogRows(rows: unknown): Pick<Catalog, 'categories' | 'pro
     categories: mapped.map(({ category }) => category),
     products: mapped.flatMap(({ products }) => products),
   }
+}
+
+const PROMOTION_CODE = /^promo-[a-z0-9]+(-[a-z0-9]+)*$/
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
+function optionalDate(value: unknown, what: string): string | null {
+  if (value === null) return null
+  if (typeof value !== 'string' || !ISO_DATE.test(value)) fail(`${what} is not a date`)
+  return value
+}
+
+/** Null means every day (an empty list), never "no day". Weekdays go from 0 (Sunday) to 6 (Saturday), no repeats. */
+function weekdays(value: unknown, what: string): Weekday[] {
+  if (value === null) return []
+  const days = list(value, what).map((day) => integer(day, what))
+  if (days.length === 0 || days.some((day) => day < 0 || day > 6) || new Set(days).size !== days.length) fail(`${what} are not valid weekdays`)
+  return days as Weekday[]
+}
+
+function mapPromotion(value: unknown): { promotion: Promotion; order: number } {
+  const row = record(value, 'promotion')
+  const code = text(row.codigo, 'promotion code')
+  if (!PROMOTION_CODE.test(code)) fail('promotion code has an unexpected shape')
+  const amount = price(row.precio, 'promotion price')
+  if (amount === null) fail('promotion price is missing')
+  const choiceCategory = row.eleccion_categoria_id
+  const choiceUnits = row.eleccion_unidades
+  if ((choiceCategory === null) !== (choiceUnits === null)) fail('promotion flavor choice is incomplete')
+  const promotion: Promotion = {
+    // The commercial code, not the internal uuid: saved carts and the dozen's configurator refer to it.
+    id: code,
+    title: text(row.titulo, 'promotion title'),
+    description: optionalText(row.descripcion, 'promotion description'),
+    price: amount,
+    // P5a stores no images.
+    imageUrl: null,
+    activeFrom: optionalDate(row.vigente_desde, 'promotion start date'),
+    activeTo: optionalDate(row.vigente_hasta, 'promotion end date'),
+    weekdays: weekdays(row.dias_semana, 'promotion weekdays'),
+  }
+  if (choiceCategory !== null) {
+    const units = integer(choiceUnits, 'promotion flavor units')
+    if (units <= 0) fail('promotion flavor units are not positive')
+    promotion.flavorChoice = { categoryId: text(choiceCategory, 'promotion flavor category'), units }
+  }
+  return { promotion, order: integer(row.orden, 'promotion order') }
+}
+
+/**
+ * Promotions as the public may see them (P5a): row level security already left out the hidden, expired, and
+ * out-of-day ones, so nothing is filtered here. Strict like the catalog: a row that breaks the contract fails the
+ * load instead of being guessed. Components and prices are never read from the title.
+ */
+export function mapPromotionRows(rows: unknown): Promotion[] {
+  const mapped = list(rows, 'promotions response').map(mapPromotion)
+  if (new Set(mapped.map(({ promotion }) => promotion.id)).size !== mapped.length) fail('promotion codes repeat')
+  return mapped
+    .sort((a, b) => a.order - b.order || (a.promotion.id < b.promotion.id ? -1 : a.promotion.id > b.promotion.id ? 1 : 0))
+    .map(({ promotion }) => promotion)
 }

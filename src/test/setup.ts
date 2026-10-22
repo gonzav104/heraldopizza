@@ -17,6 +17,7 @@ if (typeof HTMLDialogElement !== 'undefined' && !HTMLDialogElement.prototype.sho
   }
 }
 
-// Vitest runs in development mode, where the menu would lazy-load the prototype promotions on its own. The menu waits
-// for that load (P2), so tests get none at once; a test that wants promotions injects its own loader.
+// Vitest runs in development mode, where the #sistema reference view lazy-loads the prototype promotions. Tests get
+// none at once; a test that wants them mocks the loader. The public menu never uses it: its promotions come from the
+// catalog repository (P5a).
 vi.mock('@/data/dev-promotions', () => ({ loadDevPromotions: () => Promise.resolve([]) }))

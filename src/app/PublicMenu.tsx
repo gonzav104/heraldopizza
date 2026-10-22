@@ -1,10 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Storefront } from '@/app/Storefront'
 import { StatusScreen } from '@/components/ui/StatusScreen'
-import { loadDevPromotions } from '@/data/dev-promotions'
-import type { Catalog, CatalogRepository, Promotion } from '@/domain/catalog'
+import type { Catalog, CatalogRepository } from '@/domain/catalog'
 
-type LoadState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; catalog: Catalog; extraPromotions: Promotion[] }
+type LoadState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; catalog: Catalog }
 
 /** The menu's own notices use the shared status screen, with the role that fits each moment. */
 function MenuNotice({ role, children }: { role: 'status' | 'alert'; children: ReactNode }) {
@@ -18,28 +17,20 @@ function MenuNotice({ role, children }: { role: 'status' | 'alert'; children: Re
 }
 
 /**
- * Loads the catalog through the repository, and the extra promotions, and shows the menu, or a clear state while they
- * load, when either fails, or when the catalog is empty. On failure it offers «Reintentar» and never substitutes other
- * data (S6 of U3b).
+ * Loads the catalog, promotions included, through the repository and shows the menu, or a clear state while it loads,
+ * when it fails, or when it is empty. On failure it offers «Reintentar» and never substitutes other data (S6 of U3b):
+ * the prototype promotions are never a source for the public menu (P5a).
  */
-export function PublicMenu({
-  repository,
-  loadPromotions = loadDevPromotions,
-}: {
-  repository: CatalogRepository
-  /** Promotions to show while the catalog source has none: prototype data in development, none in production (U9). */
-  loadPromotions?: () => Promise<Promotion[]>
-}) {
+export function PublicMenu({ repository }: { repository: CatalogRepository }) {
   const [attempt, setAttempt] = useState(0)
   const [state, setState] = useState<LoadState>({ status: 'loading' })
 
   useEffect(() => {
     const controller = new AbortController()
-    // Both loads run in parallel, and the menu waits for both: a saved promotion is never judged against a catalog
-    // whose promotions have not arrived yet (P2). An empty list is a valid answer; a failure is an error, never "none".
-    Promise.all([repository.load(controller.signal), loadPromotions()]).then(
-      ([catalog, extraPromotions]) => {
-        if (!controller.signal.aborted) setState({ status: 'ready', catalog, extraPromotions })
+    // The promotions arrive in the same load as the menu, so a saved promotion is never judged without them (P2).
+    repository.load(controller.signal).then(
+      (catalog) => {
+        if (!controller.signal.aborted) setState({ status: 'ready', catalog })
       },
       (error: unknown) => {
         if (controller.signal.aborted) return
@@ -48,7 +39,7 @@ export function PublicMenu({
       },
     )
     return () => controller.abort()
-  }, [repository, loadPromotions, attempt])
+  }, [repository, attempt])
 
   const retry = () => {
     setState({ status: 'loading' })
@@ -80,7 +71,7 @@ export function PublicMenu({
   }
 
   const { categories, products } = state.catalog
-  const promotions = state.catalog.promotions.length > 0 ? state.catalog.promotions : state.extraPromotions
+  const { promotions } = state.catalog
   if (categories.length === 0) {
     return (
       <MenuNotice role="status">
