@@ -24,6 +24,7 @@ const promo: Promotion = {
   activeFrom: '',
   activeTo: '',
   weekdays: [],
+  deliveryPizzas: null,
 }
 
 const index = indexCatalog(prototypeCategories, prototypeProducts, [promo])
@@ -106,8 +107,22 @@ describe('resolveLine', () => {
     expect(resolveLine({ id: 'p', kind: 'promotion', promotionId: 'promo-1', quantity: 1, note: '' }, index)).toMatchObject({
       title: 'Combo de prueba',
       subtotal: 20000,
-      pizzaUnits: 0,
+      // Its pizzas are not confirmed (null): unknown, never 0.
+      pizzaUnits: null,
     })
+  })
+
+  it("counts a promotion's confirmed pizzas times the quantity, and 0 when it has none (P3)", () => {
+    const catalog = indexCatalog(prototypeCategories, prototypeProducts, [
+      { ...promo, id: 'dos', deliveryPizzas: 2 },
+      { ...promo, id: 'sin-pizzas', deliveryPizzas: 0 },
+      promo,
+    ])
+    expect(resolveLine({ id: 'a', kind: 'promotion', promotionId: 'dos', quantity: 3, note: '' }, catalog)?.pizzaUnits).toBe(6)
+    expect(resolveLine({ id: 'b', kind: 'promotion', promotionId: 'sin-pizzas', quantity: 2, note: '' }, catalog)?.pizzaUnits).toBe(0)
+
+    const summary = reconcileOrder([{ id: 'c', kind: 'promotion', promotionId: promo.id, quantity: 1, note: '' }], catalog)
+    expect(summary).toMatchObject({ pizzaCount: 0, pizzasToConfirm: true })
   })
 
   it('carries the made-to-order notice (RF-06)', () => {

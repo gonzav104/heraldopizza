@@ -26,6 +26,17 @@ Orden de trabajo actualizado:
 
 La evidencia de «sin llamadas de red» de D11 describe el prototipo histórico; el catálogo público actual consulta Supabase. La numeración antigua de unidades no define este orden vigente. No se accede a Supabase remoto durante U1.
 
+## Decisiones de P3 — reglas de entrega y pago (2026-10-22)
+
+- **Recargo por pizza:** se muestra como **línea aparte** (RF-62). Resuelve la inconsistencia n.º 4.
+- **Pizzas de promociones:** cada pizza de una promoción suma el recargo por pizza en los envíos. `deliveryPizzas` es explícito por promoción: `0` sin pizzas, un entero positivo con la cantidad confirmada, `null` pendiente. Se multiplica por la cantidad pedida y nunca se infiere del título. Las ocho promociones están en `null` hasta que el dueño confirme cuántas pizzas incluye cada una.
+- **Importes desconocidos:** el envío de «Otra zona (a consultar)» y el recargo de pizzas de promos sin confirmar se muestran «A confirmar». El total pasa a «Total parcial» y aclara qué excluye; «Total orientativo» solo cuando no falta nada.
+- **Lluvia:** aviso informativo solo con envío, sin importes: «Los días de lluvia, el servicio de reparto puede cobrar un adicional. El local te lo confirma antes de completar el pedido.»
+- **Crédito:** 8 % solo sobre los productos y solo en retiro, redondeado al peso entero más cercano.
+- **Zonas:** cada zona admite un costo conocido o pendiente; sigue existiendo solo «Otra zona (a consultar)» hasta recibir la lista oficial.
+
+**Pendiente de confirmar con el dueño:** cuántas pizzas incluye cada una de las ocho promociones (incluidas las dos docenas, que no se asumen en 0).
+
 ## Inconsistencias entre PDF y SQL
 
 | # | Tema | PDF | SQL | Estado |
@@ -33,7 +44,7 @@ La evidencia de «sin llamadas de red» de D11 describe el prototipo histórico;
 | 1 | Volumen del catálogo | 70 productos en 10 categorías | 81 productos en 12 categorías; 84 en 13 desde que se agregó Postres (ver abajo) | Se usa el SQL (provisional) |
 | 2 | Categorías (RF-01) | Menciona panchos y ensaimadas como categorías | No hay panchos; la ensaimada está dentro de Cafetería. Hay hamburguesas, picadas, papas fritas, pastas, cafetería y tragos de autor | Se usa el SQL (provisional) |
 | 3 | Productos sin precio vs RN-01 | RN-01: un producto visible necesita una variante con precio > 0 | 16 productos tienen todas sus variantes con precio `NULL` ("Consultar en barra"): 4 cafés, medialunas, 4 tragos clásicos y 7 de autor | Se contemplan en el modelo y **no se pueden agregar al carrito**. Falta definir si se muestran |
-| 4 | Recargo por pizza | RF-62: línea aparte. RN-15: "suma $1.000 a su precio" | — | Falta definir cómo se muestra |
+| 4 | Recargo por pizza | RF-62: línea aparte. RN-15: "suma $1.000 a su precio" | — | Resuelto (2026-10-22): línea aparte |
 | 5 | Recargo por lluvia | RN-16 dice "al momento del retiro" | — | Resuelto (2026-10-18): solo aclaración informativa, sin recargo automático |
 
 ## Datos faltantes

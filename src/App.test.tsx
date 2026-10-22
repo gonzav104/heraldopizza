@@ -32,6 +32,7 @@ const catalogPromotion: Promotion = {
   activeFrom: null,
   activeTo: null,
   weekdays: [],
+  deliveryPizzas: null,
 }
 
 afterEach(() => {

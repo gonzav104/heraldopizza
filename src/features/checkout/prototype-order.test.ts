@@ -9,10 +9,13 @@ import {
   computeTotals,
   emptyCheckout,
   paymentOptions,
+  totalsSummary,
   validateCheckout,
   withMode,
   zoneOptions,
   type CheckoutDetails,
+  type OrderTotals,
+  type ZoneOption,
 } from './prototype-order'
 
 const product = (name: string): Product => {
@@ -27,6 +30,7 @@ const variantId = (name: string, variantName: string) => {
 }
 
 const index = indexCatalog(prototypeCategories, prototypeProducts, [])
+const known = (productsSubtotal: number, pizzaCount: number) => ({ productsSubtotal, pizzaCount, pizzasToConfirm: false })
 // Intl uses a no-break space after "$"; compare with plain spaces.
 const plain = (text: string) => text.replace(/\u00a0/g, ' ')
 
@@ -55,6 +59,7 @@ describe('zoneOptions', () => {
   it('holds only the pinned "Otra zona (a consultar)" until the real list exists (RF-63)', () => {
     expect(zoneOptions).toEqual([OTHER_ZONE])
     expect(OTHER_ZONE.label).toBe('Otra zona (a consultar)')
+    expect(OTHER_ZONE.cost).toBeNull()
   })
 })
 
@@ -102,33 +107,121 @@ describe('validateCheckout', () => {
 
 describe('computeTotals', () => {
   it('adds $ 1.000 per pizza on delivery and leaves the shipping cost to confirm (RN-15, RF-62)', () => {
-    expect(computeTotals({ productsSubtotal: 47000, pizzaCount: 2 }, delivery)).toEqual({
+    expect(computeTotals(known(47000, 2), delivery)).toEqual({
       products: 47000,
       pizzaSurcharge: { count: 2, unit: 1000, amount: 2000 },
-      shippingToConfirm: true,
+      promoPizzasToConfirm: false,
+      shipping: { kind: 'to-confirm' },
       creditSurcharge: null,
       total: 49000,
+      complete: false,
     })
   })
 
   it('adds no pizza surcharge on delivery without pizzas', () => {
-    expect(computeTotals({ productsSubtotal: 6000, pizzaCount: 0 }, delivery).pizzaSurcharge).toBeNull()
+    expect(computeTotals(known(6000, 0), delivery).pizzaSurcharge).toBeNull()
   })
 
-  it('adds no delivery charges for pickup', () => {
-    expect(computeTotals({ productsSubtotal: 16000, pizzaCount: 1 }, { ...delivery, mode: 'retiro' })).toEqual({
+  it('adds no delivery charges for pickup, and the total is complete', () => {
+    expect(computeTotals(known(16000, 1), { ...delivery, mode: 'retiro' })).toEqual({
       products: 16000,
       pizzaSurcharge: null,
-      shippingToConfirm: false,
+      promoPizzasToConfirm: false,
+      shipping: { kind: 'none' },
       creditSurcharge: null,
       total: 16000,
+      complete: true,
     })
   })
 
-  it('applies the 8 % credit surcharge on products only, in whole pesos (RN-17)', () => {
-    const totals = computeTotals({ productsSubtotal: 10010, pizzaCount: 1 }, { ...delivery, mode: 'retiro', payment: 'credito' })
-    expect(totals.creditSurcharge).toBe(801)
-    expect(totals.total).toBe(10811)
+  it('leaves the shipping to confirm while no zone is chosen', () => {
+    expect(computeTotals(known(16000, 1), { ...delivery, zoneId: null }).shipping).toEqual({ kind: 'to-confirm' })
+  })
+
+  it('adds a zone cost once the zone has one (data shape only: no real zone has a cost yet)', () => {
+    const zone: ZoneOption = { id: 'zona-con-costo', label: 'Zona de prueba', pinned: false, cost: 2500 }
+    const totals = computeTotals(known(16000, 1), { ...delivery, zoneId: zone.id }, [zone, OTHER_ZONE])
+    expect(totals.shipping).toEqual({ kind: 'amount', amount: 2500 })
+    expect(totals.total).toBe(16000 + 1000 + 2500)
+    expect(totals.complete).toBe(true)
+  })
+
+  it('keeps the pizzas of promotions with an unknown count out of the total, and says so', () => {
+    const totals = computeTotals({ productsSubtotal: 50000, pizzaCount: 1, pizzasToConfirm: true }, delivery)
+    expect(totals.pizzaSurcharge).toEqual({ count: 1, unit: 1000, amount: 1000 })
+    expect(totals.promoPizzasToConfirm).toBe(true)
+    expect(totals.total).toBe(51000)
+    expect(totals.complete).toBe(false)
+  })
+
+  it('ignores unknown promo pizzas for pickup: there is no surcharge to confirm', () => {
+    const totals = computeTotals({ productsSubtotal: 50000, pizzaCount: 1, pizzasToConfirm: true }, { ...delivery, mode: 'retiro' })
+    expect(totals.promoPizzasToConfirm).toBe(false)
+    expect(totals.complete).toBe(true)
+  })
+
+  it('applies the 8 % credit surcharge on products only, in whole pesos rounded to the nearest (RN-17)', () => {
+    const pickup = { ...delivery, mode: 'retiro' as const, payment: 'credito' as const }
+    expect(computeTotals(known(10010, 1), pickup)).toMatchObject({ creditSurcharge: 801, total: 10811 })
+    // 10.006 × 8 % = 800,48 → 800; 10.025 × 8 % = 802 exactly.
+    expect(computeTotals(known(10006, 0), pickup).creditSurcharge).toBe(800)
+    expect(computeTotals(known(10025, 0), pickup).creditSurcharge).toBe(802)
+  })
+
+  it('never applies the credit surcharge on delivery, even if a stale state still says credit', () => {
+    const totals = computeTotals(known(20000, 2), { ...delivery, payment: 'credito' })
+    expect(totals.creditSurcharge).toBeNull()
+    expect(totals.total).toBe(22000)
+  })
+
+  it('switching to delivery and back keeps the totals consistent with the mode', () => {
+    let details: CheckoutDetails = { ...delivery, mode: 'retiro', payment: 'credito' }
+    expect(computeTotals(known(20000, 2), details).total).toBe(21600)
+    details = withMode(details, 'envio')
+    expect(details.payment).toBeNull()
+    expect(computeTotals(known(20000, 2), details).total).toBe(22000)
+    details = withMode(details, 'retiro')
+    expect(computeTotals(known(20000, 2), details).total).toBe(20000)
+  })
+})
+
+describe('totalsSummary: the rows shared by the summary card and the message', () => {
+  const rows = (totals: OrderTotals) => totalsSummary(totals).rows.map(({ label, value }) => plain(`${label}: ${value}`))
+
+  it('lists products, each surcharge, and what is still to confirm', () => {
+    const totals = computeTotals({ productsSubtotal: 60500, pizzaCount: 3, pizzasToConfirm: true }, delivery)
+    expect(rows(totals)).toEqual([
+      'Productos: $ 60.500',
+      'Recargo por pizza (3 × $ 1.000): $ 3.000',
+      'Recargo por pizzas de promos: A confirmar',
+      'Envío: A confirmar',
+    ])
+    const summary = totalsSummary(totals)
+    expect(summary.total).toEqual({ label: 'Total parcial', value: expect.stringContaining('63.500') })
+    expect(summary.notes).toEqual([
+      'No incluye el envío ni el recargo por pizzas de promos: el local los confirma.',
+      'El local confirma el total.',
+    ])
+  })
+
+  it('names a single exclusion in the singular', () => {
+    expect(totalsSummary(computeTotals(known(16000, 1), delivery)).notes[0]).toBe('No incluye el envío: el local lo confirma.')
+  })
+
+  it('calls a total with nothing left out "Total orientativo"', () => {
+    const summary = totalsSummary(computeTotals(known(35000, 0), { ...delivery, mode: 'retiro', payment: 'credito' }))
+    expect(summary.rows.map((row) => row.label)).toEqual(['Productos', 'Recargo crédito 8 %'])
+    expect(summary.total.label).toBe('Total orientativo')
+    expect(summary.notes).toEqual(['El local confirma el total.'])
+  })
+
+  it('adds up to the total: the rows with an amount are exactly what the total holds', () => {
+    const zone: ZoneOption = { id: 'z', label: 'Zona de prueba', pinned: false, cost: 3000 }
+    for (const details of [delivery, { ...delivery, zoneId: zone.id }, { ...delivery, mode: 'retiro' as const, payment: 'credito' as const }]) {
+      const totals = computeTotals({ productsSubtotal: 43210, pizzaCount: 2, pizzasToConfirm: true }, details, [zone, OTHER_ZONE])
+      const sum = totalsSummary(totals).rows.reduce((total, row) => total + (row.amount ?? 0), 0)
+      expect(sum).toBe(totals.total)
+    }
   })
 })
 
@@ -186,11 +279,14 @@ describe('buildOrderMessage', () => {
         '• 1 × Pizza mitad y mitad (Muzzarella + Napolitana Heraldo): $ 25.000',
         '• 2 × Empanada de carne picada: $ 6.000',
         '',
+        'Productos: $ 60.500',
         'Recargo por pizza (3 × $ 1.000): $ 3.000',
-        'Envío: a confirmar',
+        'Envío: A confirmar',
+        '',
         'Pago: Efectivo',
         '',
-        '*Total orientativo: $ 63.500*',
+        '*Total parcial: $ 63.500*',
+        'No incluye el envío: el local lo confirma.',
         'El local confirma el total.',
       ].join('\n'),
     )
@@ -213,7 +309,9 @@ describe('buildOrderMessage', () => {
         '*Productos*',
         '• 1 × Ensaimada (Grande): $ 35.000',
         '',
+        'Productos: $ 35.000',
         'Recargo crédito 8 %: $ 2.800',
+        '',
         'Pago: Crédito',
         'Por encargo: Ensaimada. Pedir con 1 o 2 días de anticipación.',
         'Nota: Paso a las 21',
@@ -223,4 +321,27 @@ describe('buildOrderMessage', () => {
       ].join('\n'),
     )
   })
+
+  it('counts the pizzas of a promotion by its confirmed count times the quantity, and flags unknown ones', () => {
+    const promos = [
+      { ...promoBase, id: 'conocida', title: 'Promo con dos pizzas', price: 30000, deliveryPizzas: 2 },
+      { ...promoBase, id: 'desconocida', title: 'Promo sin confirmar', price: 20000, deliveryPizzas: null },
+    ]
+    const catalog = indexCatalog(prototypeCategories, prototypeProducts, promos)
+    const summary = reconcileOrder(
+      [
+        { id: 'p1', kind: 'promotion', promotionId: 'conocida', quantity: 3, note: '' },
+        { id: 'p2', kind: 'promotion', promotionId: 'desconocida', quantity: 1, note: '' },
+      ],
+      catalog,
+    )
+    const message = plain(buildOrderMessage(delivery, summary, computeTotals(summary, delivery)))
+
+    expect(message).toContain('Recargo por pizza (6 × $ 1.000): $ 6.000')
+    expect(message).toContain('Recargo por pizzas de promos: A confirmar')
+    expect(message).toContain('*Total parcial: $ 116.000*')
+    expect(message).toContain('No incluye el envío ni el recargo por pizzas de promos: el local los confirma.')
+  })
 })
+
+const promoBase = { description: null, imageUrl: null, activeFrom: null, activeTo: null, weekdays: [] }

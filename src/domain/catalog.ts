@@ -44,6 +44,12 @@ export interface Promotion {
   activeFrom: string | null
   activeTo: string | null
   weekdays: Weekday[]
+  /**
+   * Pizzas in one unit of the combo, for the $ 1.000 per-pizza delivery surcharge (RN-15). `0`: no pizzas; a positive
+   * whole number: the count the owner confirmed; `null`: not confirmed yet, so the surcharge stays «A confirmar».
+   * Never inferred from the title.
+   */
+  deliveryPizzas: number | null
 }
 
 /** Everything the public menu shows. */

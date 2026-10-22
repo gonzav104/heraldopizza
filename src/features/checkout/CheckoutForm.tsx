@@ -1,6 +1,8 @@
+import { CloudRain } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { useCheckoutStore } from './checkout-store'
+import { RAIN_NOTICE } from './notices'
 import { OrderTotalsCard } from './OrderTotalsCard'
 import { ZonePicker } from './ZonePicker'
 import {
@@ -94,6 +96,10 @@ export function CheckoutForm({ totals, onValid }: { totals: OrderTotals; onValid
 
       {details.mode === 'envio' ? (
         <>
+          <p className="-mt-2 flex gap-2 rounded-xl bg-chapa px-3.5 py-2.5 text-[0.875rem] leading-snug text-crema-muted ring-1 ring-chapa-edge">
+            <CloudRain aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-mostaza" />
+            {RAIN_NOTICE}
+          </p>
           <div>
             <label htmlFor={fieldIds.address} className={labelClass}>
               Dirección

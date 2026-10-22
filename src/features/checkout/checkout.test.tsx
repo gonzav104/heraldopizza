@@ -4,7 +4,7 @@ import { prototypeCategories, prototypeProducts } from '@/data/prototype-catalog
 import { Storefront } from '@/app/Storefront'
 import { resetOrderStore } from '@/features/cart/order-store'
 import { resetCheckoutStore } from './checkout-store'
-import { ORDER_CONFIRMATION_NOTICE } from './notices'
+import { ORDER_CONFIRMATION_NOTICE, RAIN_NOTICE } from './notices'
 
 async function openDetails() {
   render(<Storefront categories={prototypeCategories} products={prototypeProducts} promotions={[]} />)
@@ -114,5 +114,58 @@ describe('checkout prototype', () => {
     expect(notice.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(button).toHaveAccessibleDescription(/no queda confirmado automáticamente/)
     expect(within(sheet).queryByRole('checkbox')).not.toBeInTheDocument()
+  })
+
+  it('shows the rain notice only for delivery, as information without any amount', async () => {
+    const sheet = await openDetails()
+    expect(within(sheet).queryByText(RAIN_NOTICE)).not.toBeInTheDocument()
+
+    fireEvent.click(within(sheet).getByRole('radio', { name: 'Envío' }))
+    expect(RAIN_NOTICE).toBe(
+      'Los días de lluvia, el servicio de reparto puede cobrar un adicional. El local te lo confirma antes de completar el pedido.',
+    )
+    expect(within(sheet).getByText(RAIN_NOTICE)).toBeInTheDocument()
+    expect(within(sheet).getByRole('region', { name: 'Resumen del pedido' })).not.toHaveTextContent(/lluvia/i)
+
+    fireEvent.click(within(sheet).getByRole('radio', { name: 'Retiro' }))
+    expect(within(sheet).queryByText(RAIN_NOTICE)).not.toBeInTheDocument()
+  })
+
+  it('calls the delivery total partial, says what it leaves out, and keeps the amount off the button', async () => {
+    const sheet = await openDetails()
+    fireEvent.click(within(sheet).getByRole('radio', { name: 'Envío' }))
+    const summary = within(sheet).getByRole('region', { name: 'Resumen del pedido' })
+
+    expect(summary).toHaveTextContent(/EnvíoA confirmar/)
+    expect(summary).toHaveTextContent(/Total parcial\$\s17\.000/)
+    expect(summary).toHaveTextContent('No incluye el envío: el local lo confirma.')
+    expect(summary).not.toHaveTextContent(/Total orientativo/)
+    expect(screen.getByRole('button', { name: 'Ver mensaje' })).toBeInTheDocument()
+  })
+
+  it('writes in the message exactly the rows the summary shows', async () => {
+    const sheet = await openDetails()
+    fireEvent.change(within(sheet).getByLabelText('Nombre y apellido'), { target: { value: 'Ana Gómez' } })
+    fireEvent.click(within(sheet).getByRole('radio', { name: 'Envío' }))
+    fireEvent.change(within(sheet).getByLabelText('Dirección'), { target: { value: 'Rivadavia 100' } })
+    fireEvent.click(within(sheet).getByRole('radio', { name: 'Otra zona (a consultar)' }))
+    fireEvent.click(within(sheet).getByRole('radio', { name: 'Transferencia' }))
+    const summary = within(sheet).getByRole('region', { name: 'Resumen del pedido' })
+    const rows = within(summary)
+      .getAllByRole('term')
+      .map((term) => `${term.textContent}: ${term.nextElementSibling?.textContent}`)
+
+    fireEvent.click(screen.getByRole('button', { name: /^Ver mensaje/ }))
+    const message = within(sheet).getByText(/\*Pedido para Heraldo Pizza\*/).textContent ?? ''
+
+    expect(rows).toEqual([
+      expect.stringMatching(/^Productos: \$\s16\.000$/),
+      expect.stringMatching(/^Recargo por pizza \(1 × \$\s1\.000\): \$\s1\.000$/),
+      'Envío: A confirmar',
+      expect.stringMatching(/^Total parcial: \$\s17\.000$/),
+    ])
+    for (const row of rows.slice(0, -1)) expect(message).toContain(row)
+    expect(message).toContain(`*${rows[rows.length - 1]}*`)
+    expect(message).toContain('No incluye el envío: el local lo confirma.')
   })
 })

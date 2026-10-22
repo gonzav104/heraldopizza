@@ -70,7 +70,8 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
         <PrimaryAction onClick={onClose} label="Ver la carta" />
       )
     ) : shownStep === 'details' ? (
-      <PrimaryAction type="submit" form={CHECKOUT_FORM_ID} label="Ver mensaje" amount={formatArs(totals.total)} />
+      // The amount rides on the button only when it is the whole orientative total, never a partial one (P3).
+      <PrimaryAction type="submit" form={CHECKOUT_FORM_ID} label="Ver mensaje" amount={totals.complete ? formatArs(totals.total) : null} />
     ) : (
       <DisabledSendButton />
     )
