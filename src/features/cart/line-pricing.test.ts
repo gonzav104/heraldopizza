@@ -260,11 +260,11 @@ describe('reconcileOrder: lines the current catalog cannot price (P2)', () => {
     })
   })
 
-  it('marks a promotion that is no longer in the catalog as missing', () => {
+  it('marks a promotion that is not available (switched off, expired, or gone) as missing (P5a)', () => {
     expect(issueOf({ id: 'p', kind: 'promotion', promotionId: 'promo-vieja', quantity: 1, note: '' })).toMatchObject({
       kind: 'missing',
-      title: 'Una promo que ya no está en la carta',
-      reason: 'Ya no está en la carta.',
+      title: 'Una promoción',
+      reason: 'Esta promoción ya no está disponible.',
     })
   })
 

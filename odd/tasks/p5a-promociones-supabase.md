@@ -17,13 +17,17 @@ Objective: load the eight official promotions from the local Supabase stack into
 
 | ID | Specs | Route | Status | Commit / evidence |
 |---|---|---|---|---|
-| T1 Migration, constraints, grants, RLS + pgTAP | S1–S3 | inline (high risk: items 1, 2) | pending | |
-| T2 Separate idempotent seed + integrity tests | S1, S2, S4 | inline (high risk: item 1) | pending | |
-| T3 Adapter, mapper, privacy notice and test | S5 | inline (high risk: item 3) | pending | |
-| T4 Cart compatibility, unavailable message, E2E, docs | S6, S7 | inline | pending | |
+| T1 Migration, constraints, grants, RLS + pgTAP | S1–S3 | inline (high risk: items 1, 2) | done | `6d45672`; pgTAP RED (table missing) → GREEN |
+| T2 Separate idempotent seed + integrity tests | S1, S2, S4 | inline (high risk: item 1) | done | `f45dd4e`; Vitest RED (seed missing) → GREEN; idempotency run twice |
+| T3 Adapter, mapper, privacy notice and test | S5 | inline (high risk: item 3) | done | `073441b`; RED (no promotions request) → GREEN |
+| T4 Cart compatibility, unavailable message, E2E, docs | S6, S7 | inline | done | this commit; message RED → GREEN; compat tests pass as regression |
 
 ## Log
 
 - L1 (2026-10-22) User's request: approval of alternative B and the P5a implementation, verbatim in the session prompt «Heraldo Pizza — Aprobación e implementación local de P5a» (sections 1–9, quoted in S1–S8 above).
 - L2 Local target verified before any reset: `supabase status` shows `linked_project: null`, DB at 127.0.0.1:54322, containers `supabase_*_heraldopizza`. Local data equals the seed (13 categories, 84 products, 110 variants, 0 edited rows). The only data outside migrations and seeds is one local admin user; backed up (auth.users, auth.identities, administradores) outside the repository before resetting.
 - L3 Design adjustments from the approval: validity inline in the read policy (no `USAGE` on `privado` for `anon`); `codigo` gets a database default `promo-<hex>` and is excluded from the admin's INSERT and UPDATE column grants, plus a trigger that rejects any change; unavailable promotion lines read «Esta promoción ya no está disponible.»
+- L4 T1: migration `20261022190000_promociones.sql`; pgTAP esquema (22) and RLS (26), permissions inventory extended with column grants. `catalogo_rls` test 31 fails only while the local admin user exists (it counts administrators); on the clean DB all 191 pgTAP pass.
+- L5 T2: local `db reset` after re-checking the target (linked_project null, 127.0.0.1:54322). Seed run twice after an admin-like edit (price 99999, hidden): `INSERT 0 0` both times, edit preserved, then restored.
+- L6 T3: two GETs in parallel (categorias, promociones) with one shared signal; strict mapper; the public menu stops using the prototype promotions; privacy notice «La carta, las promociones y sus precios…». Local API: anon reads 8, 7 after switching one off, DELETE refused (401).
+- L7 T4: unavailable promotion line «Una promoción» / «Esta promoción ya no está disponible.». Compatibility tests for cases 1–8 from the real seed rows; E2E 6/6 (new promotions spec); Chromium 360/1280: 8 promotions, dozen, cart recovered after reload, switched-off promotion flagged and checkout blocked, no console errors.

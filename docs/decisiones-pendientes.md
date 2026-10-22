@@ -26,6 +26,15 @@ Orden de trabajo actualizado:
 
 La evidencia de «sin llamadas de red» de D11 describe el prototipo histórico; el catálogo público actual consulta Supabase. La numeración antigua de unidades no define este orden vigente. No se accede a Supabase remoto durante U1.
 
+## Decisiones de P5a — promociones reales en Supabase (2026-10-22)
+
+- **Identidad:** `promociones.id` es un UUID interno; `codigo` es el identificador comercial, único e inmutable, y la app lo usa como `Promotion.id`. Los ocho códigos originales se conservan exactamente (los carritos guardados los tienen). Las promociones nuevas reciben un código `promo-…` generado por la base, que el administrador no puede elegir ni cambiar.
+- **Vigencia:** se evalúa en PostgreSQL con `America/Argentina/Buenos_Aires`. Sin fechas = sin límite de fecha; sin días = todos los días. Las desactivadas o vencidas no se muestran al público; tampoco una promoción cuya categoría de gustos esté oculta. El administrador lee todas.
+- **Sin borrado físico:** ningún rol puede borrar promociones; se desactivan.
+- **Datos:** las ocho promociones del dueño, textuales, en `supabase/seed_promociones.sql` (separado, idempotente: nunca pisa cambios del administrador). Sin imágenes ni Storage en P5a; sin asociación avanzada RF-44.
+- **Carrito:** el formato v1 no cambia. Una promoción que deja de estar disponible queda en el carrito con «Esta promoción ya no está disponible.» y bloquea el checkout hasta quitarla.
+- **Producción:** la migración y el seed solo se aplican con un procedimiento explícito y autorización.
+
 ## Decisiones de P3 — reglas de entrega y pago (2026-10-22)
 
 Reemplazan las reglas anteriores de recargo por pizza, zonas y lluvia (incluida una primera versión de P3 del mismo día):
