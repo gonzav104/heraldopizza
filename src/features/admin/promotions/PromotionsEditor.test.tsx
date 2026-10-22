@@ -212,3 +212,92 @@ describe('PromotionsEditor: edit (P5b)', () => {
     expect(within(reopened).getByRole('textbox', { name: 'Precio' })).toHaveValue('45000')
   })
 })
+
+describe('PromotionsEditor: create (P5b)', () => {
+  const created = (changes: Partial<AdminPromotion>) =>
+    promo({ id: 'u-new', code: 'promo-1a2b3c', visible: false, order: 13, ...changes })
+
+  async function openCreate() {
+    fireEvent.click(screen.getByRole('button', { name: 'Nueva promoción' }))
+    return screen.findByRole('dialog', { name: 'Nueva promoción' })
+  }
+
+  it('creates a closed combo, switched off, after the last one, and shows it with the code the database gave it', async () => {
+    const create = vi.fn(async () => created({ title: 'Dos Muzza', price: 30000 }))
+    const { onWorkChange } = await renderEditor(fakeRepository({ create }))
+    const dialog = await openCreate()
+    expect(within(dialog).getByRole('radio', { name: 'Combo cerrado' })).toBeChecked()
+    expect(within(dialog).getByText('Se crea desactivada: activala cuando esté lista para la carta.')).toBeInTheDocument()
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Título' }), { target: { value: 'Dos Muzza' } })
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Precio' }), { target: { value: '30.000' } })
+    expect(onWorkChange).toHaveBeenLastCalledWith({ dirty: true, saving: false })
+    await act(async () => fireEvent.click(within(dialog).getByRole('button', { name: 'Crear promoción' })))
+
+    expect(create).toHaveBeenCalledWith(
+      { kind: 'closed', title: 'Dos Muzza', description: null, price: 30000, activeFrom: null, activeTo: null, weekdays: null },
+      13,
+    )
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    const added = card('Dos Muzza')
+    expect(within(added).getByText('promo-1a2b3c')).toBeInTheDocument()
+    expect(within(added).getByText('Desactivada')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('«Dos Muzza» creada. Está desactivada hasta que la actives.')
+    expect(onWorkChange).toHaveBeenLastCalledWith({ dirty: false, saving: false })
+  })
+
+  it('creates the dozen to choose, offering only 12 empanadas and no category or units to pick', async () => {
+    const create = vi.fn(async () => created({ title: 'Docena del finde', flavorChoice: { ...DOZEN_CHOICE, categoryVisible: true } }))
+    await renderEditor(fakeRepository({ create }))
+    const dialog = await openCreate()
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Docena de empanadas a elección (12)' }))
+    expect(within(dialog).queryByRole('spinbutton')).not.toBeInTheDocument()
+    expect(within(dialog).queryByRole('combobox')).not.toBeInTheDocument()
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Título' }), { target: { value: 'Docena del finde' } })
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Precio' }), { target: { value: '34000' } })
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Solo algunos días' }))
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Sábado' }))
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Domingo' }))
+    await act(async () => fireEvent.click(within(dialog).getByRole('button', { name: 'Crear promoción' })))
+
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ kind: 'dozen', price: 34000, weekdays: [0, 6] }), 13)
+    expect(within(card('Docena del finde')).getByText('Docena a elección: 12 empanadas')).toBeInTheDocument()
+  })
+
+  it('shows field errors and creates nothing while the form is invalid', async () => {
+    const create = vi.fn()
+    await renderEditor(fakeRepository({ create }))
+    const dialog = await openCreate()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Crear promoción' }))
+    expect(within(dialog).getByRole('textbox', { name: 'Título' })).toHaveAccessibleDescription('El título no puede quedar vacío.')
+    expect(within(dialog).getByRole('textbox', { name: 'Precio' })).toHaveAccessibleDescription('Ingresá un precio entero mayor a 0.')
+    expect(create).not.toHaveBeenCalled()
+  })
+
+  it('keeps the draft when the database refuses it and lets the owner retry', async () => {
+    const create = vi
+      .fn()
+      .mockRejectedValueOnce(new AdminSaveError('unavailable', 'offline'))
+      .mockResolvedValueOnce(created({ title: 'Dos Muzza' }))
+    await renderEditor(fakeRepository({ create }))
+    const dialog = await openCreate()
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Título' }), { target: { value: 'Dos Muzza' } })
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Precio' }), { target: { value: '30000' } })
+    await act(async () => fireEvent.click(within(dialog).getByRole('button', { name: 'Crear promoción' })))
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('No pudimos guardar.')
+    expect(within(dialog).getByRole('textbox', { name: 'Título' })).toHaveValue('Dos Muzza')
+    await act(async () => fireEvent.click(within(dialog).getByRole('button', { name: 'Reintentar' })))
+    expect(create).toHaveBeenCalledTimes(2)
+    expect(card('Dos Muzza')).toBeInTheDocument()
+  })
+
+  it('places the first promotion at position 1 when there are none', async () => {
+    const create = vi.fn(async () => created({ title: 'Primera', order: 1 }))
+    await renderEditor(fakeRepository({ load: vi.fn(async () => []), create }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'Nueva promoción' })[0])
+    const dialog = await screen.findByRole('dialog', { name: 'Nueva promoción' })
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Título' }), { target: { value: 'Primera' } })
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Precio' }), { target: { value: '1000' } })
+    await act(async () => fireEvent.click(within(dialog).getByRole('button', { name: 'Crear promoción' })))
+    expect(create).toHaveBeenCalledWith(expect.anything(), 1)
+  })
+})

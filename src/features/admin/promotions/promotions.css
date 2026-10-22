@@ -147,6 +147,43 @@
   outline: 2px solid var(--admin-accent);
   outline-offset: 2px;
 }
+.admin-intro-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.admin-promotions .admin-empty .admin-button {
+  margin-top: 1rem;
+}
+.admin-kind {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 0.6rem;
+  cursor: pointer;
+}
+.admin-kind:has(input:checked) {
+  border-color: var(--admin-ink);
+  background: #fafaf8;
+}
+.admin-kind input {
+  margin-top: 0.2rem;
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+  accent-color: var(--admin-accent);
+}
+.admin-kind > span {
+  display: grid;
+  gap: 0.1rem;
+  font-size: 0.9375rem;
+}
+.admin-create-note {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
 @media (max-width: 420px) {
   .admin-date-pair {
     grid-template-columns: minmax(0, 1fr);

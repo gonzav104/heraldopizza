@@ -3,6 +3,7 @@ import { Sheet } from '@/components/ui/Sheet'
 import '@/features/admin/catalog/catalog-workspace.css'
 import './promotions.css'
 import type { AdminPromotion, AdminPromotionsRepository } from '@/features/admin/promotions/admin-promotions'
+import { NewPromotion } from '@/features/admin/promotions/NewPromotion'
 import { PromotionFields } from '@/features/admin/promotions/PromotionFields'
 import {
   argentinaToday,
@@ -188,6 +189,8 @@ export function PromotionsEditor({
 }) {
   const [state, setState] = useState<LoadState>({ kind: 'loading' })
   const [attempt, setAttempt] = useState(0)
+  const [creating, setCreating] = useState(false)
+  const [created, setCreated] = useState<string | null>(null)
   const [work, setWork] = useState<Record<string, Work>>({})
   const dirty = Object.values(work).some((value) => value.dirty)
   const saving = Object.values(work).some((value) => value.saving)
@@ -229,12 +232,19 @@ export function PromotionsEditor({
     }
   }, [repository, attempt])
 
+  const reportNew = useCallback((next: Work) => report('new', next), [report])
   const reload = useCallback(() => {
     if (saving || (dirty && !window.confirm('Hay cambios sin guardar. ¿Descartarlos y recargar las promociones?'))) return
     setWork({})
+    setCreated(null)
     setState({ kind: 'loading' })
     setAttempt((value) => value + 1)
   }, [dirty, saving])
+
+  const add = (promotion: AdminPromotion) => {
+    setState((current) => (current.kind === 'ready' ? { ...current, promotions: [...current.promotions, promotion] } : current))
+    setCreated(`«${promotion.title}» creada. Está desactivada hasta que la actives.`)
+  }
 
   const patch = (saved: AdminPromotion) =>
     setState((current) =>
@@ -266,6 +276,13 @@ export function PromotionsEditor({
   const today = argentinaToday(new Date())
   const { promotions } = state
   const active = promotions.filter((item) => promotionStatus(item, today) === 'active').length
+  // New promotions go after the last one; a tie with a concurrent create is broken by code, everywhere.
+  const nextOrder = promotions.reduce((last, item) => Math.max(last, item.order), 0) + 1
+  const newButton = (
+    <button type="button" className="admin-button admin-primary" onClick={() => setCreating(true)}>
+      Nueva promoción
+    </button>
+  )
   return (
     <div className="admin-catalog admin-promotions">
       <div className="admin-workspace-intro">
@@ -273,15 +290,24 @@ export function PromotionsEditor({
           <h1>Promociones</h1>
           <p>Activá, editá y ordená los combos de la carta. Los cambios se ven al recargar la carta.</p>
         </div>
-        <button type="button" className="admin-button" disabled={saving} onClick={reload}>
-          Recargar promociones
-        </button>
+        <div className="admin-intro-actions">
+          {newButton}
+          <button type="button" className="admin-button" disabled={saving} onClick={reload}>
+            Recargar promociones
+          </button>
+        </div>
       </div>
+      {created ? (
+        <p role="status" className="admin-work-summary">
+          {created}
+        </p>
+      ) : null}
       {dirty ? <p className="admin-work-summary">Tenés cambios pendientes en promociones.</p> : null}
       {promotions.length === 0 ? (
         <div className="admin-empty">
           <h2>Todavía no hay promociones</h2>
-          <p>Cuando cargues una, va a aparecer acá.</p>
+          <p>Creá la primera: se guarda desactivada hasta que la actives.</p>
+          {newButton}
         </div>
       ) : (
         <>
@@ -304,6 +330,15 @@ export function PromotionsEditor({
           </div>
         </>
       )}
+      <NewPromotion
+        open={creating}
+        onClose={() => setCreating(false)}
+        nextOrder={nextOrder}
+        repository={repository}
+        onCreated={add}
+        onReload={reload}
+        onWorkChange={reportNew}
+      />
     </div>
   )
 }
