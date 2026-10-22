@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import type { Category, Product, Promotion } from '@/domain/catalog'
 import { useSheetHistory } from '@/components/ui/useSheetHistory'
 import { CatalogContext, createCatalogData } from '@/features/catalog/catalog-context'
@@ -67,14 +67,27 @@ export function Storefront({ categories, products, promotions }: StorefrontProps
   }
 
   // The index sheet closes first; the page scrolls to the chosen category once the dialog is gone.
+  // The scroll waits one frame: requested while the modal sheet is still closing (this runs in its close cleanup),
+  // Chromium drops it and the page never moves. A newer pick or leaving the menu cancels a frame still pending.
   const pendingSection = useRef<string | null>(null)
+  const scrollFrame = useRef<number | null>(null)
   const jumpToPendingSection = () => {
     const id = pendingSection.current
     pendingSection.current = null
     if (!id) return
-    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    document.getElementById(id)?.scrollIntoView?.({ behavior: reduceMotion ? 'auto' : 'smooth' })
+    if (scrollFrame.current !== null) cancelAnimationFrame(scrollFrame.current)
+    scrollFrame.current = requestAnimationFrame(() => {
+      scrollFrame.current = null
+      const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      document.getElementById(id)?.scrollIntoView?.({ behavior: reduceMotion ? 'auto' : 'smooth' })
+    })
   }
+  useEffect(
+    () => () => {
+      if (scrollFrame.current !== null) cancelAnimationFrame(scrollFrame.current)
+    },
+    [],
+  )
 
   return (
     <CatalogContext value={catalog}>
