@@ -3,11 +3,16 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { prototypeCategories, prototypeProducts } from '@/data/prototype-catalog'
 import { Storefront } from '@/app/Storefront'
 import { resetOrderStore } from '@/features/cart/order-store'
+import { SameCatalogOnRefresh } from '@/test/fresh-catalog'
 import { resetCheckoutStore } from './checkout-store'
 import { DELIVERY_RATES_NOTE, NIGHT_NOTICE, ORDER_CONFIRMATION_NOTICE, RAIN_NOTICE } from './notices'
 
 async function openDetails() {
-  render(<Storefront categories={prototypeCategories} products={prototypeProducts} promotions={[]} />)
+  render(
+    <SameCatalogOnRefresh catalog={{ categories: prototypeCategories, products: prototypeProducts, promotions: [] }}>
+      <Storefront categories={prototypeCategories} products={prototypeProducts} promotions={[]} />
+    </SameCatalogOnRefresh>,
+  )
   fireEvent.click(screen.getByRole('button', { name: /^Sumar Muzzarella, Entera/ }))
   fireEvent.click(screen.getByRole('button', { name: /^Ver tu pedido/ }))
 
@@ -89,7 +94,7 @@ describe('checkout prototype', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Ver mensaje/ }))
 
     expect(within(sheet).getByRole('heading', { name: 'Revisá el mensaje' })).toBeInTheDocument()
-    const message = within(sheet).getByText(/\*Pedido para Heraldo Pizza\*/)
+    const message = await within(sheet).findByText(/\*Pedido para Heraldo Pizza\*/)
     expect(message).toHaveTextContent('Dirección: Rivadavia 100, Barrio Centro')
     expect(message).not.toHaveTextContent(/Zona|Recargo por pizza/)
     expect(screen.getByRole('button', { name: 'Continuar en WhatsApp' })).toBeDisabled()
@@ -250,7 +255,7 @@ describe('checkout prototype', () => {
       .map((term) => `${term.textContent}: ${term.nextElementSibling?.textContent}`)
 
     fireEvent.click(screen.getByRole('button', { name: /^Ver mensaje/ }))
-    const message = within(sheet).getByText(/\*Pedido para Heraldo Pizza\*/).textContent ?? ''
+    const message = (await within(sheet).findByText(/\*Pedido para Heraldo Pizza\*/)).textContent ?? ''
 
     expect(rows).toEqual([
       expect.stringMatching(/^Productos: \$\s16\.000$/),

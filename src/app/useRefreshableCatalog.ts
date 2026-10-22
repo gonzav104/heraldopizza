@@ -3,10 +3,11 @@ import type { Catalog, CatalogRepository } from '@/domain/catalog'
 
 export type CatalogLoadState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; catalog: Catalog }
 
-/** Whether a refresh replaced the menu; `false` when a newer refresh started after it, so its answer was dropped. */
-export interface RefreshOutcome {
-  applied: boolean
-}
+/**
+ * Whether a refresh replaced the menu, and with which catalog; `applied: false` when a newer refresh started after it,
+ * so its answer was dropped. The caller prices the order against `catalog`, exactly what the menu now shows.
+ */
+export type RefreshOutcome = { applied: true; catalog: Catalog } | { applied: false }
 
 /**
  * The menu's catalog: loaded once when the page opens (with its loading and error screens and «Reintentar»), and
@@ -50,7 +51,7 @@ export function useRefreshableCatalog(repository: CatalogRepository) {
       if (catalog.categories.length === 0) throw new Error('The refreshed catalog came back empty')
       if (request !== latest.current) return { applied: false }
       setState({ status: 'ready', catalog })
-      return { applied: true }
+      return { applied: true, catalog }
     },
     [repository],
   )

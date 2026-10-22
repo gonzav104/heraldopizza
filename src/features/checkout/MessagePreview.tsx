@@ -4,7 +4,7 @@ import { ORDER_CONFIRMATION_NOTICE } from './notices'
 /** The exact WhatsApp text (RF-19) as a chat bubble. */
 export function MessageBubble({ message }: { message: string }) {
   return (
-    <div className="rounded-2xl rounded-tr-md bg-chapa p-4 ring-1 ring-chapa-edge">
+    <div data-testid="mensaje-whatsapp" className="rounded-2xl rounded-tr-md bg-chapa p-4 ring-1 ring-chapa-edge">
       <p className="text-[0.9375rem] leading-relaxed break-words whitespace-pre-wrap">{message}</p>
     </div>
   )

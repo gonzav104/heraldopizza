@@ -7,9 +7,13 @@ import { CHECKOUT_FORM_ID, CheckoutForm } from '@/features/checkout/CheckoutForm
 import { DeliveryRatesView } from '@/features/checkout/DeliveryRatesView'
 import { DisabledSendButton, MessagePreview } from '@/features/checkout/MessagePreview'
 import { buildOrderMessage, computeTotals } from '@/features/checkout/prototype-order'
+import { snapshotOf } from '@/features/checkout/order-verification'
+import { useOrderVerification } from '@/features/checkout/useOrderVerification'
+import { VerificationPanel } from '@/features/checkout/VerificationPanel'
 import { formatArs } from '@/lib/money'
 import { CartLines, CheckoutBlockedNote, EmptyOrder, OrderIssues, ProductsSubtotal } from './CartLines'
 import { isEmptyOrder, isReadyForCheckout } from './line-pricing'
+import { useOrderStore } from './order-store'
 import { OrderStorageNotice } from './OrderStorageNotice'
 import { useOrderSummary } from './useOrderSummary'
 
@@ -34,6 +38,8 @@ interface OrderSheetProps {
 export function OrderSheet({ step, onClose }: OrderSheetProps) {
   const summary = useOrderSummary()
   const details = useCheckoutStore((state) => state.details)
+  const lines = useOrderStore((state) => state.lines)
+  const { verification, enter, check, accept, leave } = useOrderVerification()
   const [current, setCurrent] = useState<OrderStep>(step ?? 'cart')
   const [requested, setRequested] = useState(step)
   // «Tarifas de la motito» opens as a view of the details step, not as a second sheet (sheets never stack).
@@ -57,13 +63,35 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
   const shownStep: OrderStep = ready ? current : 'cart'
   const showingRates = ratesOpen && shownStep === 'details'
   const totals = computeTotals(summary, details)
+  // The order as the customer sees it now; the message step opens on it only once it is verified (P6a).
+  const live = ready ? snapshotOf(lines, summary, details) : null
+  const verified =
+    verification.status === 'verified' &&
+    live !== null &&
+    verification.snapshot.cart === live.cart &&
+    verification.snapshot.checkout === live.checkout
 
   // Moving between steps puts focus on the new step's heading, so screen readers hear where they are.
   useEffect(() => {
     if (step) title.current?.focus({ preventScroll: true })
   }, [shownStep, step, showingRates])
 
-  const back = () => (showingRates ? setRatesOpen(false) : setCurrent(shownStep === 'preview' ? 'details' : 'cart'))
+  const back = () => {
+    if (showingRates) return setRatesOpen(false)
+    if (shownStep === 'preview') leave()
+    setCurrent(shownStep === 'preview' ? 'details' : 'cart')
+  }
+  // Closing the sheet aborts a check in flight, like going back.
+  const close = () => {
+    leave()
+    onClose()
+  }
+  const openMessage = () => {
+    if (!live) return
+    setCurrent('preview')
+    // A tap while a check is running starts nothing new.
+    if (verification.status !== 'checking') enter(live)
+  }
 
   const footer =
     shownStep === 'cart' ? (
@@ -74,7 +102,7 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
           <PrimaryAction onClick={() => setCurrent('details')} disabled={!ready} label="Continuar" />
         </div>
       ) : (
-        <PrimaryAction onClick={onClose} label="Ver la carta" />
+        <PrimaryAction onClick={close} label="Ver la carta" />
       )
     ) : showingRates ? (
       // Distinct keys: React must not turn the pressed «Volver» into the submit button while the click is still being
@@ -89,7 +117,7 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
   return (
     <Sheet
       open={step !== null}
-      onClose={onClose}
+      onClose={close}
       labelledBy="pedido-titulo"
       headerTone="pino"
       dismissOnBackdrop={shownStep !== 'details' || !hasTypedText(details)}
@@ -131,9 +159,12 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
       ) : null}
       {showingRates ? <DeliveryRatesView /> : null}
       {shownStep === 'details' && !showingRates ? (
-        <CheckoutForm totals={totals} onValid={() => setCurrent('preview')} onShowRates={() => setRatesOpen(true)} />
+        <CheckoutForm totals={totals} onValid={openMessage} onShowRates={() => setRatesOpen(true)} />
       ) : null}
-      {shownStep === 'preview' ? <MessagePreview message={buildOrderMessage(details, summary, totals)} /> : null}
+      {shownStep === 'preview' && !verified ? (
+        <VerificationPanel verification={verification} onRetry={() => live && void check(live)} onAccept={accept} />
+      ) : null}
+      {shownStep === 'preview' && verified ? <MessagePreview message={buildOrderMessage(details, summary, totals)} /> : null}
     </Sheet>
   )
 }

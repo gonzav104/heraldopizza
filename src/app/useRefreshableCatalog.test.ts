@@ -49,7 +49,7 @@ describe('useRefreshableCatalog (P6a-1)', () => {
       calls[1].resolve(catalogB)
       outcome = await refresh
     })
-    expect(outcome).toEqual({ applied: true })
+    expect(outcome).toEqual({ applied: true, catalog: catalogB })
     expect(repository.load).toHaveBeenCalledTimes(2)
     expect(result.current.state).toEqual({ status: 'ready', catalog: catalogB })
   })
@@ -91,7 +91,7 @@ describe('useRefreshableCatalog (P6a-1)', () => {
     })
     expect(result.current.state).toEqual({ status: 'ready', catalog: catalogC })
     expect(outcomes).toEqual([
-      ['newer', { applied: true }],
+      ['newer', { applied: true, catalog: catalogC }],
       ['older', { applied: false }],
     ])
   })
