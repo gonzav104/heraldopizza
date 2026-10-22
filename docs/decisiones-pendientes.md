@@ -36,6 +36,7 @@ La evidencia de «sin llamadas de red» de D11 describe el prototipo histórico;
   - **Garantiza la base:** solo administradores; todo o nada; si la vecina ya no es contigua o algún token cambió, falla con conflicto y no cambia nada; las filas quedan bloqueadas durante la operación, así que dos movimientos simultáneos se serializan y el segundo falla con conflicto; después de un movimiento las posiciones quedan 1..n sin repetidos.
   - **No garantiza:** posiciones únicas en todo momento (un alta toma «última + 1» desde el panel; dos altas simultáneas pueden empatar hasta el próximo movimiento). El desempate es siempre por `codigo`, único e inmutable, en la carta y en el panel.
   - **Solo la interfaz:** deshabilitar «Subir» en la primera y «Bajar» en la última.
+  - **Tokens después de mover:** el panel adopta el token nuevo solo de las dos promociones que la función verificó; del resto toma solo la posición. Así, una tarjeta desactualizada sigue chocando con conflicto en vez de pisar un cambio hecho en otra pestaña (hallazgo del verificador independiente).
 
 ## Decisiones de P5a — promociones reales en Supabase (2026-10-22)
 

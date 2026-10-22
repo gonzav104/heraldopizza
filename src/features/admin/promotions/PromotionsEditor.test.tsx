@@ -332,6 +332,19 @@ describe('PromotionsEditor: order (P5b)', () => {
     expect(repository.update).toHaveBeenCalledWith('u-tres', { visible: false }, 't1')
   })
 
+  it('adopts new tokens only for the two promotions the move verified, so a stale card still conflicts', async () => {
+    // Another tab changed «Promo apagada» (token t9); the move returns it, but never checked this tab's copy.
+    const move = vi.fn(async () => [
+      { id: 'u-tres', order: 1, updatedAt: 't1' },
+      { id: 'u-docena', order: 2, updatedAt: 't1' },
+      { id: 'u-off', order: 3, updatedAt: 't9' },
+    ])
+    const { repository } = await renderEditor(fakeRepository({ move }))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Bajar Docena de empanadas a elección' })))
+    await act(async () => fireEvent.click(within(card('Promo apagada')).getByRole('checkbox', { name: /Visible en la carta/ })))
+    expect(repository.update).toHaveBeenCalledWith('u-off', { visible: true }, 't0')
+  })
+
   it('keeps the order on screen when the move conflicts and offers a reload', async () => {
     const move = vi.fn().mockRejectedValue(new AdminSaveError('conflict', 'stale'))
     await renderEditor(fakeRepository({ move }))

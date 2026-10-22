@@ -66,7 +66,8 @@ export interface AdminPromotionsRepository {
   update(id: string, changes: PromotionChanges, updatedAt: string): Promise<AdminPromotion>
   /**
    * Swaps a promotion with its neighbor, all or nothing, if both still carry the tokens read (`{ id: updatedAt }`).
-   * Returns every promotion's position and token as the database now holds them.
+   * Returns every promotion's position and token as the database now holds them; only the two swapped tokens were
+   * checked, so a caller must not adopt the others' tokens for content it read earlier.
    */
   move(id: string, neighborId: string, tokens: Record<string, string>): Promise<PromotionPosition[]>
 }

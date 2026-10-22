@@ -279,7 +279,12 @@ export function PromotionsEditor({
     reloadRef.current = reload
   }, [reload])
 
-  const applyPositions = (positions: PromotionPosition[]) => {
+  /**
+   * The move checked the tokens of the two promotions it swapped, so only those take their new tokens. Every other
+   * row takes only its position: its token stays the one this tab read, so a save from a stale card still conflicts
+   * instead of overwriting a change made elsewhere.
+   */
+  const applyPositions = (positions: PromotionPosition[], verified: string[]) => {
     const byId = new Map(positions.map((position) => [position.id, position]))
     setState((current) =>
       current.kind === 'ready'
@@ -288,7 +293,10 @@ export function PromotionsEditor({
             promotions: current.promotions
               .map((item) => {
                 const position = byId.get(item.id)
-                return position ? { ...item, order: position.order, updatedAt: position.updatedAt } : item
+                if (!position) return item
+                return verified.includes(item.id)
+                  ? { ...item, order: position.order, updatedAt: position.updatedAt }
+                  : { ...item, order: position.order }
               })
               .sort(byOrder),
           }
@@ -340,6 +348,7 @@ export function PromotionsEditor({
           [promotion.id]: promotion.updatedAt,
           [neighbor.id]: neighbor.updatedAt,
         }),
+        [promotion.id, neighbor.id],
       ),
     )
   }
