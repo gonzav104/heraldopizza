@@ -70,7 +70,7 @@ enabled = true
 # Specifies an ordered list of seed files to load during db reset.
 # Supports glob patterns relative to supabase directory: "./seeds/*.sql"
 # Initial catalog data lives in docs/ (the data authority) and loads only on the local stack, after the migrations.
-sql_paths = ["../docs/seed_catalogo.sql"]
+sql_paths = ["../docs/seed_catalogo.sql", "./seed_promociones.sql"]
 
 [db.network_restrictions]
 # Enable management of network restrictions.
