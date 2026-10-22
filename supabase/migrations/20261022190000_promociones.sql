@@ -51,9 +51,12 @@ create table public.promociones (
   vigente_hasta date,
   -- Null means every day.
   dias_semana smallint[] constraint promociones_dias_validos check (dias_semana is null or privado.dias_validos(dias_semana)),
-  -- A combo the customer fills in (the dozen to choose): units among the flavors of one category.
-  eleccion_categoria_id uuid references public.categorias (id) on delete restrict,
-  eleccion_unidades integer constraint promociones_unidades_positivas check (eleccion_unidades is null or eleccion_unidades between 1 and 99),
+  -- A combo the customer fills in. The menu has a single configurator, the dozen of empanadas to choose, so the
+  -- only flavor choice allowed is 12 units of the Empanadas category, by its stable id from the authorized catalog
+  -- (docs/seed_catalogo.sql), never by name. Any other configurator needs an explicit change of schema and frontend.
+  eleccion_categoria_id uuid references public.categorias (id) on delete restrict
+    constraint promociones_eleccion_empanadas check (eleccion_categoria_id is null or eleccion_categoria_id = 'e4f5b25a-de7f-5c2e-a05f-071bcc5aa6d4'),
+  eleccion_unidades integer constraint promociones_eleccion_docena check (eleccion_unidades is null or eleccion_unidades = 12),
   creado_en timestamptz not null default now(),
   actualizado_en timestamptz not null default now(),
   constraint promociones_codigo_unico unique (codigo),

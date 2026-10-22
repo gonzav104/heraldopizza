@@ -21,7 +21,8 @@ Objective: load the eight official promotions from the local Supabase stack into
 | T2 Separate idempotent seed + integrity tests | S1, S2, S4 | inline (high risk: item 1) | done | `f45dd4e`; Vitest RED (seed missing) → GREEN; idempotency run twice |
 | T3 Adapter, mapper, privacy notice and test | S5 | inline (high risk: item 3) | done | `073441b`; RED (no promotions request) → GREEN |
 | T4 Cart compatibility, unavailable message, E2E, docs | S6, S7 | inline | done | `47c5fb7`; message RED → GREEN; compat tests pass as regression |
-| T5 Codex P2: flavor choice fixed after creation | S3 | inline (high risk: item 2) | done | this commit; pgTAP RED (5 failing) → GREEN (197 on clean DB) |
+| T5 Codex P2: flavor choice fixed after creation | S3 | inline (high risk: item 2) | done | `583677d`; pgTAP RED (5 failing) → GREEN (197 on clean DB) |
+| T6 Codex P2: only 12 empanadas to choose | S2, S3 | inline (high risk: item 1) | done | this commit; pgTAP RED (6, 11, 13, Pizzas accepted) → GREEN |
 
 ## Log
 
@@ -34,3 +35,4 @@ Objective: load the eight official promotions from the local Supabase stack into
 - L7 T4: unavailable promotion line «Una promoción» / «Esta promoción ya no está disponible.». Compatibility tests for cases 1–8 from the real seed rows; E2E 6/6 (new promotions spec); Chromium 360/1280: 8 promotions, dozen, cart recovered after reload, switched-off promotion flagged and checkout blocked, no console errors.
 - L8 (2026-10-22) PR #29 published (head 47c5fb7), CI green. Codex P2 findings: (1) admin could UPDATE eleccion_categoria_id/eleccion_unidades; (2) an open tab keeps an expired promotion until reload.
 - L9 (2026-10-22) User: «Autorizo corregir el hallazgo 1 en la misma rama» — remove both columns from authenticated UPDATE, keep INSERT, fix the existing migration (not deployed). «El hallazgo 2 queda diferido explícitamente para la unidad de reconsulta del catálogo antes de habilitar WhatsApp real.» Recorded in docs/decisiones-pendientes.md.
+- L10 (2026-10-22) Codex P2 on 583677d: a configurable promotion could be created with other units or categories, but the only configurator is the dozen of empanadas. User: «El MVP solo admite una modalidad de promoción configurable: 12 empanadas a elección.» Fix: CHECK on the stable Empanadas uuid and on 12 units in the existing migration.

@@ -3,7 +3,7 @@
 -- change is rolled back.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(27);
 
 select has_table('public', 'promociones', 'promociones exists');
 select col_is_pk('public', 'promociones', 'id', 'id is the primary key');
@@ -63,30 +63,54 @@ select throws_ok(
   $$insert into public.promociones (codigo, titulo, precio, orden, dias_semana) values ('promo-prueba-dias-repetidos', 'X', 1000, 99, '{2,2}')$$,
   '23514', null, 'weekdays cannot repeat'
 );
+-- The only configurator the menu has is the dozen of empanadas to choose: 12 units among the flavors of the
+-- Empanadas category (its stable id from the authorized catalog, never looked up by name). Closed combos have neither.
+select lives_ok(
+  $$insert into public.promociones (codigo, titulo, precio, orden) values ('promo-prueba-cerrada', 'X', 1000, 99)$$,
+  'a closed combo has no flavor choice'
+);
+select lives_ok(
+  $$insert into public.promociones (codigo, titulo, precio, orden, eleccion_categoria_id, eleccion_unidades)
+    values ('promo-prueba-docena', 'X', 1000, 99, 'e4f5b25a-de7f-5c2e-a05f-071bcc5aa6d4', 12)$$,
+  'a combo with 12 empanadas to choose is accepted'
+);
 select throws_ok(
   $$insert into public.promociones (codigo, titulo, precio, orden, eleccion_unidades) values ('promo-prueba-eleccion', 'X', 1000, 99, 12)$$,
-  '23514', null, 'a flavor choice needs both its category and its units'
+  '23514', null, 'a flavor choice needs its category'
+);
+select throws_ok(
+  $$insert into public.promociones (codigo, titulo, precio, orden, eleccion_categoria_id) values ('promo-prueba-eleccion', 'X', 1000, 99, 'e4f5b25a-de7f-5c2e-a05f-071bcc5aa6d4')$$,
+  '23514', null, 'a flavor choice needs its units'
 );
 select throws_ok(
   $$insert into public.promociones (codigo, titulo, precio, orden, eleccion_categoria_id, eleccion_unidades)
-    select 'promo-prueba-unidades', 'X', 1000, 99, id, 0 from public.categorias where nombre = 'Empanadas'$$,
-  '23514', null, 'a flavor choice has a positive number of units'
+    values ('promo-prueba-seis', 'X', 1000, 99, 'e4f5b25a-de7f-5c2e-a05f-071bcc5aa6d4', 6)$$,
+  '23514', null, 'a flavor choice of 6 units is rejected'
 );
 select throws_ok(
   $$insert into public.promociones (codigo, titulo, precio, orden, eleccion_categoria_id, eleccion_unidades)
-    values ('promo-prueba-categoria', 'X', 1000, 99, '00000000-0000-4000-8000-0000000000ff', 12)$$,
-  '23503', null, 'a flavor choice points at an existing category'
+    values ('promo-prueba-once', 'X', 1000, 99, 'e4f5b25a-de7f-5c2e-a05f-071bcc5aa6d4', 11)$$,
+  '23514', null, 'a flavor choice of 11 units is rejected'
+);
+select throws_ok(
+  $$insert into public.promociones (codigo, titulo, precio, orden, eleccion_categoria_id, eleccion_unidades)
+    values ('promo-prueba-trece', 'X', 1000, 99, 'e4f5b25a-de7f-5c2e-a05f-071bcc5aa6d4', 13)$$,
+  '23514', null, 'a flavor choice of 13 units is rejected'
+);
+select throws_ok(
+  $$insert into public.promociones (codigo, titulo, precio, orden, eleccion_categoria_id, eleccion_unidades)
+    values ('promo-prueba-pizzas', 'X', 1000, 99, '9905ae9a-9374-55b3-b1ae-4435e5d036cf', 12)$$,
+  '23514', null, 'a flavor choice from another category (Pizzas) is rejected'
 );
 select throws_ok(
   $$update public.promociones set codigo = 'promo-prueba-otro' where codigo = 'promo-prueba-base'$$,
   'P0001', null, 'the code never changes, not even for the table owner'
 );
-insert into public.categorias (id, nombre, orden) values ('00000000-0000-4000-8000-00000000e001', 'Categoría sin productos', 96);
-insert into public.promociones (codigo, titulo, precio, orden, eleccion_categoria_id, eleccion_unidades)
-  values ('promo-prueba-gustos', 'X', 1000, 99, '00000000-0000-4000-8000-00000000e001', 6);
-select throws_ok(
-  $$delete from public.categorias where id = '00000000-0000-4000-8000-00000000e001'$$,
-  '23503', null, 'a category that a flavor choice uses cannot be deleted'
+select is(
+  (select confdeltype from pg_constraint
+    where conrelid = 'public.promociones'::regclass and contype = 'f' and confrelid = 'public.categorias'::regclass),
+  'r',
+  'the category of a flavor choice cannot be deleted while a promotion uses it'
 );
 
 select * from finish();

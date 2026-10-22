@@ -6,7 +6,7 @@
 -- Same scope as catalogo_rls: roles and JWT claims are set directly. Local stack only; every change is rolled back.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(32);
+select plan(33);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-0000000000a1', 'admin@example.test'),
@@ -19,8 +19,6 @@ create temporary table ar on commit drop as
          extract(dow from now() at time zone 'America/Argentina/Buenos_Aires')::smallint as dia;
 grant select on ar to anon, authenticated;
 
-insert into public.categorias (id, nombre, orden, visible) values
-  ('00000000-0000-4000-8000-00000000d001', 'Categoría de gustos oculta', 95, false);
 
 insert into public.promociones (codigo, titulo, precio, orden, visible, vigente_desde, vigente_hasta, dias_semana, eleccion_categoria_id, eleccion_unidades)
 select codigo, 'Prueba', 1000, 99, visible, desde, hasta, dias, categoria, unidades
@@ -33,7 +31,6 @@ from ar, lateral (values
   ('promo-prueba-futura', true, ar.hoy + 1, null, null, null, null),
   ('promo-prueba-dia-de-hoy', true, null, null, array[ar.dia], null, null),
   ('promo-prueba-otro-dia', true, null, null, array[((ar.dia + 1) % 7)::smallint], null, null),
-  ('promo-prueba-gustos-ocultos', true, null, null, null, '00000000-0000-4000-8000-00000000d001'::uuid, 12),
   ('promo-prueba-gustos-visibles', true, null, null, null, (select id from public.categorias where nombre = 'Empanadas'), 12)
 ) as f(codigo, visible, desde, hasta, dias, categoria, unidades);
 
@@ -45,6 +42,18 @@ select results_eq(
   array['promo-prueba-dia-de-hoy', 'promo-prueba-gustos-visibles', 'promo-prueba-hoy', 'promo-prueba-siempre', 'promo-prueba-vigente'],
   'anon reads only visible promotions within their dates and weekdays, with a visible flavor category'
 );
+reset role;
+-- The same combo disappears when its flavor category is hidden (its configurator would have nothing to offer).
+update public.categorias set visible = false where nombre = 'Empanadas';
+set local role anon;
+select is(
+  (select count(*)::int from public.promociones where codigo = 'promo-prueba-gustos-visibles'),
+  0,
+  'anon does not read a promotion whose flavor category is hidden'
+);
+reset role;
+update public.categorias set visible = true where nombre = 'Empanadas';
+set local role anon;
 select throws_ok($$insert into public.promociones (titulo, precio, orden) values ('Intrusa', 1, 1)$$, '42501', null, 'anon cannot add promotions');
 select throws_ok($$update public.promociones set precio = 1$$, '42501', null, 'anon cannot change prices');
 select throws_ok($$delete from public.promociones$$, '42501', null, 'anon cannot delete promotions');
@@ -80,7 +89,7 @@ set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000a1","role":"authenticated"}', true);
 select is(
   (select count(*)::int from public.promociones where codigo like 'promo-prueba-%'),
-  10,
+  9,
   'the administrator reads every promotion, active or not'
 );
 select lives_ok(
@@ -119,7 +128,7 @@ select throws_ok(
   '42501', null, 'the administrator cannot turn a closed combo into one with a flavor choice'
 );
 select throws_ok(
-  $$update public.promociones set eleccion_categoria_id = '00000000-0000-4000-8000-00000000d001'
+  $$update public.promociones set eleccion_categoria_id = (select id from public.categorias where nombre = 'Pizzas')
     where codigo = 'promo-docena-eleccion'$$,
   '42501', null, 'the administrator cannot change the flavor category of the dozen to choose'
 );
@@ -129,7 +138,7 @@ select throws_ok(
 );
 select lives_ok(
   $$insert into public.promociones (titulo, precio, orden, eleccion_categoria_id, eleccion_unidades)
-    values ('Promo con gustos', 2000, 51, (select id from public.categorias where nombre = 'Empanadas'), 6)$$,
+    values ('Promo con gustos', 2000, 51, (select id from public.categorias where nombre = 'Empanadas'), 12)$$,
   'the administrator still sets the flavor choice when creating a promotion'
 );
 reset role;
