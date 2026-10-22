@@ -7,7 +7,7 @@
 -- Local stack only; every change is rolled back.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(29);
+select plan(32);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-0000000000a1', 'admin@example.test'),
@@ -186,11 +186,28 @@ select is(
   array[1, 2, 3, 4, 5, 6, 7, 8, 9],
   'positions are 1..n again, with no repeats'
 );
-select is(
-  (select count(*)::int from public.promociones where codigo like 'promo-%' and eleccion_unidades is distinct from
-     (select a.eleccion_unidades from public.promociones a where a.id = promociones.id)),
-  0,
-  'moving changes only the position: composition untouched'
+-- Moving changes only positions. The expected composition is written out here, from the owner's data and the
+-- authorized catalog, never read from the rows under test: the dozen is 12 units of Empanadas, by its stable id, and
+-- every other promotion (the seven original closed combos and this test's own) has no flavor choice.
+select results_eq(
+  $$select eleccion_categoria_id, eleccion_unidades from public.promociones where codigo = 'promo-docena-eleccion'$$,
+  $$values ('e4f5b25a-de7f-5c2e-a05f-071bcc5aa6d4'::uuid, 12)$$,
+  'after the moves, the dozen to choose is still 12 empanadas of the Empanadas category'
+);
+select results_eq(
+  $$select codigo from public.promociones
+    where eleccion_categoria_id is null and eleccion_unidades is null order by codigo$$,
+  array['promo-aa-nueva', 'promo-docena-surtida', 'promo-especial-coca-6-jyq', 'promo-especial-muzzarella',
+        'promo-muzza-6-empanadas', 'promo-muzza-especial-6-jyq', 'promo-napolitana-especial', 'promo-tres-muzzarella'],
+  'and every closed combo still has no flavor choice'
+);
+select throws_ok(
+  $$update public.promociones set eleccion_unidades = 6 where codigo = 'promo-docena-eleccion'$$,
+  '23514', null, 'not even the table owner can make the dozen anything but 12 units'
+);
+select throws_ok(
+  $$update public.promociones set eleccion_categoria_id = '9905ae9a-9374-55b3-b1ae-4435e5d036cf' where codigo = 'promo-docena-eleccion'$$,
+  '23514', null, 'nor point it at another category (Pizzas)'
 );
 
 select * from finish();

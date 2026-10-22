@@ -221,6 +221,8 @@ export function PromotionsEditor({
   const [state, setState] = useState<LoadState>({ kind: 'loading' })
   // The order feedback reloads through the latest reload, which is declared below.
   const reloadRef = useRef<() => void>(() => undefined)
+  // The promotions on screen, for a refresh that must tell which ones are new.
+  const shownRef = useRef<AdminPromotion[]>([])
   const [attempt, setAttempt] = useState(0)
   const [creating, setCreating] = useState(false)
   const [created, setCreated] = useState<string | null>(null)
@@ -277,7 +279,8 @@ export function PromotionsEditor({
 
   useEffect(() => {
     reloadRef.current = reload
-  }, [reload])
+    shownRef.current = state.kind === 'ready' ? state.promotions : []
+  }, [reload, state])
 
   /**
    * The move checked the tokens of the two promotions it swapped, so only those take their new tokens. Every other
@@ -302,6 +305,26 @@ export function PromotionsEditor({
           }
         : current,
     )
+  }
+
+  /**
+   * Reads the list again only to find promotions this tab does not have (a create whose answer was lost). Rows it
+   * already shows keep their data and tokens: taking newer tokens for content read earlier would let a stale card
+   * overwrite a change made elsewhere. Resolves with how many promotions it added.
+   */
+  const refreshNew = async () => {
+    const loaded = await repository.load()
+    const known = new Set(shownRef.current.map((item) => item.id))
+    const fresh = loaded.filter((item) => !known.has(item.id))
+    setState((current) => {
+      if (current.kind !== 'ready') return current
+      const showing = new Set(current.promotions.map((item) => item.id))
+      return {
+        ...current,
+        promotions: [...current.promotions, ...fresh.filter((item) => !showing.has(item.id))].sort(byOrder),
+      }
+    })
+    return fresh.length
   }
 
   const add = (promotion: AdminPromotion) => {
@@ -414,7 +437,7 @@ export function PromotionsEditor({
         nextOrder={nextOrder}
         repository={repository}
         onCreated={add}
-        onReload={reload}
+        onRefresh={refreshNew}
         onWorkChange={reportNew}
       />
     </div>

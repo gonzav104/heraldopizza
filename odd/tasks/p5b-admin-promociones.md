@@ -20,10 +20,11 @@ Objective: let the owner manage promotions from `/admin` (list, create closed or
 | T2 P5b-2 Contract, Supabase adapter, validators, status | S2, S3 (status) | inline (item 3) | done | `a67db77`; RED (modules missing) → GREEN |
 | T3 P5b-3 List and edit UI | S3 | inline | done | `1ffd5d3`; RED (component missing) → GREEN |
 | T4 P5b-4 Create closed / dozen | S4 | inline | done | `2ca2c7c`; RED (5 failing) → GREEN |
-| T5 P5b-5 Reorder RPC migration + UI + E2E + docs | S5, S6 | inline (items 1, 2, 4) | done | this commit; pgTAP RED (function missing) → GREEN; UI/adapter RED → GREEN; E2E 8/8 |
+| T5 P5b-5 Reorder RPC migration + UI + E2E + docs | S5, S6 | inline (items 1, 2, 4) | done | `161dae8` + fix `7ccdd03`; pgTAP RED (function missing) → GREEN; UI/adapter RED → GREEN; E2E 8/8 |
 
 ## Log
 
 - L1 (2026-10-22) User's request: «Heraldo Pizza — Implementación de P5b: administración de promociones» (sections 1–10, quoted in S1–S7). Decision: option A for order.
 - L2 Implementation: shared admin utilities in `src/features/admin/shared`; promotions in `src/features/admin/promotions`; migration `20261023120000_mover_promocion.sql` (new, P5a untouched). pgTAP 232 (test 31 of catalogo_rls fails only with the extra local admin), Vitest 520+, E2E 8/8. Chromium 360/768/1280 with states simulated by intercepting the GET (no DB writes): no horizontal scroll, controls ≥ 44 px, hidden section takes no keyboard focus, no console errors. Fixed in the check: the catalog's desktop grid overlapped promotion cards. Impeccable detector: no findings.
 - L3 Independent verifier: blocker B1 — a move adopted the tokens of every returned row, so a stale card could overwrite a concurrent edit. Fix: adopt tokens only for the two verified rows, positions for the rest. RED test → GREEN.
+- L4 (2026-10-22) User: «Autorizo corregir los avisos 1 y 2 de Gentle AI en la misma rama» — uncertain create recovery («No pudimos confirmar si se creó la promoción. Actualizá la lista antes de volver a intentarlo.»), pgTAP composition test against independent expected values; aviso 3 documented and deferred. T6 done in the next commit: Vitest RED (4 failing) → GREEN; pgTAP mutations (dozen made closed; closed made dozen) both fail the new assertions.

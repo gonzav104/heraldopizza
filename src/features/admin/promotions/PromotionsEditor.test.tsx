@@ -276,21 +276,98 @@ describe('PromotionsEditor: create (P5b)', () => {
     expect(create).not.toHaveBeenCalled()
   })
 
-  it('keeps the draft when the database refuses it and lets the owner retry', async () => {
-    const create = vi
-      .fn()
-      .mockRejectedValueOnce(new AdminSaveError('unavailable', 'offline'))
-      .mockResolvedValueOnce(created({ title: 'Dos Muzza' }))
-    await renderEditor(fakeRepository({ create }))
-    const dialog = await openCreate()
-    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Título' }), { target: { value: 'Dos Muzza' } })
+  const UNCERTAIN = 'No pudimos confirmar si se creó la promoción. Actualizá la lista antes de volver a intentarlo.'
+
+  async function fillAndCreate(dialog: HTMLElement, title = 'Dos Muzza') {
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Título' }), { target: { value: title } })
     fireEvent.change(within(dialog).getByRole('textbox', { name: 'Precio' }), { target: { value: '30000' } })
     await act(async () => fireEvent.click(within(dialog).getByRole('button', { name: 'Crear promoción' })))
-    expect(within(dialog).getByRole('alert')).toHaveTextContent('No pudimos guardar.')
+  }
+
+  it('when the answer is lost after the insert, never repeats it: it asks to refresh the list and keeps the draft', async () => {
+    // The insert went through in the database, but the response never arrived.
+    const inserted = created({ title: 'Dos Muzza' })
+    const load = vi.fn().mockResolvedValueOnce(all).mockResolvedValueOnce([...all, inserted])
+    const create = vi.fn().mockRejectedValue(new AdminSaveError('unavailable', 'connection dropped'))
+    const { onWorkChange } = await renderEditor(fakeRepository({ load, create }))
+    const dialog = await openCreate()
+    await fillAndCreate(dialog)
+
+    expect(within(dialog).getByRole('alert')).toHaveTextContent(UNCERTAIN)
+    expect(within(dialog).queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Crear promoción' })).toBeDisabled()
     expect(within(dialog).getByRole('textbox', { name: 'Título' })).toHaveValue('Dos Muzza')
-    await act(async () => fireEvent.click(within(dialog).getByRole('button', { name: 'Reintentar' })))
+    expect(onWorkChange).toHaveBeenLastCalledWith({ dirty: true, saving: false })
+
+    await act(async () => fireEvent.click(within(dialog).getByRole('button', { name: 'Actualizar la lista' })))
+    expect(load).toHaveBeenCalledTimes(2)
+    expect(within(card('Dos Muzza')).getByText('promo-1a2b3c')).toBeInTheDocument()
+    expect(within(dialog).getByRole('status')).toHaveTextContent(
+      'La lista se actualizó: apareció 1 promoción nueva. Revisá si es la que intentabas crear antes de volver a intentarlo.',
+    )
+    // The draft is still there and nothing was sent again; creating again is the owner's explicit decision.
+    expect(within(dialog).getByRole('textbox', { name: 'Título' })).toHaveValue('Dos Muzza')
+    expect(within(dialog).getByRole('button', { name: 'Crear promoción' })).toBeEnabled()
+    expect(create).toHaveBeenCalledTimes(1)
+  })
+
+  it('says when the refreshed list shows nothing new, and lets the owner create it on purpose', async () => {
+    const create = vi
+      .fn()
+      .mockRejectedValueOnce(new AdminSaveError('unavailable', 'connection dropped'))
+      .mockResolvedValueOnce(created({ title: 'Dos Muzza' }))
+    const { repository } = await renderEditor(fakeRepository({ create }))
+    const dialog = await openCreate()
+    await fillAndCreate(dialog)
+    await act(async () => fireEvent.click(within(dialog).getByRole('button', { name: 'Actualizar la lista' })))
+    expect(within(dialog).getByRole('status')).toHaveTextContent(
+      'La lista se actualizó y no apareció ninguna promoción nueva. Podés volver a intentarlo.',
+    )
+    expect(repository.load).toHaveBeenCalledTimes(2)
+    await act(async () => fireEvent.click(within(dialog).getByRole('button', { name: 'Crear promoción' })))
     expect(create).toHaveBeenCalledTimes(2)
     expect(card('Dos Muzza')).toBeInTheDocument()
+  })
+
+  it('keeps asking to refresh when the list cannot be read either', async () => {
+    const load = vi.fn().mockResolvedValueOnce(all).mockRejectedValueOnce(new Error('offline'))
+    const create = vi.fn().mockRejectedValue(new AdminSaveError('unavailable', 'connection dropped'))
+    await renderEditor(fakeRepository({ load, create }))
+    const dialog = await openCreate()
+    await fillAndCreate(dialog)
+    await act(async () => fireEvent.click(within(dialog).getByRole('button', { name: 'Actualizar la lista' })))
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('No pudimos actualizar la lista. Probá de nuevo en un momento.')
+    expect(within(dialog).getByRole('button', { name: 'Crear promoción' })).toBeDisabled()
+    expect(create).toHaveBeenCalledTimes(1)
+  })
+
+  it('refreshing adds only promotions it did not have: existing cards keep their data and tokens', async () => {
+    const newer = all.map((item) => (item.id === 'u-tres' ? { ...item, price: 99000, updatedAt: 't9' } : item))
+    const load = vi.fn().mockResolvedValueOnce(all).mockResolvedValueOnce(newer)
+    const create = vi.fn().mockRejectedValue(new AdminSaveError('unavailable', 'connection dropped'))
+    const { repository } = await renderEditor(fakeRepository({ load, create }))
+    const dialog = await openCreate()
+    await fillAndCreate(dialog)
+    await act(async () => fireEvent.click(within(dialog).getByRole('button', { name: 'Actualizar la lista' })))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cerrar' }))
+    expect(within(card('Tres pizzas Muzzarella')).getByText('$ 42.000')).toBeInTheDocument()
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    await act(async () => fireEvent.click(within(card('Tres pizzas Muzzarella')).getByRole('checkbox', { name: /Visible en la carta/ })))
+    expect(repository.update).toHaveBeenCalledWith('u-tres', { visible: false }, 't0')
+  })
+
+  it.each([
+    ['validation', 'La base no aceptó el cambio. Revisá los datos.'],
+    ['forbidden', 'Tu cuenta no puede guardar cambios.'],
+  ] as const)('a definite refusal (%s) is shown as a failure, keeps the draft, and does not lock creating', async (reason, message) => {
+    const create = vi.fn().mockRejectedValue(new AdminSaveError(reason, 'refused'))
+    await renderEditor(fakeRepository({ create }))
+    const dialog = await openCreate()
+    await fillAndCreate(dialog)
+    expect(within(dialog).getByRole('alert')).toHaveTextContent(message)
+    expect(within(dialog).queryByRole('button', { name: 'Actualizar la lista' })).not.toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Crear promoción' })).toBeEnabled()
+    expect(within(dialog).getByRole('textbox', { name: 'Título' })).toHaveValue('Dos Muzza')
   })
 
   it('places the first promotion at position 1 when there are none', async () => {

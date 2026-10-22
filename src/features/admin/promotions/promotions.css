@@ -203,6 +203,19 @@
   gap: 0.1rem;
   font-size: 0.9375rem;
 }
+.admin-create-feedback {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--admin-muted);
+}
+.admin-create-problem {
+  color: #9a2d1f;
+}
+.admin-create-uncertain {
+  display: grid;
+  gap: 0.6rem;
+  justify-items: start;
+}
 .admin-create-note {
   font-size: 0.875rem;
   font-weight: 600;

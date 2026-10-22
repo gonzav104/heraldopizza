@@ -126,3 +126,34 @@ test('the order changes on the public menu, and a stale tab never overwrites a n
   await card(page, 'Tres pizzas Muzzarella').getByRole('button', { name: 'Bajar Tres pizzas Muzzarella' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Orden: Guardado' })).toBeVisible()
 })
+
+test('a create whose answer is lost is never sent twice: the owner refreshes the list and finds it', async ({ page }) => {
+  await openPromotions(page)
+  // The insert reaches the database, then the connection drops before the answer arrives.
+  let inserts = 0
+  await page.route('**/rest/v1/promociones*', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue()
+    inserts++
+    await route.fetch()
+    await route.abort('connectionreset')
+  })
+  await page.getByRole('button', { name: 'Nueva promoción' }).first().click()
+  const sheet = page.getByRole('dialog', { name: 'Nueva promoción' })
+  await sheet.getByRole('textbox', { name: 'Título' }).fill('Promo sin respuesta')
+  await sheet.getByRole('textbox', { name: 'Precio' }).fill('21.000')
+  await sheet.getByRole('button', { name: 'Crear promoción' }).click()
+
+  await expect(sheet.getByRole('alert')).toHaveText(
+    'No pudimos confirmar si se creó la promoción. Actualizá la lista antes de volver a intentarlo.',
+  )
+  await expect(sheet.getByRole('button', { name: 'Crear promoción' })).toBeDisabled()
+  await sheet.getByRole('button', { name: 'Actualizar la lista' }).click()
+  await expect(sheet.getByRole('status')).toHaveText(
+    'La lista se actualizó: apareció 1 promoción nueva. Revisá si es la que intentabas crear antes de volver a intentarlo.',
+  )
+  await expect(sheet.getByRole('textbox', { name: 'Título' })).toHaveValue('Promo sin respuesta')
+  await sheet.getByRole('button', { name: 'Descartar' }).click()
+  await sheet.getByRole('button', { name: 'Cerrar' }).click()
+  await expect(card(page, 'Promo sin respuesta').getByText('Desactivada', { exact: true })).toBeVisible()
+  expect(inserts).toBe(1)
+})
