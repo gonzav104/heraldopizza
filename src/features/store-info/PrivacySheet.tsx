@@ -17,7 +17,8 @@ function Topic({ title, children }: { title: string; children: ReactNode }) {
  * analytics, and the network are backed by `privacy-claims.test.ts`: the only request is the catalog GET to Supabase
  * (U3b), the only storage is the order saved by `order-storage.ts` (RF-17), and the test fails when the code starts
  * using anything else.
- * The text describes the finished WhatsApp flow (RF-20, built in U8); the prototype never opens WhatsApp.
+ * The text describes the WhatsApp flow (RF-20): the order is checked against a fresh catalog (P6a, the same catalog
+ * request) and «Continuar en WhatsApp» is a wa.me link (P6b), offered only when VITE_WHATSAPP_ENABLED is «true».
  * Not written here on purpose, because the business has not provided it: legal name, CUIT, registration of the
  * database, an e-mail address, and how long the store keeps its WhatsApp conversations.
  */
@@ -48,6 +49,10 @@ export function PrivacySheet({ open, onClose }: { open: boolean; onClose: () => 
             enviamos a esa base de datos el contenido de tu pedido ni los datos que ingreses para armarlo. El pedido permanece
             en tu dispositivo hasta que decidís enviarlo por WhatsApp.
           </p>
+          <p>
+            Antes de mostrarte el mensaje volvemos a consultar la carta para confirmar precios y disponibilidad; esa
+            consulta tampoco incluye tu pedido ni tus datos.
+          </p>
           <p>No utilizamos cookies ni herramientas de análisis.</p>
         </Topic>
 
@@ -68,8 +73,8 @@ export function PrivacySheet({ open, onClose }: { open: boolean; onClose: () => 
 
         <Topic title="Vos decidís si lo enviás">
           <p>
-            Armar el pedido no lo envía. Al final se abre WhatsApp con el mensaje listo y vos decidís si lo mandás. Hasta que
-            lo envíes desde WhatsApp, {storeInfo.name} no recibe nada.
+            Armar el pedido no lo envía. Al final, «Continuar en WhatsApp» abre WhatsApp con el mensaje escrito; abrirlo no
+            envía nada y vos decidís si lo mandás. Hasta que lo envíes desde WhatsApp, {storeInfo.name} no recibe nada.
           </p>
         </Topic>
 

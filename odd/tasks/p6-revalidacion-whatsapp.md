@@ -16,11 +16,12 @@ Objective: re-check the order against a fresh catalog before WhatsApp (P6a) and 
 
 | ID | Specs | Route | Status | Commit / evidence |
 |---|---|---|---|---|
-| T1 P6a-1 refreshCatalog + ratesOpen | S2 | inline (item 4) | pending | |
-| T2 P6a-2 pure order comparison | S3 | inline | pending | |
-| T3 P6a-3 revalidation state in the order sheet | S4, S6 | inline (item 4) | pending | |
-| T4 P6b-1 WhatsApp link behind a setting, privacy | S5, S6 | inline (item 2) | pending | |
+| T1 P6a-1 refreshCatalog + ratesOpen | S2 | inline (item 4) | done | `edc9020`; RED (hook missing, rates reappeared) → GREEN |
+| T2 P6a-2 pure order comparison | S3 | inline | done | `e9e6402`; RED (module missing) → GREEN |
+| T3 P6a-3 revalidation state in the order sheet | S4, S6 | inline (item 4) | done | `9cee9ec`; RED (10 failing) → GREEN |
+| T4 P6b-1 WhatsApp link behind a setting, privacy | S5, S6 | inline (item 2) | done | this commit; RED (modules missing) → GREEN; E2E 12/12 |
 
 ## Log
 
 - L1 (2026-10-22) User's request: «Heraldo Pizza — Autorizar P6a y preparación de P6b» (decisions A–D, units P6a-1..P6b-1, tests, limits), quoted in S1–S7.
+- L2 Implementation notes: refreshCatalog returns the applied catalog so the check reconciles against exactly what the menu shows; verification states in useOrderVerification; WhatsAppAction replaces DisabledSendButton. Chromium 360/1280 (price change, network failure, verified): no horizontal scroll, no console errors. .env files are not readable in this environment: .env.example was not edited.

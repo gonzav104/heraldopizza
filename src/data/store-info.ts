@@ -6,7 +6,7 @@ export const storeInfo = {
   address: 'Av. Mitre 1130',
   city: 'Campana',
   hours: 'Todos los días, de 11 a 14 y de 19 a 00 h',
-  /** Orders number in international format (RF-20). */
+  /** Orders number in international format (RF-20), confirmed by the owner as the official one (2026-10-22). */
   whatsappNumber: '5491170582325',
   whatsappDisplay: '11 7058-2325',
   instagram: 'heraldopizza',

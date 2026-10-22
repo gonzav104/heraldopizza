@@ -5,10 +5,11 @@ import { Sheet } from '@/components/ui/Sheet'
 import { useCheckoutStore, hasTypedText } from '@/features/checkout/checkout-store'
 import { CHECKOUT_FORM_ID, CheckoutForm } from '@/features/checkout/CheckoutForm'
 import { DeliveryRatesView } from '@/features/checkout/DeliveryRatesView'
-import { DisabledSendButton, MessagePreview } from '@/features/checkout/MessagePreview'
+import { MessagePreview, WhatsAppAction } from '@/features/checkout/MessagePreview'
 import { buildOrderMessage, computeTotals } from '@/features/checkout/prototype-order'
 import { snapshotOf } from '@/features/checkout/order-verification'
 import { useOrderVerification } from '@/features/checkout/useOrderVerification'
+import { isWhatsAppEnabled } from '@/features/checkout/whatsapp'
 import { VerificationPanel } from '@/features/checkout/VerificationPanel'
 import { formatArs } from '@/lib/money'
 import { CartLines, CheckoutBlockedNote, EmptyOrder, OrderIssues, ProductsSubtotal } from './CartLines'
@@ -111,7 +112,12 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
     ) : shownStep === 'details' ? (
       <PrimaryAction key="ver-mensaje" type="submit" form={CHECKOUT_FORM_ID} label="Ver mensaje" amount={formatArs(totals.total)} />
     ) : (
-      <DisabledSendButton />
+      <WhatsAppAction
+        enabled={isWhatsAppEnabled()}
+        message={buildOrderMessage(details, summary, totals)}
+        verifiedAt={verified && verification.status === 'verified' ? verification.at : null}
+        onStale={() => live && void check(live)}
+      />
     )
 
   return (
