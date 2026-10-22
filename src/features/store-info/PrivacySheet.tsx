@@ -15,7 +15,8 @@ function Topic({ title, children }: { title: string; children: ReactNode }) {
 /**
  * Privacy notice (S2): short, in plain words, and only what the app really does. The claims about cookies, storage,
  * analytics, and the network are backed by `privacy-claims.test.ts`: the only request is the catalog GET to Supabase
- * (U3b), and the test fails when the code starts using anything else.
+ * (U3b), the only storage is the order saved by `order-storage.ts` (RF-17), and the test fails when the code starts
+ * using anything else.
  * The text describes the finished WhatsApp flow (RF-20, built in U8); the prototype never opens WhatsApp.
  * Not written here on purpose, because the business has not provided it: legal name, CUIT, registration of the
  * database, an e-mail address, and how long the store keeps its WhatsApp conversations.
@@ -48,6 +49,21 @@ export function PrivacySheet({ open, onClose }: { open: boolean; onClose: () => 
             en tu dispositivo hasta que decidís enviarlo por WhatsApp.
           </p>
           <p>No utilizamos cookies ni herramientas de análisis.</p>
+        </Topic>
+
+        <Topic title="Qué queda guardado en tu dispositivo">
+          <p>
+            Para que no pierdas el pedido si recargás la página, este navegador guarda los productos que elegiste, sus
+            cantidades y las aclaraciones que escribiste en cada uno. Ese pedido guardado no se envía a ningún lado.
+          </p>
+          <p>
+            Tu nombre, tu dirección, la forma de pago y la nota general no quedan guardados: se borran al recargar o cerrar la
+            página. Los precios tampoco: siempre se toman de la carta vigente.
+          </p>
+          <p>
+            Las aclaraciones quedan guardadas tal como las escribiste, así que evitá poner en ellas datos personales. Para
+            borrar el pedido guardado, quitá los productos de tu pedido o borrá los datos de este sitio en tu navegador.
+          </p>
         </Topic>
 
         <Topic title="Vos decidís si lo enviás">

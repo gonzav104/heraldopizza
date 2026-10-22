@@ -16,6 +16,7 @@ describe('privacy notice (S2)', () => {
     expect(within(dialog).getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
       'Qué datos te pedimos',
       'Para qué los usamos',
+      'Qué queda guardado en tu dispositivo',
       'Vos decidís si lo enviás',
       'Si lo enviás',
       'Consultas sobre tus datos',
@@ -61,6 +62,16 @@ describe('privacy notice (S2)', () => {
         'permanece en tu dispositivo hasta que decidís enviarlo por WhatsApp.',
     )
     expect(text).toContain('No utilizamos cookies ni herramientas de análisis.')
+  })
+
+  it('says what the browser keeps for the order, what it does not, and how to delete it (RF-17)', () => {
+    const text = openPrivacy().textContent ?? ''
+
+    expect(text).toMatch(/este navegador guarda los productos que elegiste, sus cantidades y las aclaraciones/)
+    expect(text).toMatch(/Tu nombre, tu dirección, la forma de pago y la nota general no quedan guardados/)
+    expect(text).toMatch(/Los precios tampoco/)
+    expect(text).toMatch(/evitá poner en ellas datos personales/)
+    expect(text).toMatch(/Para borrar el pedido guardado, quitá los productos/)
   })
 
   it('claims only what the app really does: no promise that it reaches no server at all', () => {

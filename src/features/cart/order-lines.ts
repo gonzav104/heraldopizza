@@ -64,6 +64,36 @@ export function isValidNewLine(input: NewOrderLine): boolean {
   return input.kind !== 'half' || input.firstProductId !== input.secondProductId
 }
 
+const isId = (value: unknown): value is string => typeof value === 'string' && value !== ''
+
+/** One saved line, checked field by field; `null` when it is not a line the order could have created. */
+function restoreLine(value: unknown): NewOrderLine | null {
+  if (typeof value !== 'object' || value === null) return null
+  const item = value as Record<string, unknown>
+  if (typeof item.quantity !== 'number' || !Number.isSafeInteger(item.quantity) || typeof item.note !== 'string') return null
+  const common = { quantity: item.quantity, note: normalizeNote(item.note) }
+  let line: NewOrderLine | null = null
+  if (item.kind === 'product' && isId(item.productId) && isId(item.variantId)) {
+    line = { kind: 'product', productId: item.productId, variantId: item.variantId, ...common }
+  } else if (item.kind === 'half' && isId(item.firstProductId) && isId(item.secondProductId)) {
+    line = { kind: 'half', firstProductId: item.firstProductId, secondProductId: item.secondProductId, ...common }
+  } else if (item.kind === 'promotion' && isId(item.promotionId)) {
+    line = { kind: 'promotion', promotionId: item.promotionId, ...common }
+  }
+  return line && isValidNewLine(line) ? line : null
+}
+
+/**
+ * Lines read back from storage (RF-17). Saved data is untrusted: each line is rebuilt from its known fields, and the
+ * ones that do not pass are counted, so the customer can be told. `null` when the value is not a list at all.
+ * Whether the products still exist in the current catalog is not checked here.
+ */
+export function restoreLines(value: unknown): { lines: NewOrderLine[]; discarded: number } | null {
+  if (!Array.isArray(value)) return null
+  const lines = value.map(restoreLine).filter((line) => line !== null)
+  return { lines, discarded: value.length - lines.length }
+}
+
 export function addLine(lines: OrderLine[], input: NewOrderLine, createId: () => string): OrderLine[] {
   if (!isValidNewLine(input)) return lines
   const existing = lines.find((line) => isSameItem(line, input))
