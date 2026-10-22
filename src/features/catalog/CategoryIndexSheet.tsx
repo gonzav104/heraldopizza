@@ -39,13 +39,17 @@ export function CategoryIndexSheet({ open, items, activeId, onPick, onClose, onA
                 type="button"
                 onClick={() => onPick(item.id)}
                 aria-current={active ? 'true' : undefined}
-                className={`flex min-h-18 w-full items-center gap-3 rounded-xl p-2.5 text-left ring-1 transition-colors ${
+                // Stamp on top, name below at the tile's full width: side by side, a narrow tile left «Hamburguesas» or
+                // «Milanesas y sándwiches» running past its edge.
+                className={`flex h-full w-full flex-col items-start gap-2.5 rounded-xl p-3 text-left ring-1 transition-colors ${
                   active ? 'bg-chapa ring-2 ring-heraldo' : 'bg-chapa ring-chapa-edge hover:ring-crema-muted/60'
                 }`}
               >
                 <CategoryStamp name={item.label} />
-                <span className="min-w-0">
-                  <span className="block text-[0.9375rem] leading-tight font-bold [font-stretch:104%]">{item.label}</span>
+                <span className="w-full min-w-0">
+                  <span className="block text-[0.9375rem] leading-tight font-bold text-balance wrap-break-word [font-stretch:104%]">
+                    {item.label}
+                  </span>
                   <span className="mt-0.5 block text-[0.8125rem] text-crema-muted">
                     {item.count} {item.count === 1 ? 'opción' : 'opciones'}
                   </span>
