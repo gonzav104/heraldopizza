@@ -47,7 +47,7 @@ describe('cart with lines the catalog cannot price (P2)', () => {
 
     expect(within(review).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
       expect.stringMatching(/^Un producto que ya no está en la carta.*Ya no está en la carta\..*Aclaración: sin sal/),
-      expect.stringMatching(/^Una promo que ya no está en la carta.*Ya no está en la carta\./),
+      expect.stringMatching(/^Una promoción.*Esta promoción ya no está disponible\./),
       expect.stringMatching(/^Café cortado.*Se consulta en barra: no se puede pedir por acá\./),
     ])
     expect(within(sheet).queryByText(/Tu pedido está vacío/)).not.toBeInTheDocument()

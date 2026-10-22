@@ -26,6 +26,24 @@ Orden de trabajo actualizado:
 
 La evidencia de «sin llamadas de red» de D11 describe el prototipo histórico; el catálogo público actual consulta Supabase. La numeración antigua de unidades no define este orden vigente. No se accede a Supabase remoto durante U1.
 
+## Decisiones de P5a — promociones reales en Supabase (2026-10-22)
+
+- **Identidad:** `promociones.id` es un UUID interno; `codigo` es el identificador comercial, único e inmutable, y la app lo usa como `Promotion.id`. Los ocho códigos originales se conservan exactamente (los carritos guardados los tienen). Las promociones nuevas reciben un código `promo-…` generado por la base, que el administrador no puede elegir ni cambiar.
+- **Vigencia:** se evalúa en PostgreSQL con `America/Argentina/Buenos_Aires`. Sin fechas = sin límite de fecha; sin días = todos los días. Las desactivadas o vencidas no se muestran al público; tampoco una promoción cuya categoría de gustos esté oculta. El administrador lee todas.
+- **Sin borrado físico:** ningún rol puede borrar promociones; se desactivan.
+- **Composición fija (PR #29, hallazgo de Codex):** la configuración de gustos (`eleccion_categoria_id`, `eleccion_unidades`) solo se define al crear la promoción. Después, el administrador cambia título, descripción, precio, visibilidad, orden y vigencia, pero no puede convertir un combo cerrado en configurable ni cambiar la categoría o las 12 unidades de la docena a elección.
+- **Un solo configurador (PR #29, segundo hallazgo de Codex, decisión del responsable):** el MVP admite una única promoción configurable, **12 empanadas a elección**. La base solo acepta la elección de gustos con 12 unidades de la categoría Empanadas (su UUID estable del catálogo autorizado, `e4f5b25a-de7f-5c2e-a05f-071bcc5aa6d4`, nunca por nombre); las promociones cerradas no tienen elección. Otros configuradores requieren una evolución explícita del esquema y del frontend.
+- **Deuda técnica diferida (PR #29, hallazgo 2 de Codex):** la carta se carga una vez; si la pestaña queda abierta cuando una promoción vence, se desactiva o cambia de precio, el cliente la sigue viendo hasta recargar. No se resuelve en P5a (sin polling, temporizadores ni recargas automáticas). Lo resuelve la unidad previa a WhatsApp real, reutilizando la reconciliación de P2 y el repositorio actual, que debe:
+  - actualizar productos y promociones antes de continuar a WhatsApp;
+  - detectar cambios de precio y disponibilidad;
+  - detectar promociones vencidas, desactivadas o desaparecidas;
+  - bloquear la continuación si el pedido deja de ser válido;
+  - manejar las fallas de red sin usar en silencio datos desactualizados;
+  - revisar el caso pendiente de `ratesOpen` al cambiar la disponibilidad del carrito.
+- **Datos:** las ocho promociones del dueño, textuales, en `supabase/seed_promociones.sql` (separado, idempotente: nunca pisa cambios del administrador). Sin imágenes ni Storage en P5a; sin asociación avanzada RF-44.
+- **Carrito:** el formato v1 no cambia. Una promoción que deja de estar disponible queda en el carrito con «Esta promoción ya no está disponible.» y bloquea el checkout hasta quitarla.
+- **Producción:** la migración y el seed solo se aplican con un procedimiento explícito y autorización.
+
 ## Decisiones de P3 — reglas de entrega y pago (2026-10-22)
 
 Reemplazan las reglas anteriores de recargo por pizza, zonas y lluvia (incluida una primera versión de P3 del mismo día):

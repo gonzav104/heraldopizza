@@ -156,7 +156,9 @@ export function reconcileLine(line: OrderLine, index: CatalogIndex): ResolvedLin
     }
     case 'promotion': {
       const promotion = index.promotions.get(line.promotionId)
-      if (!promotion) return issue(line, 'missing', 'Una promo que ya no está en la carta', null, GONE)
+      // Switched off, out of its dates or days, or gone: the public menu cannot tell them apart (row level security
+      // hides all three), and for the customer they mean the same thing (P5a).
+      if (!promotion) return issue(line, 'missing', 'Una promoción', null, 'Esta promoción ya no está disponible.')
       if (promotion.price <= 0) return issue(line, 'unavailable', promotion.title, 'Promo', 'No tiene precio publicado.')
       const flavors = reconcileFlavors(line, promotion, index)
       if ('reason' in flavors) return flavors

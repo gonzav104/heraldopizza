@@ -44,7 +44,7 @@ export function PrivacySheet({ open, onClose }: { open: boolean; onClose: () => 
         <Topic title="Para qué los usamos">
           <p>Solo para armar el mensaje de WhatsApp con tu pedido.</p>
           <p>
-            La carta y sus precios se descargan desde nuestra base de datos alojada en Supabase. Al consultar la carta no
+            La carta, las promociones y sus precios se descargan desde nuestra base de datos alojada en Supabase. Al consultar la carta no
             enviamos a esa base de datos el contenido de tu pedido ni los datos que ingreses para armarlo. El pedido permanece
             en tu dispositivo hasta que decidís enviarlo por WhatsApp.
           </p>

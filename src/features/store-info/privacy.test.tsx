@@ -57,7 +57,7 @@ describe('privacy notice (S2)', () => {
     const text = openPrivacy().textContent ?? ''
 
     expect(text).toContain(
-      'La carta y sus precios se descargan desde nuestra base de datos alojada en Supabase. Al consultar la carta no ' +
+      'La carta, las promociones y sus precios se descargan desde nuestra base de datos alojada en Supabase. Al consultar la carta no ' +
         'enviamos a esa base de datos el contenido de tu pedido ni los datos que ingreses para armarlo. El pedido ' +
         'permanece en tu dispositivo hasta que decidís enviarlo por WhatsApp.',
     )

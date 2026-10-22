@@ -49,7 +49,7 @@ describe('privacy claims match the code', () => {
     })
   }
 
-  it('lets the catalog adapter make exactly one request: a GET without cookies or a body', () => {
+  it('lets the catalog adapter make its requests from one place: a GET without cookies or a body', () => {
     const code = sources[CATALOG_ADAPTER]
 
     expect(code.match(/\bfetch\s*\(/g)).toHaveLength(1)
@@ -57,6 +57,13 @@ describe('privacy claims match the code', () => {
     expect(code).toMatch(/credentials:\s*'omit'/)
     expect(code).not.toMatch(/\bbody\s*:/)
     expect(code).not.toMatch(/\b(XMLHttpRequest|sendBeacon|WebSocket|EventSource)\b/)
+  })
+
+  it('reads only the public catalog tables: categorias and promociones (P5a)', () => {
+    const code = sources[CATALOG_ADAPTER]
+    const paths = [...code.matchAll(/'(rest\/v1\/[a-z_]+)'/g)].map((match) => match[1]).sort()
+
+    expect(paths).toEqual(['rest/v1/categorias', 'rest/v1/promociones'])
   })
 
   it('lets the order storage use localStorage only, under its own key', () => {

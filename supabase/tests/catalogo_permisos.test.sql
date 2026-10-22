@@ -5,7 +5,7 @@
 -- writes. Runs on the local stack only (supabase test db); every change is rolled back.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(15);
+select plan(16);
 
 select results_eq(
   $$select fila from (
@@ -22,6 +22,10 @@ select results_eq(
     'productos | productos: cambios del administrador',
     'productos | productos: lectura del administrador',
     'productos | productos: lectura pública de los visibles',
+    'promociones | promociones: alta del administrador',
+    'promociones | promociones: cambios del administrador',
+    'promociones | promociones: lectura del administrador',
+    'promociones | promociones: lectura pública de las vigentes',
     'variantes | variantes: alta del administrador',
     'variantes | variantes: baja del administrador',
     'variantes | variantes: cambios del administrador',
@@ -39,15 +43,38 @@ select results_eq(
       where table_schema = 'public' and grantee in ('anon', 'authenticated')
     ) t order by fila collate "C"$$,
   array[
-    'anon categorias SELECT', 'anon productos SELECT', 'anon variantes SELECT',
+    'anon categorias SELECT', 'anon productos SELECT', 'anon promociones SELECT', 'anon variantes SELECT',
     'authenticated categorias DELETE', 'authenticated categorias INSERT',
     'authenticated categorias SELECT', 'authenticated categorias UPDATE',
     'authenticated productos DELETE', 'authenticated productos INSERT',
     'authenticated productos SELECT', 'authenticated productos UPDATE',
+    'authenticated promociones SELECT',
     'authenticated variantes DELETE', 'authenticated variantes INSERT',
     'authenticated variantes SELECT', 'authenticated variantes UPDATE'
   ],
   'the API roles hold exactly the planned table privileges (none on administradores)'
+);
+
+-- Promotions are written through column privileges only: never codigo, id, or the timestamps; never deleted.
+select results_eq(
+  $$select fila from (
+      select (grantee::text collate "default") || ' ' || (privilege_type::text collate "default") || ' '
+        || (column_name::text collate "default") as fila
+      from information_schema.role_column_grants
+      where table_schema = 'public' and table_name = 'promociones' and grantee in ('anon', 'authenticated')
+        and privilege_type in ('INSERT', 'UPDATE')
+    ) t order by fila collate "C"$$,
+  array[
+    'authenticated INSERT descripcion', 'authenticated INSERT dias_semana', 'authenticated INSERT eleccion_categoria_id',
+    'authenticated INSERT eleccion_unidades', 'authenticated INSERT orden', 'authenticated INSERT precio',
+    'authenticated INSERT titulo', 'authenticated INSERT vigente_desde', 'authenticated INSERT vigente_hasta',
+    'authenticated INSERT visible',
+    'authenticated UPDATE descripcion', 'authenticated UPDATE dias_semana', 'authenticated UPDATE orden',
+    'authenticated UPDATE precio',
+    'authenticated UPDATE titulo', 'authenticated UPDATE vigente_desde', 'authenticated UPDATE vigente_hasta',
+    'authenticated UPDATE visible'
+  ],
+  'promotions: authenticated writes only the planned columns, never codigo, id, or the timestamps; the flavor choice only on insert'
 );
 
 select is(

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CatalogDataError } from '@/data/catalog-mapper'
 import {
   CATALOG_SELECT,
+  PROMOTIONS_SELECT,
   CatalogConfigError,
   CatalogLoadError,
   SupabaseCatalogRepository,
@@ -30,16 +31,37 @@ const rows = [
   },
 ]
 
-function stubFetch(response: Response | Error) {
-  const fetchMock = vi.fn(() => (response instanceof Error ? Promise.reject(response) : Promise.resolve(response)))
+const promotionRows = [
+  {
+    codigo: 'promo-docena-eleccion',
+    titulo: 'Docena de empanadas a elección',
+    descripcion: null,
+    precio: 36000,
+    orden: 5,
+    vigente_desde: null,
+    vigente_hasta: null,
+    dias_semana: null,
+    eleccion_categoria_id: 'cat-empanadas',
+    eleccion_unidades: 12,
+  },
+]
+
+/** Answers each request by its table: `categorias` (the menu) and `promociones`. */
+function stubFetch(categories: Response | Error, promotions: Response | Error = Response.json([])) {
+  const answer = (response: Response | Error) =>
+    response instanceof Error ? Promise.reject(response) : Promise.resolve(response.clone())
+  const fetchMock = vi.fn((input: URL | string) => answer(String(input).includes('/rest/v1/promociones') ? promotions : categories))
   vi.stubGlobal('fetch', fetchMock)
   return fetchMock
 }
 
-function lastRequest(fetchMock: ReturnType<typeof stubFetch>) {
-  const [input, init] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit]
+function request(fetchMock: ReturnType<typeof stubFetch>, table: 'categorias' | 'promociones') {
+  const call = fetchMock.mock.calls.find(([input]) => String(input).includes(`/rest/v1/${table}`))
+  if (!call) throw new Error(`no request to ${table}`)
+  const [input, init] = call as unknown as [URL, RequestInit]
   return { url: new URL(String(input)), init }
 }
+const lastRequest = (fetchMock: ReturnType<typeof stubFetch>) => request(fetchMock, 'categorias')
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -51,7 +73,7 @@ describe('SupabaseCatalogRepository', () => {
 
     const catalog = await new SupabaseCatalogRepository(config).load()
 
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
     const { url } = lastRequest(fetchMock)
     expect(url.origin + url.pathname).toBe('https://example.supabase.test/rest/v1/categorias')
     expect(url.searchParams.get('select')).toBe(CATALOG_SELECT)
@@ -62,6 +84,68 @@ describe('SupabaseCatalogRepository', () => {
     expect(catalog.categories.map((category) => category.name)).toEqual(['Pizzas'])
     expect(catalog.products[0].variants).toEqual([{ id: 'v-muzza', name: 'Entera', price: 16000 }])
     expect(catalog.promotions).toEqual([])
+  })
+
+  it('reads the promotions with a second GET in parallel, naming every column, and keeps their commercial code (P5a)', async () => {
+    const fetchMock = stubFetch(Response.json(rows), Response.json(promotionRows))
+
+    const catalog = await new SupabaseCatalogRepository(config).load()
+
+    const { url, init } = request(fetchMock, 'promociones')
+    expect(url.origin + url.pathname).toBe('https://example.supabase.test/rest/v1/promociones')
+    expect(url.searchParams.get('select')).toBe(PROMOTIONS_SELECT)
+    expect(url.searchParams.get('select')).not.toContain('*')
+    expect(url.searchParams.get('order')).toBe('orden.asc,codigo.asc')
+    expect(init).toMatchObject({ method: 'GET', credentials: 'omit' })
+    expect(init.body).toBeUndefined()
+    expect(catalog.promotions).toEqual([
+      {
+        id: 'promo-docena-eleccion',
+        title: 'Docena de empanadas a elección',
+        description: null,
+        price: 36000,
+        imageUrl: null,
+        activeFrom: null,
+        activeTo: null,
+        weekdays: [],
+        flavorChoice: { categoryId: 'cat-empanadas', units: 12 },
+      },
+    ])
+  })
+
+  it('starts both requests before either answers, with one signal for both', async () => {
+    let release: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const fetchMock = vi.fn(async (input: URL | string) => {
+      await gate
+      return Response.json(String(input).includes('promociones') ? [] : rows)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const outer = new AbortController()
+
+    const loading = new SupabaseCatalogRepository(config).load(outer.signal)
+    await Promise.resolve()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    const signals = fetchMock.mock.calls.map((call) => (call as unknown as [URL, RequestInit])[1].signal)
+    expect(signals[0]).toBe(signals[1])
+
+    outer.abort()
+    expect(signals[0]?.aborted).toBe(true)
+    release()
+    await loading.catch(() => undefined)
+  })
+
+  it('fails with a load error when the promotions cannot be read, and stops the other request', async () => {
+    const fetchMock = stubFetch(Response.json(rows), new Response('{}', { status: 500 }))
+
+    await expect(new SupabaseCatalogRepository(config).load()).rejects.toBeInstanceOf(CatalogLoadError)
+    expect(request(fetchMock, 'categorias').init.signal?.aborted).toBe(true)
+  })
+
+  it('fails with a data error when a promotion breaks the contract', async () => {
+    stubFetch(Response.json(rows), Response.json([{ ...promotionRows[0], precio: 0 }]))
+
+    await expect(new SupabaseCatalogRepository(config).load()).rejects.toBeInstanceOf(CatalogDataError)
   })
 
   it('sends only the publishable key, as a GET without cookies', async () => {

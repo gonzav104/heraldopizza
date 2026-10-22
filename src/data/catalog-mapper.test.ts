@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CatalogDataError, mapCatalogRows } from '@/data/catalog-mapper'
+import { CatalogDataError, mapCatalogRows, mapPromotionRows } from '@/data/catalog-mapper'
 
 const row = {
   id: 'cat-pizzas',
@@ -134,5 +134,71 @@ describe('mapCatalogRows', () => {
     ['a missing name', [{ ...row, nombre: undefined }]],
   ])('rejects %s', (_label, body) => {
     expect(() => mapCatalogRows(body)).toThrow(CatalogDataError)
+  })
+})
+
+describe('mapPromotionRows (P5a)', () => {
+  const promo = {
+    codigo: 'promo-muzza-6-empanadas',
+    titulo: 'Muzza + 6 empanadas surtidas',
+    descripcion: 'No son a elección.',
+    precio: 32000,
+    orden: 1,
+    vigente_desde: null,
+    vigente_hasta: null,
+    dias_semana: null,
+    eleccion_categoria_id: null,
+    eleccion_unidades: null,
+  }
+
+  it('maps a row to a promotion whose id is the commercial code, with no image and no flavor choice', () => {
+    expect(mapPromotionRows([promo])).toEqual([
+      {
+        id: 'promo-muzza-6-empanadas',
+        title: 'Muzza + 6 empanadas surtidas',
+        description: 'No son a elección.',
+        price: 32000,
+        imageUrl: null,
+        activeFrom: null,
+        activeTo: null,
+        weekdays: [],
+        // Absent, not undefined: a closed combo.
+      },
+    ])
+    expect(mapPromotionRows([promo])[0]).not.toHaveProperty('flavorChoice')
+  })
+
+  it('keeps validity dates and weekdays as given, and the flavor choice of the dozen', () => {
+    const [mapped] = mapPromotionRows([
+      { ...promo, vigente_desde: '2026-11-01', vigente_hasta: '2026-11-30', dias_semana: [5, 6, 0], eleccion_categoria_id: 'cat-emp', eleccion_unidades: 12 },
+    ])
+    expect(mapped).toMatchObject({ activeFrom: '2026-11-01', activeTo: '2026-11-30', weekdays: [5, 6, 0], flavorChoice: { categoryId: 'cat-emp', units: 12 } })
+  })
+
+  it('sorts by the menu order, then by code', () => {
+    const rows = [
+      { ...promo, codigo: 'promo-b', orden: 2 },
+      { ...promo, codigo: 'promo-c', orden: 1 },
+      { ...promo, codigo: 'promo-a', orden: 2 },
+    ]
+    expect(mapPromotionRows(rows).map((item) => item.id)).toEqual(['promo-c', 'promo-a', 'promo-b'])
+  })
+
+  it.each([
+    ['a list that is not a list', { codigo: 'promo-x' }],
+    ['a code with another shape', [{ ...promo, codigo: 'Promo X' }]],
+    ['a repeated code', [promo, { ...promo }]],
+    ['a blank title', [{ ...promo, titulo: '  ' }]],
+    ['a missing price', [{ ...promo, precio: null }]],
+    ['a zero price', [{ ...promo, precio: 0 }]],
+    ['a fractional price', [{ ...promo, precio: 1000.5 }]],
+    ['a date that is not a date', [{ ...promo, vigente_desde: '01/11/2026' }]],
+    ['a weekday out of range', [{ ...promo, dias_semana: [7] }]],
+    ['an empty weekday list', [{ ...promo, dias_semana: [] }]],
+    ['a repeated weekday', [{ ...promo, dias_semana: [1, 1] }]],
+    ['a flavor choice with only its category', [{ ...promo, eleccion_categoria_id: 'cat-emp' }]],
+    ['a flavor choice with zero units', [{ ...promo, eleccion_categoria_id: 'cat-emp', eleccion_unidades: 0 }]],
+  ])('rejects %s instead of guessing', (_, rows) => {
+    expect(() => mapPromotionRows(rows)).toThrow(CatalogDataError)
   })
 })
