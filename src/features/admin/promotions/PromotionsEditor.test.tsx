@@ -311,6 +311,22 @@ describe('PromotionsEditor: create (P5b)', () => {
     expect(create).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps creating locked after «Descartar» until the list is refreshed, and never submits while locked', async () => {
+    const create = vi.fn().mockRejectedValue(new AdminSaveError('unavailable', 'connection dropped'))
+    await renderEditor(fakeRepository({ create }))
+    const dialog = await openCreate()
+    await fillAndCreate(dialog)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Descartar' }))
+    expect(within(dialog).getByRole('textbox', { name: 'Título' })).toHaveValue('')
+    expect(within(dialog).getByRole('alert')).toHaveTextContent(UNCERTAIN)
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Título' }), { target: { value: 'Dos Muzza' } })
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Precio' }), { target: { value: '30000' } })
+    expect(within(dialog).getByRole('button', { name: 'Crear promoción' })).toBeDisabled()
+    // Not even a submit that skips the disabled button (Enter in a field, a script) sends it.
+    await act(async () => fireEvent.submit(within(dialog).getByRole('textbox', { name: 'Título' }).closest('form')!))
+    expect(create).toHaveBeenCalledTimes(1)
+  })
+
   it('says when the refreshed list shows nothing new, and lets the owner create it on purpose', async () => {
     const create = vi
       .fn()

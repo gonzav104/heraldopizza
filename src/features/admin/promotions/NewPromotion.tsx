@@ -76,11 +76,12 @@ export function NewPromotion({
   const dirty = kind !== 'closed' || JSON.stringify(form) !== JSON.stringify(emptyPromotionForm)
   useEffect(() => onWorkChange({ dirty, saving: busy }), [dirty, busy, onWorkChange])
 
+  /** Clears the form. An unconfirmed create stays unconfirmed: only a refreshed list unlocks creating again. */
   const reset = () => {
     setKind('closed')
     setForm(emptyPromotionForm)
     setErrors({})
-    setOutcome({ kind: 'idle' })
+    setOutcome((current) => (current.kind === 'uncertain' ? current : { kind: 'idle' }))
   }
 
   const refresh = async () => {
@@ -94,6 +95,8 @@ export function NewPromotion({
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
+    // The disabled button already prevents this; a submit by other means must not send a second insert either.
+    if (busy || locked) return
     const result = validatePromotionForm(form)
     if (!result.ok) {
       setErrors(result.errors)
@@ -105,6 +108,7 @@ export function NewPromotion({
       (created) => {
         onCreated(created)
         reset()
+        setOutcome({ kind: 'idle' })
         onClose()
       },
       (error: unknown) => {
