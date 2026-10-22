@@ -1,8 +1,8 @@
-import { Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { CircleAlert, Trash2 } from 'lucide-react'
+import { useId, useState } from 'react'
 import { formatArs } from '@/lib/money'
 import { Stepper } from '@/components/ui/Stepper'
-import type { OrderSummary, ResolvedLine } from './line-pricing'
+import type { LineIssue, OrderSummary, ResolvedLine } from './line-pricing'
 import { NOTE_MAX_LENGTH } from './order-lines'
 import { useOrderStore } from './order-store'
 
@@ -133,6 +133,55 @@ export function CartLines({ summary }: { summary: OrderSummary }) {
       ))}
     </ul>
   )
+}
+
+/**
+ * Lines the current catalog cannot price (P2): named as far as the catalog still allows, with the reason, no price, and
+ * only «Quitar». They stay in the order, and return to the priced lines on their own if the catalog has them back.
+ */
+export function OrderIssues({ issues }: { issues: LineIssue[] }) {
+  const remove = useOrderStore((state) => state.remove)
+  const headingId = useId()
+  if (issues.length === 0) return null
+
+  return (
+    <section aria-labelledby={headingId} className="mt-4 rounded-2xl bg-chapa px-4 pt-3.5 pb-1 ring-1 ring-mostaza/70">
+      <h3 id={headingId} className="flex items-center gap-2 font-bold text-mostaza">
+        <CircleAlert aria-hidden="true" className="size-5 shrink-0" strokeWidth={2.5} />
+        Revisá estos productos
+      </h3>
+      <p className="mt-1 text-[0.875rem] leading-snug text-crema-muted">No se pueden pedir así. Quitalos para continuar.</p>
+      <ul>
+        {issues.map(({ line, title, detail, reason }) => (
+          <li key={line.id} className="flex items-start justify-between gap-3 border-b border-chapa-edge py-3 last:border-b-0">
+            <div className="min-w-0">
+              <p className="leading-tight font-bold [font-stretch:104%]">{title}</p>
+              {detail ? <p className="text-[0.875rem] text-crema-muted">{detail}</p> : null}
+              <p className="mt-1 text-[0.875rem] leading-snug font-semibold text-mostaza">{reason}</p>
+              {line.note ? (
+                <p className="mt-1 text-[0.875rem] leading-snug">
+                  <span className="text-crema-muted">Aclaración:</span> {line.note}
+                </p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={() => remove(line.id)}
+              aria-label={`Quitar ${title} del pedido`}
+              className="grid size-11 shrink-0 place-items-center rounded-xl text-crema-muted transition-colors hover:bg-chapa-edge hover:text-crema"
+            >
+              <Trash2 aria-hidden="true" className="size-5" />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+/** Shown above the disabled «Continuar» while there are lines to review. */
+export function CheckoutBlockedNote() {
+  return <p className="text-center text-[0.875rem] font-semibold text-mostaza">Quitá los productos marcados para continuar.</p>
 }
 
 export function EmptyOrder() {

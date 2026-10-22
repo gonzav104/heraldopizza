@@ -3,13 +3,16 @@ import { hasOrderablePrice } from '@/domain/catalog'
 import { halfPrice, isWholeHalf, madeToOrderDetail, visibleVariantName } from '@/features/catalog/presentation'
 import type { OrderLine } from './order-lines'
 
-// Resolves order lines against the current catalog. Prices are looked up here, never stored in the order,
-// so a stale price cannot survive in the saved order (RF-17).
+// Reconciles order lines with the catalog already loaded (P2). Prices are looked up here, never stored in the order,
+// so a stale price cannot survive in the saved order (RF-17). A line the current catalog cannot price is never dropped
+// or counted as $ 0: it becomes an issue the customer reviews, and it is priced again once the catalog has it back.
 
 export interface CatalogIndex {
   products: Map<string, Product>
   categories: Map<string, Category>
   promotions: Map<string, Promotion>
+  /** Product id of every variant, to tell a variant that moved to another product from one that is gone. */
+  variantProducts: Map<string, string>
 }
 
 export function indexCatalog(categories: Category[], products: Product[], promotions: Promotion[]): CatalogIndex {
@@ -17,6 +20,7 @@ export function indexCatalog(categories: Category[], products: Product[], promot
     products: new Map(products.map((product) => [product.id, product])),
     categories: new Map(categories.map((category) => [category.id, category])),
     promotions: new Map(promotions.map((promotion) => [promotion.id, promotion])),
+    variantProducts: new Map(products.flatMap((product) => product.variants.map((variant) => [variant.id, product.id]))),
   }
 }
 
@@ -42,6 +46,34 @@ export interface ResolvedLine {
   madeToOrder: MadeToOrderNote[]
 }
 
+/**
+ * Why a line cannot be ordered with the current catalog:
+ * `missing`: the product, variant, or promotion is no longer in the catalog (deleted or hidden: the public menu cannot
+ * tell them apart). `incompatible`: everything still exists, but the combination is no longer valid. `unavailable`:
+ * it is in the catalog but cannot be ordered now (out of stock, or no published price).
+ */
+export type LineIssueKind = 'missing' | 'incompatible' | 'unavailable'
+
+export interface LineIssue {
+  line: OrderLine
+  kind: LineIssueKind
+  /** What can still be named, or a generic name when nothing is left ("Un producto que ya no está en la carta"). */
+  title: string
+  detail: string | null
+  reason: string
+}
+
+const GONE = 'Ya no está en la carta.'
+const CHANGED = 'Cambió en la carta: volvé a elegirlo.'
+
+const issue = (line: OrderLine, kind: LineIssueKind, title: string, detail: string | null, reason: string): LineIssue => ({
+  line,
+  kind,
+  title,
+  detail,
+  reason,
+})
+
 /** Half-and-half price: the sum of both half prices (RN-10). */
 export function halfAndHalfPrice(first: Product, second: Product): { first: Ars; second: Ars; total: Ars } | null {
   const firstPrice = halfPrice(first)
@@ -58,16 +90,26 @@ function madeToOrderOf(products: Product[]): MadeToOrderNote[] {
 
 const lowerFirst = (text: string) => text.charAt(0).toLocaleLowerCase('es-AR') + text.slice(1)
 
-/** `null` when the line cannot be priced (missing product or no published price): it is never counted as $ 0. */
-export function resolveLine(line: OrderLine, index: CatalogIndex): ResolvedLine | null {
+/** One line against the catalog: priced, or the issue that keeps it from being ordered. */
+export function reconcileLine(line: OrderLine, index: CatalogIndex): ResolvedLine | LineIssue {
   switch (line.kind) {
     case 'product': {
       const product = index.products.get(line.productId)
-      const variant = product?.variants.find((item) => item.id === line.variantId)
-      if (!product || !variant || !hasOrderablePrice(variant)) return null
-      const surcharged = index.categories.get(product.categoryId)?.appliesDeliverySurcharge ?? false
+      if (!product) return issue(line, 'missing', 'Un producto que ya no está en la carta', null, GONE)
+      const variant = product.variants.find((item) => item.id === line.variantId)
+      if (!variant) {
+        return index.variantProducts.has(line.variantId)
+          ? issue(line, 'incompatible', product.name, null, CHANGED)
+          : issue(line, 'missing', product.name, null, 'Esa opción ya no está en la carta.')
+      }
       const halfPizza = isWholeHalf(product) && variant.name === 'Media'
       const detail = halfPizza ? 'Media pizza' : (visibleVariantName(variant.name, product.variants.length) ?? null)
+      if (!product.inStock) return issue(line, 'unavailable', product.name, detail, 'Sin stock por ahora.')
+      // RN-01, policy A: a variant without a published price is shown as «Consultar en barra», never ordered.
+      if (!hasOrderablePrice(variant)) {
+        return issue(line, 'unavailable', product.name, detail, 'Se consulta en barra: no se puede pedir por acá.')
+      }
+      const surcharged = index.categories.get(product.categoryId)?.appliesDeliverySurcharge ?? false
       return {
         line,
         title: product.name,
@@ -83,10 +125,23 @@ export function resolveLine(line: OrderLine, index: CatalogIndex): ResolvedLine 
     case 'half': {
       const first = index.products.get(line.firstProductId)
       const second = index.products.get(line.secondProductId)
-      const price = first && second ? halfAndHalfPrice(first, second) : null
-      // D3: the same flavor twice is not a half-and-half.
-      if (!first || !second || !price || first.id === second.id) return null
+      if (!first || !second) {
+        const known = first ?? second
+        return issue(line, 'missing', 'Mitad y mitad', known?.name ?? null, known ? 'El otro gusto ya no está en la carta.' : 'Sus gustos ya no están en la carta.')
+      }
       const flavors = `${first.name} + ${second.name}`
+      const halves = [first, second]
+      // D3: the same flavor twice is not a half-and-half.
+      if (first.id === second.id) return issue(line, 'incompatible', 'Mitad y mitad', flavors, CHANGED)
+      const notByHalves = halves.find((item) => !isWholeHalf(item))
+      if (notByHalves) return issue(line, 'incompatible', 'Mitad y mitad', flavors, `${notByHalves.name} ya no se pide por mitades.`)
+      const outOfStock = halves.find((item) => !item.inStock)
+      if (outOfStock) return issue(line, 'unavailable', 'Mitad y mitad', flavors, `${outOfStock.name}: sin stock por ahora.`)
+      const price = halfAndHalfPrice(first, second)
+      if (!price) {
+        const unpriced = halves.find((item) => halfPrice(item) === null) ?? first
+        return issue(line, 'unavailable', 'Mitad y mitad', flavors, `${unpriced.name}: la media no tiene precio publicado.`)
+      }
       return {
         line,
         title: 'Mitad y mitad',
@@ -102,7 +157,8 @@ export function resolveLine(line: OrderLine, index: CatalogIndex): ResolvedLine 
     }
     case 'promotion': {
       const promotion = index.promotions.get(line.promotionId)
-      if (!promotion) return null
+      if (!promotion) return issue(line, 'missing', 'Una promo que ya no está en la carta', null, GONE)
+      if (promotion.price <= 0) return issue(line, 'unavailable', promotion.title, 'Promo', 'No tiene precio publicado.')
       return {
         line,
         title: promotion.title,
@@ -119,20 +175,44 @@ export function resolveLine(line: OrderLine, index: CatalogIndex): ResolvedLine 
   }
 }
 
+const isIssue = (item: ResolvedLine | LineIssue): item is LineIssue => 'reason' in item
+
+/** `null` when the line cannot be priced now: it is never counted as $ 0. */
+export function resolveLine(line: OrderLine, index: CatalogIndex): ResolvedLine | null {
+  const item = reconcileLine(line, index)
+  return isIssue(item) ? null : item
+}
+
 export interface OrderSummary {
+  /** Lines priced with the current catalog: the only ones in the totals and the message. */
   lines: ResolvedLine[]
+  /** Lines the customer must review or remove before continuing; kept in the order, never priced. */
+  issues: LineIssue[]
   /** Units across priced lines ("3 productos"). */
   itemCount: number
   productsSubtotal: Ars
   pizzaCount: number
 }
 
-export function summarizeOrder(lines: OrderLine[], index: CatalogIndex): OrderSummary {
-  const resolved = lines.map((line) => resolveLine(line, index)).filter((line) => line !== null)
+/** The order against the catalog already loaded: priced lines, issues, and totals from the priced lines only. */
+export function reconcileOrder(lines: OrderLine[], index: CatalogIndex): OrderSummary {
+  const reconciled = lines.map((line) => reconcileLine(line, index))
+  const resolved = reconciled.filter((item): item is ResolvedLine => !isIssue(item))
   return {
     lines: resolved,
+    issues: reconciled.filter(isIssue),
     itemCount: resolved.reduce((total, item) => total + item.line.quantity, 0),
     productsSubtotal: resolved.reduce((total, item) => total + item.subtotal, 0),
     pizzaCount: resolved.reduce((total, item) => total + item.pizzaUnits, 0),
   }
+}
+
+/** No lines at all, priced or not. */
+export function isEmptyOrder(summary: OrderSummary): boolean {
+  return summary.lines.length === 0 && summary.issues.length === 0
+}
+
+/** The checkout opens only for an order with priced lines and nothing left to review (P2). */
+export function isReadyForCheckout(summary: OrderSummary): boolean {
+  return summary.itemCount > 0 && summary.issues.length === 0
 }

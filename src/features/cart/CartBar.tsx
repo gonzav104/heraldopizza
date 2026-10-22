@@ -1,4 +1,5 @@
 import { formatArs } from '@/lib/money'
+import { isEmptyOrder } from './line-pricing'
 import { useOrderStore } from './order-store'
 import { itemCountLabel, useOrderFeedback, useOrderSummary } from './useOrderSummary'
 
@@ -10,16 +11,19 @@ interface CartBarViewProps {
   bumpKey?: number
   /** Transient line after an add ("Agregaste Muzzarella entera"), shown instead of "Tu pedido". */
   message?: string | null
+  /** Lines the catalog cannot price (P2): the bar says "Revisá tu pedido". */
+  issueCount?: number
 }
 
 /** The order as a strip of pine counter: count, "Tu pedido", and the running total. The whole bar opens the order. */
-export function CartBarView({ count, total, onOpen, bumpKey = 0, message = null }: CartBarViewProps) {
+export function CartBarView({ count, total, onOpen, bumpKey = 0, message = null, issueCount = 0 }: CartBarViewProps) {
+  const review = issueCount > 0 ? `, ${issueCount} para revisar` : ''
   return (
     <button
       type="button"
       onClick={onOpen}
       aria-haspopup="dialog"
-      aria-label={`Ver tu pedido: ${itemCountLabel(count)}, ${formatArs(total)}`}
+      aria-label={`Ver tu pedido: ${itemCountLabel(count)}, ${formatArs(total)}${review}`}
       className="texture-pino block w-full min-w-0 rounded-2xl text-pino-ink shadow-[0_-4px_24px_-6px_rgb(0_0_0/0.7),0_14px_28px_-12px_rgb(0_0_0/0.9),inset_0_1px_0_rgb(255_255_255/0.35)] focus-visible:outline-pino-ink"
     >
       <span key={bumpKey} className="flex min-h-15 items-center gap-2.5 px-3 motion-safe:animate-[bar-bump_250ms_var(--ease-out-soft)]">
@@ -34,7 +38,9 @@ export function CartBarView({ count, total, onOpen, bumpKey = 0, message = null 
             {message}
           </span>
         ) : (
-          <span className="min-w-0 flex-1 text-left text-[1.0625rem] font-[800] whitespace-nowrap [font-stretch:108%]">Tu pedido</span>
+          <span className="min-w-0 flex-1 text-left text-[1.0625rem] font-[800] whitespace-nowrap [font-stretch:108%]">
+            {issueCount > 0 ? 'Revisá tu pedido' : 'Tu pedido'}
+          </span>
         )}
         <span className="type-price shrink-0 text-[1.1875rem]">{formatArs(total)}</span>
       </span>
@@ -47,7 +53,7 @@ interface OrderBarProps {
 }
 
 /**
- * One-handed order bar on phones: the pine counter strip, present only while the order has items.
+ * One-handed order bar on phones: the pine counter strip, present while the order has any line, priced or to review.
  * It is `sticky` as the last thing on the page, not `fixed`: it follows the thumb while the menu scrolls, and at the
  * end of the page it rests below the footer, so it never covers it and an empty order reserves no space.
  * Hidden on desktop, where the side panel holds the order.
@@ -56,7 +62,7 @@ export function OrderBar({ onOpenOrder }: OrderBarProps) {
   const summary = useOrderSummary()
   const addedCount = useOrderStore((state) => state.addedCount)
   const feedback = useOrderFeedback()
-  if (summary.itemCount === 0) return null
+  if (isEmptyOrder(summary)) return null
 
   return (
     <div className="pointer-events-none sticky bottom-0 z-40 bg-linear-to-t from-chapa from-50% to-transparent px-3 pt-6 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
@@ -67,6 +73,7 @@ export function OrderBar({ onOpenOrder }: OrderBarProps) {
           onOpen={onOpenOrder}
           bumpKey={addedCount}
           message={feedback.visible ? feedback.text : null}
+          issueCount={summary.issues.length}
         />
       </div>
     </div>

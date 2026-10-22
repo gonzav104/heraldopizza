@@ -7,7 +7,8 @@ import { CHECKOUT_FORM_ID, CheckoutForm } from '@/features/checkout/CheckoutForm
 import { DisabledSendButton, MessagePreview } from '@/features/checkout/MessagePreview'
 import { buildOrderMessage, computeTotals } from '@/features/checkout/prototype-order'
 import { formatArs } from '@/lib/money'
-import { CartLines, EmptyOrder, ProductsSubtotal } from './CartLines'
+import { CartLines, CheckoutBlockedNote, EmptyOrder, OrderIssues, ProductsSubtotal } from './CartLines'
+import { isEmptyOrder, isReadyForCheckout } from './line-pricing'
 import { OrderStorageNotice } from './OrderStorageNotice'
 import { useOrderSummary } from './useOrderSummary'
 
@@ -42,7 +43,12 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
     if (step) setCurrent(step)
   }
 
-  const shownStep: OrderStep = summary.itemCount === 0 ? 'cart' : current
+  const empty = isEmptyOrder(summary)
+  const ready = isReadyForCheckout(summary)
+  // P2: the details and the message exist only for an order with nothing to review, whatever step was requested. The
+  // requested step is dropped too, so removing the last issue never skips «Continuar».
+  if (!ready && current !== 'cart') setCurrent('cart')
+  const shownStep: OrderStep = ready ? current : 'cart'
   const totals = computeTotals(summary, details)
 
   // Moving between steps puts focus on the new step's heading, so screen readers hear where they are.
@@ -54,10 +60,11 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
 
   const footer =
     shownStep === 'cart' ? (
-      summary.itemCount > 0 ? (
+      !empty ? (
         <div className="flex flex-col gap-3">
           <ProductsSubtotal amount={summary.productsSubtotal} />
-          <PrimaryAction onClick={() => setCurrent('details')} label="Continuar" />
+          {summary.issues.length > 0 ? <CheckoutBlockedNote /> : null}
+          <PrimaryAction onClick={() => setCurrent('details')} disabled={!ready} label="Continuar" />
         </div>
       ) : (
         <PrimaryAction onClick={onClose} label="Ver la carta" />
@@ -105,7 +112,9 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
       {shownStep === 'cart' ? (
         <div className="px-5 sm:px-6">
           <OrderStorageNotice placement="cart" />
-          {summary.itemCount > 0 ? <CartLines summary={summary} /> : <EmptyOrder />}
+          {empty ? <EmptyOrder /> : null}
+          <OrderIssues issues={summary.issues} />
+          <CartLines summary={summary} />
         </div>
       ) : null}
       {shownStep === 'details' ? <CheckoutForm totals={totals} onValid={() => setCurrent('preview')} /> : null}

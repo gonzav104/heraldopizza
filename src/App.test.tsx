@@ -96,20 +96,39 @@ describe('App', () => {
   it('renders no Promos section when there is no source of promotions (production until U9)', async () => {
     const promotions = controlledPromotions()
     render(<App repository={new FixtureCatalogRepository()} loadPromotions={promotions.load} />)
-    await screen.findByRole('heading', { level: 2, name: 'Pizzas' })
 
     await act(async () => promotions.resolve([]))
 
+    expect(await screen.findByRole('heading', { level: 2, name: 'Pizzas' })).toBeInTheDocument()
     expect(promotions.load).toHaveBeenCalledTimes(1)
     expect(screen.queryByRole('heading', { level: 2, name: 'Promos' })).not.toBeInTheDocument()
   })
 
-  it('still shows the menu, without a Promos section, when the promotions loader fails', async () => {
-    render(<App repository={new FixtureCatalogRepository()} loadPromotions={() => Promise.reject(new Error('no source'))} />)
-
-    expect(await screen.findByRole('heading', { level: 2, name: 'Pizzas' })).toBeInTheDocument()
+  it('waits for the promotions before showing the menu, so a saved promo is never judged without them (P2)', async () => {
+    const promotions = controlledPromotions()
+    render(<App repository={new FixtureCatalogRepository()} loadPromotions={promotions.load} />)
     await act(async () => undefined)
-    expect(screen.queryByRole('heading', { level: 2, name: 'Promos' })).not.toBeInTheDocument()
+
+    expect(screen.getByRole('status')).toHaveTextContent('Cargando la carta…')
+    expect(screen.queryByRole('heading', { level: 2, name: 'Pizzas' })).not.toBeInTheDocument()
+
+    await act(async () => promotions.resolve(prototypePromotions))
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Promos' })).toBeInTheDocument()
+  })
+
+  it('shows the error with «Reintentar» when the promotions fail, never a menu without them (P2)', async () => {
+    const load = vi.fn<() => Promise<Promotion[]>>().mockRejectedValueOnce(new Error('no source')).mockResolvedValue(prototypePromotions)
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    render(<App repository={new FixtureCatalogRepository()} loadPromotions={load} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos cargar la carta.')
+    expect(screen.queryByRole('heading', { level: 2, name: 'Pizzas' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Promos' })).toBeInTheDocument()
+    expect(load).toHaveBeenCalledTimes(2)
   })
 
   it('shows only the catalog promotions when the real source has them, never the prototype ones', async () => {
@@ -117,11 +136,10 @@ describe('App', () => {
     const repository: CatalogRepository = { load: async () => ({ ...fixture, promotions: [catalogPromotion] }) }
     const promotions = controlledPromotions()
     render(<App repository={repository} loadPromotions={promotions.load} />)
-    await screen.findByRole('heading', { level: 2, name: 'Promos' })
 
     await act(async () => promotions.resolve(prototypePromotions))
 
-    expect(screen.getByRole('article', { name: catalogPromotion.title })).toBeInTheDocument()
+    expect(await screen.findByRole('article', { name: catalogPromotion.title })).toBeInTheDocument()
     expect(screen.queryByRole('article', { name: 'Tres pizzas Muzzarella' })).not.toBeInTheDocument()
   })
 

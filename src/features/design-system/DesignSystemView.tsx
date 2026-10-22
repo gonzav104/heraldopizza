@@ -16,7 +16,7 @@ import { PromoCard } from '@/features/catalog/PromoRail'
 import { initBuilder, type BuilderState } from '@/features/catalog/pizza-builder'
 import { halfAndHalfCandidates } from '@/features/catalog/presentation'
 import { CartBarView } from '@/features/cart/CartBar'
-import { indexCatalog, summarizeOrder } from '@/features/cart/line-pricing'
+import { indexCatalog, reconcileOrder } from '@/features/cart/line-pricing'
 import type { OrderLine } from '@/features/cart/order-lines'
 import { MessageBubble } from '@/features/checkout/MessagePreview'
 import { OrderTotalsCard } from '@/features/checkout/OrderTotalsCard'
@@ -77,7 +77,7 @@ const sampleLines: OrderLine[] = [
 ]
 const sampleDetails: CheckoutDetails = { name: 'Nombre de prueba', mode: 'envio', address: 'Dirección de prueba 123', zoneId: OTHER_ZONE.id, payment: 'efectivo', note: '' }
 const pizzaFlavors = halfAndHalfCandidates(prototypeProducts, prototypeCategories)
-const sampleSummary = summarizeOrder(sampleLines, indexCatalog(prototypeCategories, prototypeProducts, []))
+const sampleSummary = reconcileOrder(sampleLines, indexCatalog(prototypeCategories, prototypeProducts, []))
 const sampleTotals = computeTotals(sampleSummary, sampleDetails)
 
 /** A live configurator specimen starting from a fixed state, with a short flavor list. */

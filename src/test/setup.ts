@@ -17,6 +17,6 @@ if (typeof HTMLDialogElement !== 'undefined' && !HTMLDialogElement.prototype.sho
   }
 }
 
-// Vitest runs in development mode, where the menu would lazy-load the prototype promotions on its own and render them
-// whenever that import settles. Tests start with none; a test that wants promotions injects its own loader.
-vi.mock('@/data/dev-promotions', () => ({ loadDevPromotions: () => new Promise(() => undefined) }))
+// Vitest runs in development mode, where the menu would lazy-load the prototype promotions on its own. The menu waits
+// for that load (P2), so tests get none at once; a test that wants promotions injects its own loader.
+vi.mock('@/data/dev-promotions', () => ({ loadDevPromotions: () => Promise.resolve([]) }))

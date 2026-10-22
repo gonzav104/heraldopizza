@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useCatalog } from '@/features/catalog/catalog-context'
-import { resolveLine, summarizeOrder, type OrderSummary } from './line-pricing'
+import { resolveLine, reconcileOrder, type OrderSummary } from './line-pricing'
 import { quantityOf } from './order-lines'
 import { useOrderStore } from './order-store'
 
@@ -8,7 +8,7 @@ import { useOrderStore } from './order-store'
 export function useOrderSummary(): OrderSummary {
   const lines = useOrderStore((state) => state.lines)
   const { index } = useCatalog()
-  return useMemo(() => summarizeOrder(lines, index), [lines, index])
+  return useMemo(() => reconcileOrder(lines, index), [lines, index])
 }
 
 /** Units of one variant in the order, for the price pill badge. */
