@@ -139,4 +139,43 @@ describe('order persistence (RF-17)', () => {
     expect(setItem).toHaveBeenCalledTimes(2)
     expect(useOrderStorageStatus.getState().issue).toBeNull()
   })
+
+  describe('dozen to choose (P4): its flavors in the same v1 format', () => {
+    const flavors = [
+      { productId: 'carne', quantity: 5 },
+      { productId: 'jyq', quantity: 4 },
+      { productId: 'pollo', quantity: 3 },
+    ]
+    const dozen = { kind: 'promotion', promotionId: 'promo-docena-eleccion', quantity: 1, note: 'bien calientes', flavors } as const
+
+    it('keeps the flavors of each dozen across a reload, apart from a different one', async () => {
+      const first = await reload()
+      first.useOrderStore.getState().add(dozen)
+      first.useOrderStore.getState().add({ ...dozen, note: '', flavors: [{ productId: 'carne', quantity: 12 }] })
+      expect(JSON.parse(stored() ?? 'null').version).toBe(1)
+
+      const { useOrderStore, useOrderStorageStatus } = await reload()
+
+      expect(useOrderStore.getState().lines).toMatchObject([dozen, { ...dozen, note: '', flavors: [{ productId: 'carne', quantity: 12 }] }])
+      expect(useOrderStorageStatus.getState().issue).toBeNull()
+    })
+
+    it('loads a cart saved before P4 as it was: a promotion without flavors stays without them', async () => {
+      seed({ state: { lines: [muzza, { kind: 'promotion', promotionId: 'promo-docena-eleccion', quantity: 1, note: '' }] }, version: 1 })
+
+      const { useOrderStore, useOrderStorageStatus } = await reload()
+
+      expect(useOrderStore.getState().lines).toHaveLength(2)
+      expect(useOrderStore.getState().lines[1]).not.toHaveProperty('flavors')
+      expect(useOrderStorageStatus.getState().issue).toBeNull()
+    })
+
+    it('keeps a dozen with unreadable flavors in the cart, marked for review, and the rest of the cart too', async () => {
+      seed({ state: { lines: [muzza, { ...dozen, flavors: [{ productId: 'carne', quantity: 'doce' }] }] }, version: 1 })
+
+      const { useOrderStore } = await reload()
+
+      expect(useOrderStore.getState().lines).toMatchObject([muzza, { ...dozen, flavors: [] }])
+    })
+  })
 })

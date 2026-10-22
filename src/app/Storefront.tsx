@@ -4,6 +4,7 @@ import { useSheetHistory } from '@/components/ui/useSheetHistory'
 import { CatalogContext, createCatalogData } from '@/features/catalog/catalog-context'
 import { CategoryBar } from '@/features/catalog/CategoryBar'
 import { CategoryIndexSheet } from '@/features/catalog/CategoryIndexSheet'
+import { DozenBuilderSheet } from '@/features/catalog/DozenBuilderSheet'
 import { MenuSection } from '@/features/catalog/MenuSection'
 import { PizzaBuilderSheet } from '@/features/catalog/PizzaBuilderSheet'
 import { ProductSheet } from '@/features/catalog/ProductSheet'
@@ -57,6 +58,7 @@ export function Storefront({ categories, products, promotions }: StorefrontProps
   const infoSheet = useSheetHistory<true>('info')
   const indexSheet = useSheetHistory<true>('categorias')
   const privacySheet = useSheetHistory<true>('privacidad')
+  const dozenSheet = useSheetHistory<Promotion>('docena')
 
   // Sheets never stack: the product sheet closes first, then "Armá tu pizza" opens with that flavor.
   const pendingBuild = useRef<string | null>(null)
@@ -99,7 +101,7 @@ export function Storefront({ categories, products, promotions }: StorefrontProps
         <div className="mx-auto max-w-6xl lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-10 lg:px-6">
           <main className="min-w-0">
             <CategoryBar items={indexItems} activeId={activeId} onSelect={setActiveId} onOpenIndex={() => indexSheet.open(true)} />
-            <PromoRail promotions={promotions} />
+            <PromoRail promotions={promotions} onChoose={dozenSheet.open} />
             {sections.map((section) => (
               <MenuSection
                 key={section.category.id}
@@ -131,6 +133,7 @@ export function Storefront({ categories, products, promotions }: StorefrontProps
           }}
         />
         <PizzaBuilderSheet request={builderSheet.value} candidates={halves} onClose={builderSheet.close} />
+        <DozenBuilderSheet promotion={dozenSheet.value} onClose={dozenSheet.close} />
         <OrderSheet step={orderSheet.value} onClose={orderSheet.close} />
         <StoreInfoSheet open={infoSheet.value !== null} onClose={infoSheet.close} />
         <PrivacySheet open={privacySheet.value !== null} onClose={privacySheet.close} />

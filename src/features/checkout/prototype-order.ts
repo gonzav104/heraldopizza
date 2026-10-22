@@ -132,7 +132,9 @@ export function buildOrderMessage(details: CheckoutDetails, order: OrderSummary,
 
   const items = order.lines.flatMap((item) => {
     const row = `• ${item.line.quantity} × ${item.messageLabel}: ${formatArs(item.subtotal)}`
-    return item.line.note ? [row, `  Aclaración: ${item.line.note}`] : [row]
+    // The dozen's flavors, one per row, exactly as the cart lists them (P4).
+    const parts = item.parts.map((part) => `  ${part}`)
+    return item.line.note ? [row, ...parts, `  Aclaración: ${item.line.note}`] : [row, ...parts]
   })
 
   const summary = totalsSummary(totals)

@@ -33,6 +33,15 @@ export interface Category {
 
 export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6
 
+/**
+ * A combo whose contents the customer picks (P4): exactly `units` units among the flavors of one category that are
+ * sold by the unit. The price stays the combo's own, whatever the flavors.
+ */
+export interface FlavorChoice {
+  categoryId: string
+  units: number
+}
+
 /** Fixed combo with its own price (RN-13). Visibility rules (RF-11, RN-05) arrive with U10. */
 export interface Promotion {
   id: string
@@ -44,6 +53,8 @@ export interface Promotion {
   activeFrom: string | null
   activeTo: string | null
   weekdays: Weekday[]
+  /** Present only for a combo the customer fills in (the dozen to choose); absent for a closed combo. */
+  flavorChoice?: FlavorChoice
 }
 
 /** Everything the public menu shows. */
