@@ -6,22 +6,28 @@ import { prototypeCategories, prototypeProducts } from '@/data/prototype-catalog
 // Chromium drops a scroll requested while the modal category sheet is closing, so the page never reached the chosen
 // section. jsdom does not scroll at all: these tests pin what the page asks for, and when.
 
-let frames: FrameRequestCallback[] = []
+// Frames run only when the test says so; ids are never reused, so a cancel can only drop its own frame.
+let frames = new Map<number, FrameRequestCallback>()
+let lastFrameId = 0
 const runFrames = () => {
-  const pending = frames
-  frames = []
+  const pending = [...frames.values()]
+  frames = new Map()
   for (const frame of pending) frame(performance.now())
 }
 
 const scrollIntoView = vi.fn()
 
 beforeEach(() => {
-  frames = []
+  frames = new Map()
   scrollIntoView.mockClear()
   Element.prototype.scrollIntoView = scrollIntoView
-  vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => frames.push(callback))
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+    lastFrameId += 1
+    frames.set(lastFrameId, callback)
+    return lastFrameId
+  })
   vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => {
-    frames[id - 1] = () => undefined
+    frames.delete(id)
   })
 })
 
@@ -52,13 +58,27 @@ describe('category index sheet', () => {
     )
   })
 
-  it('asks for no scroll if the menu goes away before that frame', async () => {
+  it('cancels the pending scroll if the menu goes away before that frame', async () => {
     const { unmount } = render(<Storefront categories={prototypeCategories} products={prototypeProducts} promotions={[]} />)
 
     await pickFromIndex('Postres')
+    const pending = [...frames.keys()]
+    expect(pending).toHaveLength(1)
     unmount()
+
+    expect(window.cancelAnimationFrame).toHaveBeenCalledWith(pending[0])
+    expect(frames.size).toBe(0)
+  })
+
+  it('scrolls once, to the latest pick, when a newer pick arrives before the frame', async () => {
+    render(<Storefront categories={prototypeCategories} products={prototypeProducts} promotions={[]} />)
+
+    await pickFromIndex('Postres')
+    await pickFromIndex('Pizzas')
     runFrames()
 
-    expect(scrollIntoView).not.toHaveBeenCalled()
+    expect(scrollIntoView).toHaveBeenCalledTimes(1)
+    const section = scrollIntoView.mock.contexts[0] as HTMLElement
+    expect(within(section).getByRole('heading', { level: 2, name: 'Pizzas' })).toBeInTheDocument()
   })
 })
