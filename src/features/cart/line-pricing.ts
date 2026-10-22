@@ -4,7 +4,7 @@ import { halfPrice, isWholeHalf, madeToOrderDetail, visibleVariantName } from '@
 import type { OrderLine } from './order-lines'
 
 // Resolves order lines against the current catalog. Prices are looked up here, never stored in the order,
-// so a stale price cannot survive once U5 persists the order.
+// so a stale price cannot survive in the saved order (RF-17).
 
 export interface CatalogIndex {
   products: Map<string, Product>

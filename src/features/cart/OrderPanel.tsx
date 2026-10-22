@@ -1,5 +1,6 @@
 import { PrimaryAction } from '@/components/ui/PrimaryAction'
 import { CartLines, EmptyOrder, ProductsSubtotal } from './CartLines'
+import { OrderStorageNotice } from './OrderStorageNotice'
 import { itemCountLabel, useOrderSummary } from './useOrderSummary'
 
 /** Desktop order panel (≥ 1024 px): the same content as the cart step, always in view next to the menu. */
@@ -18,7 +19,10 @@ export function OrderPanel({ onContinue }: { onContinue: () => void }) {
         </h2>
         {empty ? null : <p className="text-[0.875rem] font-bold">{itemCountLabel(summary.itemCount)}</p>}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-5">{empty ? <EmptyOrder /> : <CartLines summary={summary} />}</div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-5">
+        <OrderStorageNotice placement="cart" />
+        {empty ? <EmptyOrder /> : <CartLines summary={summary} />}
+      </div>
       {empty ? null : (
         <div className="flex flex-col gap-3 border-t border-chapa-edge p-5">
           <ProductsSubtotal amount={summary.productsSubtotal} />

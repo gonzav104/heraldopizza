@@ -14,6 +14,7 @@ import { useActiveSection } from '@/features/catalog/useActiveSection'
 import { OrderAnnouncer, OrderBar } from '@/features/cart/CartBar'
 import { OrderPanel } from '@/features/cart/OrderPanel'
 import { OrderSheet, type OrderStep } from '@/features/cart/OrderSheet'
+import { OrderStorageNotice } from '@/features/cart/OrderStorageNotice'
 import { PrivacySheet } from '@/features/store-info/PrivacySheet'
 import { LocalSection } from '@/features/store-info/LocalSection'
 import { SiteFooter } from '@/features/store-info/SiteFooter'
@@ -78,6 +79,7 @@ export function Storefront({ categories, products, promotions }: StorefrontProps
   return (
     <CatalogContext value={catalog}>
       <div className="texture-chapa min-h-dvh">
+        <OrderStorageNotice />
         <StoreHeader />
         <LocalSection onOpenInfo={() => infoSheet.open(true)} />
 

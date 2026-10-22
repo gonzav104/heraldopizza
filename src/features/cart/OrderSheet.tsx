@@ -8,6 +8,7 @@ import { DisabledSendButton, MessagePreview } from '@/features/checkout/MessageP
 import { buildOrderMessage, computeTotals } from '@/features/checkout/prototype-order'
 import { formatArs } from '@/lib/money'
 import { CartLines, EmptyOrder, ProductsSubtotal } from './CartLines'
+import { OrderStorageNotice } from './OrderStorageNotice'
 import { useOrderSummary } from './useOrderSummary'
 
 export type OrderStep = 'cart' | 'details' | 'preview'
@@ -102,7 +103,10 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
       }
     >
       {shownStep === 'cart' ? (
-        <div className="px-5 sm:px-6">{summary.itemCount > 0 ? <CartLines summary={summary} /> : <EmptyOrder />}</div>
+        <div className="px-5 sm:px-6">
+          <OrderStorageNotice placement="cart" />
+          {summary.itemCount > 0 ? <CartLines summary={summary} /> : <EmptyOrder />}
+        </div>
       ) : null}
       {shownStep === 'details' ? <CheckoutForm totals={totals} onValid={() => setCurrent('preview')} /> : null}
       {shownStep === 'preview' ? <MessagePreview message={buildOrderMessage(details, summary, totals)} /> : null}

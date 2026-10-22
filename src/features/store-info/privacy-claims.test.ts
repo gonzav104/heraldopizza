@@ -3,10 +3,11 @@ import indexHtml from '../../../index.html?raw'
 
 /**
  * The privacy notice (PrivacySheet.tsx) says the menu is downloaded from the Supabase database, that nothing about
- * the order travels with that request, and that the page uses no cookies, storage, or analytics. This test keeps
- * those sentences honest: the network is allowed in one approved file only (the catalog adapter), and only as a GET
- * without cookies. When a feature needs storage or another network call (U5 saves the cart on the device, U8 may
- * call a service), it fails, and the notice must be updated in the same change.
+ * the order travels with that request, that only the order is saved in the browser (RF-17), and that the page uses no
+ * cookies or analytics. This test keeps those sentences honest: the network is allowed in one approved file only (the
+ * catalog adapter), and only as a GET without cookies; browser storage is allowed in the order storage only. When a
+ * feature needs other storage or another network call (U8 may call a service), it fails, and the notice must be
+ * updated in the same change.
  */
 const sources = import.meta.glob<string>('/src/**/*.{ts,tsx}', { query: '?raw', import: 'default', eager: true })
 
@@ -23,7 +24,13 @@ const forbidden: Record<string, RegExp> = {
   'analytics or ads': /\b(gtag|dataLayer|googletagmanager|google-analytics|fbq|hotjar|mixpanel|segment\.com)\b/i,
 }
 
-const allowedNetworkFiles = new Set([CATALOG_ADAPTER])
+/** The one file allowed to use browser storage: it saves the order lines (RF-17). */
+const ORDER_STORAGE = '/src/features/cart/order-storage.ts'
+
+const allowedFiles: Record<string, Set<string>> = {
+  'network calls': new Set([CATALOG_ADAPTER]),
+  'browser storage': new Set([ORDER_STORAGE]),
+}
 
 const appFiles = Object.entries(sources).filter(([path]) => !/\.test\.|\/test\//.test(path))
 
@@ -34,10 +41,9 @@ describe('privacy claims match the code', () => {
   })
 
   for (const [what, pattern] of Object.entries(forbidden)) {
-    it(`uses no ${what}${what === 'network calls' ? ' outside the approved catalog adapter' : ''}`, () => {
-      const offenders = appFiles
-        .filter(([path, code]) => pattern.test(code) && !(what === 'network calls' && allowedNetworkFiles.has(path)))
-        .map(([path]) => path)
+    const allowed = allowedFiles[what] ?? new Set<string>()
+    it(`uses no ${what}${allowed.size > 0 ? ` outside ${[...allowed].join(', ')}` : ''}`, () => {
+      const offenders = appFiles.filter(([path, code]) => pattern.test(code) && !allowed.has(path)).map(([path]) => path)
 
       expect(offenders, `Found ${what} in: ${offenders.join(', ')}. Update src/features/store-info/PrivacySheet.tsx first.`).toEqual([])
     })
@@ -51,6 +57,14 @@ describe('privacy claims match the code', () => {
     expect(code).toMatch(/credentials:\s*'omit'/)
     expect(code).not.toMatch(/\bbody\s*:/)
     expect(code).not.toMatch(/\b(XMLHttpRequest|sendBeacon|WebSocket|EventSource)\b/)
+  })
+
+  it('lets the order storage use localStorage only, under its own key', () => {
+    const code = sources[ORDER_STORAGE]
+
+    expect(code).toMatch(/window\.localStorage\.setItem\(name,/)
+    expect(code).toMatch(/ORDER_STORAGE_KEY = 'heraldo-pedido'/)
+    expect(code).not.toMatch(/\b(sessionStorage|indexedDB)\b|document\s*\.\s*cookie/)
   })
 
   it('loads no script or stylesheet from another site', () => {

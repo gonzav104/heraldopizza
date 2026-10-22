@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import {
   addLine,
   isValidNewLine,
@@ -9,8 +10,17 @@ import {
   type NewOrderLine,
   type OrderLine,
 } from './order-lines'
+import {
+  ORDER_STORAGE_KEY,
+  ORDER_STORAGE_VERSION,
+  orderStorage,
+  resetOrderStorageStatus,
+  toPersistedOrder,
+  type PersistedOrder,
+} from './order-storage'
 
-// Prototype order state for U2: in memory only. U5 adds `persist` so the order survives a reload (RF-15).
+// The order, saved in this browser so a reload keeps it (RF-17). Only the lines are persisted (see order-storage.ts);
+// the feedback counters start over on every load.
 
 /**
  * The last add or removal, for the visible and spoken feedback ("Agregaste…", "Quitaste…").
@@ -52,43 +62,60 @@ function removalOf(before: OrderLine[], after: OrderLine[], id: string): OrderCh
   return line && !after.some((item) => item.id === id) ? change('removed', line) : undefined
 }
 
-export const useOrderStore = create<OrderState>()((set) => ({
-  lines: [],
-  addedCount: 0,
-  lastChange: null,
-  add: (input) =>
-    set((state) => {
-      if (!isValidNewLine(input)) return state
-      const lines = addLine(state.lines, input, createId)
-      const line = lines.find((item) => !state.lines.includes(item)) ?? lines[lines.length - 1]
-      return { lines, addedCount: state.addedCount + 1, lastChange: change('added', line) }
+export const useOrderStore = create<OrderState>()(
+  persist<OrderState, [], [], PersistedOrder>(
+    (set) => ({
+      lines: [],
+      addedCount: 0,
+      lastChange: null,
+      add: (input) =>
+        set((state) => {
+          if (!isValidNewLine(input)) return state
+          const lines = addLine(state.lines, input, createId)
+          const line = lines.find((item) => !state.lines.includes(item)) ?? lines[lines.length - 1]
+          return { lines, addedCount: state.addedCount + 1, lastChange: change('added', line) }
+        }),
+      increment: (id) =>
+        set((state) => {
+          const lines = changeQuantity(state.lines, id, 1)
+          const line = lines.find((item) => item.id === id)
+          return line ? { lines, addedCount: state.addedCount + 1, lastChange: change('added', line) } : state
+        }),
+      decrement: (id) =>
+        set((state) => {
+          const lines = changeQuantity(state.lines, id, -1)
+          return { lines, lastChange: removalOf(state.lines, lines, id) ?? null }
+        }),
+      remove: (id) =>
+        set((state) => {
+          const lines = removeLine(state.lines, id)
+          return { lines, lastChange: removalOf(state.lines, lines, id) ?? null }
+        }),
+      setNote: (id, note) => set((state) => ({ lines: setLineNote(state.lines, id, note), lastChange: null })),
+      setQuantity: (id, quantity) =>
+        set((state) => {
+          const lines = setLineQuantity(state.lines, id, quantity)
+          return { lines, lastChange: removalOf(state.lines, lines, id) ?? null }
+        }),
+      clear: () => set({ lines: [], lastChange: null }),
     }),
-  increment: (id) =>
-    set((state) => {
-      const lines = changeQuantity(state.lines, id, 1)
-      const line = lines.find((item) => item.id === id)
-      return line ? { lines, addedCount: state.addedCount + 1, lastChange: change('added', line) } : state
-    }),
-  decrement: (id) =>
-    set((state) => {
-      const lines = changeQuantity(state.lines, id, -1)
-      return { lines, lastChange: removalOf(state.lines, lines, id) ?? null }
-    }),
-  remove: (id) =>
-    set((state) => {
-      const lines = removeLine(state.lines, id)
-      return { lines, lastChange: removalOf(state.lines, lines, id) ?? null }
-    }),
-  setNote: (id, note) => set((state) => ({ lines: setLineNote(state.lines, id, note), lastChange: null })),
-  setQuantity: (id, quantity) =>
-    set((state) => {
-      const lines = setLineQuantity(state.lines, id, quantity)
-      return { lines, lastChange: removalOf(state.lines, lines, id) ?? null }
-    }),
-  clear: () => set({ lines: [], lastChange: null }),
-}))
+    {
+      name: ORDER_STORAGE_KEY,
+      version: ORDER_STORAGE_VERSION,
+      storage: orderStorage,
+      partialize: (state) => toPersistedOrder(state.lines),
+      // Saved ids are never trusted: restored lines get fresh ones through the usual add, so they cannot collide with
+      // new lines, and duplicates merge the same way they do while ordering.
+      merge: (persisted, current) => {
+        const saved = (persisted as PersistedOrder | undefined)?.lines ?? []
+        return { ...current, lines: saved.reduce<OrderLine[]>((lines, line) => addLine(lines, line, createId), []) }
+      },
+    },
+  ),
+)
 
 /** Test helper: empties the order between tests. */
 export function resetOrderStore() {
+  resetOrderStorageStatus()
   useOrderStore.setState({ lines: [], addedCount: 0, lastChange: null })
 }
