@@ -5,6 +5,7 @@ import {
   type AdminPromotionsRepository,
   type NewPromotion,
   type PromotionChanges,
+  type PromotionPosition,
 } from '@/features/admin/promotions/admin-promotions'
 import { AdminSaveError, saveError } from '@/features/admin/shared/admin-save'
 import { updateGuardedRow, type Row } from '@/features/admin/shared/supabase-rows'
@@ -13,6 +14,7 @@ import { updateGuardedRow, type Row } from '@/features/admin/shared/supabase-row
  * Supabase adapter of the promotions (P5b), used only inside the lazy admin chunk with the signed-in client. Row level
  * security decides every read and write. An edit sends only the commercial columns, never the code, the id, the order,
  * or the composition, and is guarded by the row's `actualizado_en`. A new promotion is sent switched off explicitly.
+ * Reordering goes through mover_promocion(), all or nothing, guarded by both tokens.
  */
 
 const COLUMNS =
@@ -125,5 +127,20 @@ export class SupabaseAdminPromotions implements AdminPromotionsRepository {
 
   async update(id: string, changes: PromotionChanges, updatedAt: string): Promise<AdminPromotion> {
     return toPromotion(await updateGuardedRow(this.client, 'promociones', COLUMNS, id, changesPayload(changes), updatedAt))
+  }
+
+  async move(id: string, neighborId: string, tokens: Record<string, string>): Promise<PromotionPosition[]> {
+    const { data, error } = await this.client.rpc('mover_promocion', {
+      p_promocion: id,
+      p_vecina: neighborId,
+      p_tokens: tokens,
+    })
+    if (error) throw saveError(error)
+    if (!Array.isArray(data)) return unexpected('positions')
+    return (data as Row[]).map((row) => ({
+      id: text(row.id, 'id'),
+      order: integer(row.orden, 'order'),
+      updatedAt: text(row.actualizado_en, 'token'),
+    }))
   }
 }

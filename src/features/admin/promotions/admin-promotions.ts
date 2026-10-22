@@ -51,10 +51,22 @@ export interface NewPromotion {
   weekdays: number[] | null
 }
 
+/** A promotion's place after a move, with the token the move left on it. */
+export interface PromotionPosition {
+  id: string
+  order: number
+  updatedAt: string
+}
+
 /** Port between the panel and the promotions storage. Each write returns the row as the database now holds it. */
 export interface AdminPromotionsRepository {
   load(): Promise<AdminPromotion[]>
   /** Creates the promotion switched off, at `order`; the database generates its code. */
   create(promotion: NewPromotion, order: number): Promise<AdminPromotion>
   update(id: string, changes: PromotionChanges, updatedAt: string): Promise<AdminPromotion>
+  /**
+   * Swaps a promotion with its neighbor, all or nothing, if both still carry the tokens read (`{ id: updatedAt }`).
+   * Returns every promotion's position and token as the database now holds them.
+   */
+  move(id: string, neighborId: string, tokens: Record<string, string>): Promise<PromotionPosition[]>
 }

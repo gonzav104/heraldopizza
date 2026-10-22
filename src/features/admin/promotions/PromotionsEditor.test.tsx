@@ -39,6 +39,9 @@ function fakeRepository(changes: Partial<AdminPromotionsRepository> = {}): Admin
     create: vi.fn(async () => {
       throw new Error('unused')
     }),
+    move: vi.fn(async () => {
+      throw new Error('unused')
+    }),
     update: vi.fn(async (id, values, updatedAt) => {
       const found = all.find((item) => item.id === id)!
       if (updatedAt !== found.updatedAt) throw new AdminSaveError('conflict', 'stale')
@@ -299,5 +302,41 @@ describe('PromotionsEditor: create (P5b)', () => {
     fireEvent.change(within(dialog).getByRole('textbox', { name: 'Precio' }), { target: { value: '1000' } })
     await act(async () => fireEvent.click(within(dialog).getByRole('button', { name: 'Crear promoción' })))
     expect(create).toHaveBeenCalledWith(expect.anything(), 1)
+  })
+})
+
+describe('PromotionsEditor: order (P5b)', () => {
+  const titles = () => screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)
+
+  it('shows the promotions in their order, with «Subir» off on the first and «Bajar» off on the last', async () => {
+    await renderEditor()
+    expect(titles().slice(0, 2)).toEqual(['Docena de empanadas a elección', 'Tres pizzas Muzzarella'])
+    expect(screen.getByRole('button', { name: 'Subir Docena de empanadas a elección' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Bajar Docena oculta' })).toBeDisabled()
+  })
+
+  it('moves a promotion down with both tokens and shows the order and tokens the database returned', async () => {
+    const move = vi.fn(async () => [
+      { id: 'u-tres', order: 1, updatedAt: 't1' },
+      { id: 'u-docena', order: 2, updatedAt: 't1' },
+    ])
+    const { repository } = await renderEditor(fakeRepository({ move }))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Bajar Docena de empanadas a elección' })))
+
+    expect(move).toHaveBeenCalledWith('u-docena', 'u-tres', { 'u-docena': 't0', 'u-tres': 't0' })
+    expect(titles().slice(0, 2)).toEqual(['Tres pizzas Muzzarella', 'Docena de empanadas a elección'])
+    expect(screen.getByRole('status')).toHaveTextContent('Orden: Guardado')
+    // The next save of a moved promotion carries the token the move returned.
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    await act(async () => fireEvent.click(within(card('Tres pizzas Muzzarella')).getByRole('checkbox', { name: /Visible en la carta/ })))
+    expect(repository.update).toHaveBeenCalledWith('u-tres', { visible: false }, 't1')
+  })
+
+  it('keeps the order on screen when the move conflicts and offers a reload', async () => {
+    const move = vi.fn().mockRejectedValue(new AdminSaveError('conflict', 'stale'))
+    await renderEditor(fakeRepository({ move }))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Subir Tres pizzas Muzzarella' })))
+    expect(titles().slice(0, 2)).toEqual(['Docena de empanadas a elección', 'Tres pizzas Muzzarella'])
+    expect(screen.getByRole('alert')).toHaveTextContent('Otro cambio llegó antes. Recargá las promociones para ver lo último.')
   })
 })

@@ -206,3 +206,37 @@ describe('SupabaseAdminPromotions.create (P5b)', () => {
     await expect(promotions.create({ ...values, kind: 'closed' }, 9)).rejects.toMatchObject({ reason: 'unavailable' })
   })
 })
+
+describe('SupabaseAdminPromotions.move (P5b)', () => {
+  it('calls mover_promocion with both ids and the tokens read, and returns every position and token', async () => {
+    const rows = [
+      { id: 'b', orden: 1, actualizado_en: 't2' },
+      { id: 'a', orden: 2, actualizado_en: 't3' },
+    ]
+    const { calls, promotions } = fakeClient({ data: rows, error: null })
+    const moved = await promotions.move('a', 'b', { a: 't0', b: 't1' })
+
+    expect(calls).toEqual([
+      { method: 'rpc', args: ['mover_promocion', { p_promocion: 'a', p_vecina: 'b', p_tokens: { a: 't0', b: 't1' } }] },
+    ])
+    expect(moved).toEqual([
+      { id: 'b', order: 1, updatedAt: 't2' },
+      { id: 'a', order: 2, updatedAt: 't3' },
+    ])
+  })
+
+  it.each([
+    ['HP409', 'conflict'],
+    ['HP404', 'not-found'],
+    ['HP403', 'forbidden'],
+    ['HP422', 'validation'],
+  ])('turns %s into %s', async (code, reason) => {
+    const { promotions } = fakeClient({ data: null, error: { code } })
+    await expect(promotions.move('a', 'b', {})).rejects.toMatchObject({ reason })
+  })
+
+  it('rejects an unexpected answer', async () => {
+    const { promotions } = fakeClient({ data: [{ id: 'a', orden: '1', actualizado_en: 't' }], error: null })
+    await expect(promotions.move('a', 'b', {})).rejects.toMatchObject({ reason: 'unavailable' })
+  })
+})

@@ -1,8 +1,13 @@
-import { useCallback, useEffect, useId, useState, type FormEvent } from 'react'
+import { ArrowDown, ArrowUp } from 'lucide-react'
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Sheet } from '@/components/ui/Sheet'
 import '@/features/admin/catalog/catalog-workspace.css'
 import './promotions.css'
-import type { AdminPromotion, AdminPromotionsRepository } from '@/features/admin/promotions/admin-promotions'
+import type {
+  AdminPromotion,
+  AdminPromotionsRepository,
+  PromotionPosition,
+} from '@/features/admin/promotions/admin-promotions'
 import { NewPromotion } from '@/features/admin/promotions/NewPromotion'
 import { PromotionFields } from '@/features/admin/promotions/PromotionFields'
 import {
@@ -40,6 +45,9 @@ type LoadState = { kind: 'loading' } | { kind: 'failed' } | { kind: 'ready'; pro
 const sameForm = (a: PromotionForm, b: PromotionForm) =>
   JSON.stringify({ ...a, days: [...a.days].sort() }) === JSON.stringify({ ...b, days: [...b.days].sort() })
 
+/** The order everywhere the promotions are read: position, then code (unique and immutable), as in the database. */
+const byOrder = (a: AdminPromotion, b: AdminPromotion) => a.order - b.order || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0)
+
 const STATUS_CLASS: Record<string, string> = { active: 'admin-active', 'off-day': 'admin-pending', scheduled: 'admin-info' }
 
 function PromotionCard({
@@ -49,9 +57,12 @@ function PromotionCard({
   onSaved,
   onReload,
   report,
+  onMove,
 }: {
   promotion: AdminPromotion
   today: Today
+  /** Moves it one place (-1 up, +1 down); null when it cannot go that way or another save is running. */
+  onMove: { up: (() => void) | null; down: (() => void) | null }
   repository: AdminPromotionsRepository
   onSaved: (saved: AdminPromotion) => void
   onReload: () => void
@@ -126,13 +137,33 @@ function PromotionCard({
         <p>{validityText(promotion)}</p>
         {hint ? <p className="admin-promotion-hint">{hint}</p> : null}
       </div>
-      <div className="admin-quick-state">
+      <div className="admin-quick-state admin-promotion-actions">
         <Toggle
           label={`Visible en la carta: ${promotion.title}`}
           checked={promotion.visible}
           disabled={saving}
           onChange={setVisible}
         />
+        <div className="admin-move" role="group" aria-label={`Orden de ${promotion.title}`}>
+          <button
+            type="button"
+            className="admin-button"
+            aria-label={`Subir ${promotion.title}`}
+            disabled={!onMove.up || saving}
+            onClick={onMove.up ?? undefined}
+          >
+            <ArrowUp aria-hidden="true" size={16} /> Subir
+          </button>
+          <button
+            type="button"
+            className="admin-button"
+            aria-label={`Bajar ${promotion.title}`}
+            disabled={!onMove.down || saving}
+            onClick={onMove.down ?? undefined}
+          >
+            <ArrowDown aria-hidden="true" size={16} /> Bajar
+          </button>
+        </div>
       </div>
       {stateSave.view}
       {!editing ? dataSave.view : null}
@@ -188,12 +219,15 @@ export function PromotionsEditor({
   onWorkChange?: (work: Work) => void
 }) {
   const [state, setState] = useState<LoadState>({ kind: 'loading' })
+  // The order feedback reloads through the latest reload, which is declared below.
+  const reloadRef = useRef<() => void>(() => undefined)
   const [attempt, setAttempt] = useState(0)
   const [creating, setCreating] = useState(false)
   const [created, setCreated] = useState<string | null>(null)
   const [work, setWork] = useState<Record<string, Work>>({})
   const dirty = Object.values(work).some((value) => value.dirty)
-  const saving = Object.values(work).some((value) => value.saving)
+  const orderSave = useSave(() => reloadRef.current(), 'Orden', PROMOTIONS_SCOPE)
+  const saving = orderSave.saving || Object.values(work).some((value) => value.saving)
   const report = useCallback<ReportWork>(
     (id, next) =>
       setWork((current) =>
@@ -219,7 +253,7 @@ export function PromotionsEditor({
     let active = true
     repository.load().then(
       (promotions) => {
-        if (active) setState({ kind: 'ready', promotions })
+        if (active) setState({ kind: 'ready', promotions: [...promotions].sort(byOrder) })
       },
       (error: unknown) => {
         if (!active) return
@@ -240,6 +274,27 @@ export function PromotionsEditor({
     setState({ kind: 'loading' })
     setAttempt((value) => value + 1)
   }, [dirty, saving])
+
+  useEffect(() => {
+    reloadRef.current = reload
+  }, [reload])
+
+  const applyPositions = (positions: PromotionPosition[]) => {
+    const byId = new Map(positions.map((position) => [position.id, position]))
+    setState((current) =>
+      current.kind === 'ready'
+        ? {
+            ...current,
+            promotions: current.promotions
+              .map((item) => {
+                const position = byId.get(item.id)
+                return position ? { ...item, order: position.order, updatedAt: position.updatedAt } : item
+              })
+              .sort(byOrder),
+          }
+        : current,
+    )
+  }
 
   const add = (promotion: AdminPromotion) => {
     setState((current) => (current.kind === 'ready' ? { ...current, promotions: [...current.promotions, promotion] } : current))
@@ -276,6 +331,18 @@ export function PromotionsEditor({
   const today = argentinaToday(new Date())
   const { promotions } = state
   const active = promotions.filter((item) => promotionStatus(item, today) === 'active').length
+  const move = (index: number, delta: -1 | 1) => {
+    const promotion = promotions[index]
+    const neighbor = promotions[index + delta]
+    void orderSave.run(async () =>
+      applyPositions(
+        await repository.move(promotion.id, neighbor.id, {
+          [promotion.id]: promotion.updatedAt,
+          [neighbor.id]: neighbor.updatedAt,
+        }),
+      ),
+    )
+  }
   // New promotions go after the last one; a tie with a concurrent create is broken by code, everywhere.
   const nextOrder = promotions.reduce((last, item) => Math.max(last, item.order), 0) + 1
   const newButton = (
@@ -311,14 +378,16 @@ export function PromotionsEditor({
         </div>
       ) : (
         <>
+          {orderSave.view}
           <p className="admin-result-count">
             {promotions.length} {promotions.length === 1 ? 'promoción' : 'promociones'} · {active}{' '}
             {active === 1 ? 'activa' : 'activas'}
           </p>
           <div className="admin-promotion-list">
-            {promotions.map((promotion) => (
+            {promotions.map((promotion, index) => (
               <PromotionCard
                 key={promotion.id}
+                onMove={{ up: !saving && index > 0 ? () => move(index, -1) : null, down: !saving && index < promotions.length - 1 ? () => move(index, 1) : null }}
                 promotion={promotion}
                 today={today}
                 repository={repository}

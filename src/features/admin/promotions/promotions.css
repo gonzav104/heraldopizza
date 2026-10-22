@@ -5,6 +5,19 @@
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
   align-items: start;
 }
+/* The promotion card keeps one column at every width: the product card's desktop grid does not apply. */
+.admin-product-card.admin-promotion-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.admin-promotion-card .admin-quick-state {
+  justify-content: space-between;
+  border-bottom: 0;
+  padding-bottom: 0;
+  border-top: 1px solid #eeede9;
+  padding-top: 0.6rem;
+}
 .admin-promotion-card h2 {
   font-size: 1.15rem;
   font-weight: 750;
@@ -147,6 +160,16 @@
   outline: 2px solid var(--admin-accent);
   outline-offset: 2px;
 }
+.admin-promotion-actions {
+  justify-content: space-between;
+}
+.admin-move {
+  display: flex;
+  gap: 0.4rem;
+}
+.admin-move .admin-button {
+  gap: 0.3rem;
+}
 .admin-intro-actions {
   display: flex;
   flex-wrap: wrap;
@@ -183,6 +206,15 @@
 .admin-create-note {
   font-size: 0.875rem;
   font-weight: 600;
+}
+@media (max-width: 560px) {
+  .admin-promotions .admin-workspace-intro {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .admin-intro-actions .admin-button {
+    flex: 1;
+  }
 }
 @media (max-width: 420px) {
   .admin-date-pair {

@@ -26,6 +26,17 @@ Orden de trabajo actualizado:
 
 La evidencia de «sin llamadas de red» de D11 describe el prototipo histórico; el catálogo público actual consulta Supabase. La numeración antigua de unidades no define este orden vigente. No se accede a Supabase remoto durante U1.
 
+## Decisiones de P5b — administración de promociones (2026-10-22)
+
+- **Panel:** `/admin` tiene dos secciones, «Carta | Promociones», sin React Router. Cada sección carga la primera vez que se abre y después queda montada y oculta (`hidden`), así que los cambios sin guardar sobreviven al cambio de sección; mientras algo se guarda no se puede cambiar de sección ni salir.
+- **Alta:** «Combo cerrado» o «Docena de empanadas a elección (12)»; no se elige categoría ni cantidad. Se crea desactivada (`visible = false`, enviado de forma explícita) y PostgreSQL genera el código. Sin relaciones con productos (RF-44 fuera de alcance).
+- **Edición:** título, descripción, precio, visibilidad, fechas y días; el código y la composición se muestran y no se editan. Desactivar pide confirmación.
+- **Estados informativos:** activa, desactivada, programada, vencida, fuera de día y categoría de gustos oculta, calculados con la fecha de `America/Argentina/Buenos_Aires` (no la zona de la computadora). La visibilidad pública la decide la base.
+- **Orden (opción A):** botones «Subir» y «Bajar» con `public.mover_promocion(promoción, vecina, tokens)`, `security invoker`, `search_path` vacío, ejecutable solo por `authenticated` y solo efectiva para administradores.
+  - **Garantiza la base:** solo administradores; todo o nada; si la vecina ya no es contigua o algún token cambió, falla con conflicto y no cambia nada; las filas quedan bloqueadas durante la operación, así que dos movimientos simultáneos se serializan y el segundo falla con conflicto; después de un movimiento las posiciones quedan 1..n sin repetidos.
+  - **No garantiza:** posiciones únicas en todo momento (un alta toma «última + 1» desde el panel; dos altas simultáneas pueden empatar hasta el próximo movimiento). El desempate es siempre por `codigo`, único e inmutable, en la carta y en el panel.
+  - **Solo la interfaz:** deshabilitar «Subir» en la primera y «Bajar» en la última.
+
 ## Decisiones de P5a — promociones reales en Supabase (2026-10-22)
 
 - **Identidad:** `promociones.id` es un UUID interno; `codigo` es el identificador comercial, único e inmutable, y la app lo usa como `Promotion.id`. Los ocho códigos originales se conservan exactamente (los carritos guardados los tienen). Las promociones nuevas reciben un código `promo-…` generado por la base, que el administrador no puede elegir ni cambiar.

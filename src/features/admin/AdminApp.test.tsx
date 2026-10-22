@@ -28,6 +28,9 @@ const promotions: AdminPromotionsRepository = {
   update: async () => {
     throw new Error('unused')
   },
+  move: async () => {
+    throw new Error('unused')
+  },
 }
 
 interface Deferred<T> {
