@@ -100,6 +100,23 @@ describe('cart with lines the catalog cannot price (P2)', () => {
     expect(within(sheet).queryByRole('textbox', { name: /Nombre/ })).not.toBeInTheDocument()
   })
 
+  it('stays on the cart after the last issue is removed: only «Continuar» moves on', () => {
+    add('Muzzarella', 'Entera')
+    addGone()
+    const catalog = createCatalogData(prototypeCategories, prototypeProducts, [])
+    render(
+      <CatalogContext value={catalog}>
+        <OrderSheet step="details" onClose={() => undefined} />
+      </CatalogContext>,
+    )
+    const sheet = screen.getByRole('dialog', { name: 'Tu pedido' })
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Quitar Un producto que ya no está en la carta del pedido' }))
+
+    expect(within(sheet).getByText('Paso 1 de 3')).toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: 'Continuar' })).toBeEnabled()
+  })
+
   it('disables the desktop panel action too', () => {
     add('Muzzarella', 'Entera')
     addGone()

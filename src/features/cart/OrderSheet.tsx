@@ -45,7 +45,9 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
 
   const empty = isEmptyOrder(summary)
   const ready = isReadyForCheckout(summary)
-  // P2: the details and the message exist only for an order with nothing to review, whatever step was requested.
+  // P2: the details and the message exist only for an order with nothing to review, whatever step was requested. The
+  // requested step is dropped too, so removing the last issue never skips «Continuar».
+  if (!ready && current !== 'cart') setCurrent('cart')
   const shownStep: OrderStep = ready ? current : 'cart'
   const totals = computeTotals(summary, details)
 

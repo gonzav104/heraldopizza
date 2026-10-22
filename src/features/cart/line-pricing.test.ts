@@ -273,6 +273,15 @@ describe('reconcileOrder: lines the current catalog cannot price (P2)', () => {
     })
   })
 
+  it('never prices a promotion without a positive price', () => {
+    const catalog = indexCatalog(prototypeCategories, prototypeProducts, [{ ...promo, price: 0 }])
+    expect(issueOf({ id: 'p', kind: 'promotion', promotionId: promo.id, quantity: 1, note: '' }, catalog)).toMatchObject({
+      kind: 'unavailable',
+      title: promo.title,
+      reason: 'No tiene precio publicado.',
+    })
+  })
+
   it('prices the line again as soon as the catalog has it back', () => {
     const line = productLine('Muzzarella', 'Entera')
     expect(reconcileOrder([line], catalogWith({ ...muzza, inStock: false })).lines).toHaveLength(0)
