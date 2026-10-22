@@ -10,6 +10,7 @@ import {
   type ProductChanges,
 } from '@/features/admin/catalog/admin-catalog'
 import { saveError } from '@/features/admin/shared/admin-save'
+import { updateGuardedRow, type Row } from '@/features/admin/shared/supabase-rows'
 
 /**
  * Supabase adapter of the admin catalog (U5), used only inside the lazy admin chunk. Writes go through row level
@@ -25,8 +26,6 @@ const CATALOG_SELECT =
   'id,nombre,orden,visible,actualizado_en,' +
   'productos(id,nombre,descripcion,solo_por_encargo,aviso_encargo,sin_stock,visible,orden,actualizado_en,' +
   `variantes(${VARIANT_COLUMNS}))`
-
-type Row = Record<string, unknown>
 
 function unexpected(what: string): never {
   throw new AdminSaveError('unavailable', `Unexpected catalog data: ${what}`)
@@ -126,18 +125,9 @@ export class SupabaseAdminCatalog implements AdminCatalogRepository {
       })
   }
 
-  /** One row, only the allowed columns, guarded by its token. Zero rows updated is a conflict, never a success. */
-  private async updateRow(table: string, columns: string, id: string, payload: Row, updatedAt: string): Promise<Row> {
-    const { data, error } = await this.client
-      .from(table)
-      .update(payload)
-      .eq('id', id)
-      .eq('actualizado_en', updatedAt)
-      .select(columns)
-    if (error) throw saveError(error)
-    const rows = list(data, 'updated rows')
-    if (rows.length !== 1) throw new AdminSaveError('conflict', 'The row changed since it was read, or it cannot be written')
-    return rows[0]
+  /** One row, only the allowed columns, guarded by its token (shared with the promotions). */
+  private updateRow(table: string, columns: string, id: string, payload: Row, updatedAt: string): Promise<Row> {
+    return updateGuardedRow(this.client, table, columns, id, payload, updatedAt)
   }
 
   async updateCategory(id: string, changes: CategoryChanges, updatedAt: string): Promise<Omit<AdminCategory, 'products'>> {
