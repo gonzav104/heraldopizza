@@ -143,6 +143,60 @@ describe('time limit of the final check (P6)', () => {
   })
 })
 
+describe('closing the order sheet with the browser or phone Back button (Codex P2 on PR #31)', () => {
+  it('cancels the check in flight, leaves no timer, ignores its late answer, and a reopened check gets its own 20 seconds', async () => {
+    const { calls, repository } = await openMessage()
+    expect(within(sheet()).getByRole('status')).toHaveTextContent('Verificando precios y disponibilidad…')
+
+    // The same path a phone's Back button takes: history goes back, useSheetHistory hears popstate and closes the sheet.
+    await act(async () => {
+      window.history.back()
+      await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    })
+    expect(calls[1].signal?.aborted).toBe(true)
+    expect(vi.getTimerCount()).toBe(0)
+
+    await act(async () => calls[1].resolve(repriced))
+    expect(screen.getByRole('button', { name: /^Sumar Muzzarella, Entera, \$\s16\.000/ })).toBeInTheDocument()
+
+    // Reopen: the cart and the checkout data are still there, and the new check starts from zero.
+    fireEvent.click(screen.getByRole('button', { name: /^Ver tu pedido/ }))
+    expect(within(sheet()).getByRole('heading', { level: 2, name: 'Tu pedido' })).toBeInTheDocument()
+    expect(useOrderStore.getState().lines[0]).toMatchObject({ quantity: 1, note: 'bien cocida' })
+    fireEvent.click(within(sheet()).getByRole('button', { name: 'Continuar' }))
+    expect(within(sheet()).getByLabelText('Nombre y apellido')).toHaveValue('Ana Gómez')
+    expect(within(sheet()).getByRole('radio', { name: /^Crédito/ })).toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: /^Ver mensaje/ }))
+    expect(repository.load).toHaveBeenCalledTimes(3)
+
+    act(() => vi.advanceTimersByTime(VERIFICATION_TIMEOUT_MS - 1))
+    expect(within(sheet()).queryByRole('alert')).toBeNull()
+    expect(within(sheet()).getByRole('status')).toHaveTextContent('Verificando precios y disponibilidad…')
+    act(() => vi.advanceTimersByTime(1))
+    expect(within(sheet()).getByRole('alert')).toHaveTextContent(TIMEOUT)
+    expect(calls[2].signal?.aborted).toBe(true)
+  })
+
+  it('does not cancel anything when moving between steps, and keeps a finished check for reuse after a Back close', async () => {
+    const { calls, repository } = await openMessage()
+    await act(async () => calls[1].resolve(catalogA))
+    expect(bubble()).not.toBeNull()
+    fireEvent.click(within(sheet()).getByRole('button', { name: 'Volver al paso anterior' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Ver mensaje/ }))
+    expect(bubble()).not.toBeNull()
+
+    await act(async () => {
+      window.history.back()
+      await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    })
+    fireEvent.click(screen.getByRole('button', { name: /^Ver tu pedido/ }))
+    fireEvent.click(within(sheet()).getByRole('button', { name: 'Continuar' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Ver mensaje/ }))
+    expect(bubble()).not.toBeNull()
+    expect(repository.load).toHaveBeenCalledTimes(2)
+  })
+})
+
 describe('what the order step says when the order changed (P6)', () => {
   it('tells a change after the last check apart from a change during it', async () => {
     const { calls } = await openMessage()

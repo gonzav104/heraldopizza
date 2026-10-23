@@ -87,6 +87,15 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
     leave()
     onClose()
   }
+  // The phone's or browser's Back button closes the sheet through history (useSheetHistory sets `step` to null) and
+  // never calls `close`: the same cancellation runs on the open-to-closed transition. Only that transition counts, so
+  // the first render with the sheet closed, moving between steps, and a new `leave` identity cancel nothing.
+  const sheetOpen = step !== null
+  const wasOpen = useRef(sheetOpen)
+  useEffect(() => {
+    if (wasOpen.current && !sheetOpen) leave()
+    wasOpen.current = sheetOpen
+  }, [sheetOpen, leave])
   const openMessage = () => {
     if (!live) return
     setCurrent('preview')
