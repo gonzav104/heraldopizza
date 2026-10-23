@@ -1,9 +1,9 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { Storefront } from '@/app/Storefront'
 import { StatusScreen } from '@/components/ui/StatusScreen'
-import type { Catalog, CatalogRepository } from '@/domain/catalog'
-
-type LoadState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; catalog: Catalog }
+import type { CatalogRepository } from '@/domain/catalog'
+import { useRefreshableCatalog } from '@/app/useRefreshableCatalog'
+import { CatalogRefreshContext } from '@/features/catalog/catalog-refresh'
 
 /** The menu's own notices use the shared status screen, with the role that fits each moment. */
 function MenuNotice({ role, children }: { role: 'status' | 'alert'; children: ReactNode }) {
@@ -19,32 +19,11 @@ function MenuNotice({ role, children }: { role: 'status' | 'alert'; children: Re
 /**
  * Loads the catalog, promotions included, through the repository and shows the menu, or a clear state while it loads,
  * when it fails, or when it is empty. On failure it offers «Reintentar» and never substitutes other data (S6 of U3b):
- * the prototype promotions are never a source for the public menu (P5a).
+ * the prototype promotions are never a source for the public menu (P5a). The checkout refreshes it before WhatsApp
+ * through CatalogRefreshContext (P6a).
  */
 export function PublicMenu({ repository }: { repository: CatalogRepository }) {
-  const [attempt, setAttempt] = useState(0)
-  const [state, setState] = useState<LoadState>({ status: 'loading' })
-
-  useEffect(() => {
-    const controller = new AbortController()
-    // The promotions arrive in the same load as the menu, so a saved promotion is never judged without them (P2).
-    repository.load(controller.signal).then(
-      (catalog) => {
-        if (!controller.signal.aborted) setState({ status: 'ready', catalog })
-      },
-      (error: unknown) => {
-        if (controller.signal.aborted) return
-        console.error('The menu could not be loaded', error)
-        setState({ status: 'error' })
-      },
-    )
-    return () => controller.abort()
-  }, [repository, attempt])
-
-  const retry = () => {
-    setState({ status: 'loading' })
-    setAttempt((value) => value + 1)
-  }
+  const { state, retry, refreshCatalog } = useRefreshableCatalog(repository)
 
   if (state.status === 'loading') {
     return (
@@ -80,5 +59,9 @@ export function PublicMenu({ repository }: { repository: CatalogRepository }) {
     )
   }
 
-  return <Storefront categories={categories} products={products} promotions={promotions} />
+  return (
+    <CatalogRefreshContext value={refreshCatalog}>
+      <Storefront categories={categories} products={products} promotions={promotions} />
+    </CatalogRefreshContext>
+  )
 }

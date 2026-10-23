@@ -21,7 +21,7 @@ import type { OrderLine } from '@/features/cart/order-lines'
 import { MessageBubble } from '@/features/checkout/MessagePreview'
 import { OrderTotalsCard } from '@/features/checkout/OrderTotalsCard'
 import { buildOrderMessage, computeTotals, type CheckoutDetails } from '@/features/checkout/prototype-order'
-import { DisabledSendButton } from '@/features/checkout/MessagePreview'
+import { WhatsAppAction } from '@/features/checkout/MessagePreview'
 import { PrivacySheet } from '@/features/store-info/PrivacySheet'
 import { SiteFooter } from '@/features/store-info/SiteFooter'
 
@@ -301,7 +301,7 @@ export function DesignSystemView() {
         >
           <div className="flex max-w-md flex-col gap-4">
             <PedidosYaLink lead="También en" />
-            <DisabledSendButton />
+            <WhatsAppAction enabled={false} message="" verifiedAt={null} onStale={() => undefined} />
           </div>
         </Block>
 

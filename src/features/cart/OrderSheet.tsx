@@ -5,11 +5,16 @@ import { Sheet } from '@/components/ui/Sheet'
 import { useCheckoutStore, hasTypedText } from '@/features/checkout/checkout-store'
 import { CHECKOUT_FORM_ID, CheckoutForm } from '@/features/checkout/CheckoutForm'
 import { DeliveryRatesView } from '@/features/checkout/DeliveryRatesView'
-import { DisabledSendButton, MessagePreview } from '@/features/checkout/MessagePreview'
+import { MessagePreview, WhatsAppAction } from '@/features/checkout/MessagePreview'
 import { buildOrderMessage, computeTotals } from '@/features/checkout/prototype-order'
+import { snapshotOf } from '@/features/checkout/order-verification'
+import { useOrderVerification } from '@/features/checkout/useOrderVerification'
+import { isWhatsAppEnabled } from '@/features/checkout/whatsapp'
+import { VerificationPanel } from '@/features/checkout/VerificationPanel'
 import { formatArs } from '@/lib/money'
 import { CartLines, CheckoutBlockedNote, EmptyOrder, OrderIssues, ProductsSubtotal } from './CartLines'
 import { isEmptyOrder, isReadyForCheckout } from './line-pricing'
+import { useOrderStore } from './order-store'
 import { OrderStorageNotice } from './OrderStorageNotice'
 import { useOrderSummary } from './useOrderSummary'
 
@@ -34,6 +39,8 @@ interface OrderSheetProps {
 export function OrderSheet({ step, onClose }: OrderSheetProps) {
   const summary = useOrderSummary()
   const details = useCheckoutStore((state) => state.details)
+  const lines = useOrderStore((state) => state.lines)
+  const { verification, enter, recheck, accept, leave } = useOrderVerification()
   const [current, setCurrent] = useState<OrderStep>(step ?? 'cart')
   const [requested, setRequested] = useState(step)
   // «Tarifas de la motito» opens as a view of the details step, not as a second sheet (sheets never stack).
@@ -52,16 +59,49 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
   // P2: the details and the message exist only for an order with nothing to review, whatever step was requested. The
   // requested step is dropped too, so removing the last issue never skips «Continuar».
   if (!ready && current !== 'cart') setCurrent('cart')
+  // Going back to the cart also closes the motito rates, so a later «Continuar» opens the data form (P6a).
+  if (!ready && ratesOpen) setRatesOpen(false)
   const shownStep: OrderStep = ready ? current : 'cart'
   const showingRates = ratesOpen && shownStep === 'details'
   const totals = computeTotals(summary, details)
+  // The order as the customer sees it now; the message step opens on it only once it is verified (P6a).
+  const live = ready ? snapshotOf(lines, summary, details) : null
+  const verified =
+    verification.status === 'verified' &&
+    live !== null &&
+    verification.snapshot.cart === live.cart &&
+    verification.snapshot.checkout === live.checkout
 
   // Moving between steps puts focus on the new step's heading, so screen readers hear where they are.
   useEffect(() => {
     if (step) title.current?.focus({ preventScroll: true })
   }, [shownStep, step, showingRates])
 
-  const back = () => (showingRates ? setRatesOpen(false) : setCurrent(shownStep === 'preview' ? 'details' : 'cart'))
+  const back = () => {
+    if (showingRates) return setRatesOpen(false)
+    if (shownStep === 'preview') leave()
+    setCurrent(shownStep === 'preview' ? 'details' : 'cart')
+  }
+  // Closing the sheet aborts a check in flight, like going back.
+  const close = () => {
+    leave()
+    onClose()
+  }
+  // The phone's or browser's Back button closes the sheet through history (useSheetHistory sets `step` to null) and
+  // never calls `close`: the same cancellation runs on the open-to-closed transition. Only that transition counts, so
+  // the first render with the sheet closed, moving between steps, and a new `leave` identity cancel nothing.
+  const sheetOpen = step !== null
+  const wasOpen = useRef(sheetOpen)
+  useEffect(() => {
+    if (wasOpen.current && !sheetOpen) leave()
+    wasOpen.current = sheetOpen
+  }, [sheetOpen, leave])
+  const openMessage = () => {
+    if (!live) return
+    setCurrent('preview')
+    // A tap while a check is running starts nothing new.
+    if (verification.status !== 'checking') enter(live)
+  }
 
   const footer =
     shownStep === 'cart' ? (
@@ -72,7 +112,7 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
           <PrimaryAction onClick={() => setCurrent('details')} disabled={!ready} label="Continuar" />
         </div>
       ) : (
-        <PrimaryAction onClick={onClose} label="Ver la carta" />
+        <PrimaryAction onClick={close} label="Ver la carta" />
       )
     ) : showingRates ? (
       // Distinct keys: React must not turn the pressed «Volver» into the submit button while the click is still being
@@ -81,13 +121,18 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
     ) : shownStep === 'details' ? (
       <PrimaryAction key="ver-mensaje" type="submit" form={CHECKOUT_FORM_ID} label="Ver mensaje" amount={formatArs(totals.total)} />
     ) : (
-      <DisabledSendButton />
+      <WhatsAppAction
+        enabled={isWhatsAppEnabled()}
+        message={buildOrderMessage(details, summary, totals)}
+        verifiedAt={verified && verification.status === 'verified' ? verification.at : null}
+        onStale={() => live && recheck(live)}
+      />
     )
 
   return (
     <Sheet
       open={step !== null}
-      onClose={onClose}
+      onClose={close}
       labelledBy="pedido-titulo"
       headerTone="pino"
       dismissOnBackdrop={shownStep !== 'details' || !hasTypedText(details)}
@@ -129,9 +174,18 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
       ) : null}
       {showingRates ? <DeliveryRatesView /> : null}
       {shownStep === 'details' && !showingRates ? (
-        <CheckoutForm totals={totals} onValid={() => setCurrent('preview')} onShowRates={() => setRatesOpen(true)} />
+        <CheckoutForm totals={totals} onValid={openMessage} onShowRates={() => setRatesOpen(true)} />
       ) : null}
-      {shownStep === 'preview' ? <MessagePreview message={buildOrderMessage(details, summary, totals)} /> : null}
+      {shownStep === 'preview' && !verified ? (
+        <VerificationPanel
+          // A verified order that no longer matches what is on screen needs a new check, never a blank step.
+          verification={verification.status === 'verified' ? { status: 'unverified', cartChanged: false } : verification}
+          changedAfterCheck={verification.status === 'verified'}
+          onRetry={() => live && recheck(live)}
+          onAccept={accept}
+        />
+      ) : null}
+      {shownStep === 'preview' && verified ? <MessagePreview message={buildOrderMessage(details, summary, totals)} /> : null}
     </Sheet>
   )
 }

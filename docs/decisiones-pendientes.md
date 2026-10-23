@@ -26,6 +26,17 @@ Orden de trabajo actualizado:
 
 La evidencia de «sin llamadas de red» de D11 describe el prototipo histórico; el catálogo público actual consulta Supabase. La numeración antigua de unidades no define este orden vigente. No se accede a Supabase remoto durante U1.
 
+## Decisiones de P6 — verificación del pedido y enlace de WhatsApp (2026-10-22)
+
+- **Número (A):** el WhatsApp oficial de pedidos es el 11 7058-2325 (`5491170582325`). El enlace está construido y probado, pero **apagado**: solo se ofrece si la compilación tiene `VITE_WHATSAPP_ENABLED=true`, y ningún entorno lo define, producción incluida. Activarlo es P6b-2 y requiere autorización expresa.
+- **Verificación antes del mensaje (P6a):** «Ver mensaje» vuelve a consultar la carta una vez (los mismos dos GET, sin consultas por producto ni polling) y P2 concilia el pedido contra esa carta. Si el pedido dejó de ser válido, vuelve al carrito con sus líneas; si cambió algún precio, muestra antes y después y pide «Aceptar el total actualizado»; si cambió el carrito mientras se consultaba, el resultado no autoriza nada.
+- **Fallas (B):** si no se puede verificar, se bloquea la continuación con «No pudimos verificar tu pedido. Revisá tu conexión e intentá de nuevo.» y «Reintentar», conservando carrito y datos. Nunca se usan datos viejos en silencio, y la carta en pantalla no cambia ni muestra el error global.
+- **Vigencia (C):** una verificación vale menos de 10 minutos y nunca después de la medianoche argentina. Si sigue vigente y el carrito es el mismo, se reutiliza; si cambió el total por los datos del pedido (por ejemplo, crédito), se pide aceptar otra vez. Al tocar «Continuar en WhatsApp» con una verificación vencida, no se navega y se verifica de nuevo.
+- **Tiempo máximo (resiliencia):** la verificación final nunca espera más de 20 segundos. Al vencer el plazo, la solicitud se cancela y la verificación queda marcada como vieja (vale aunque la solicitud ignore la cancelación), así que cualquier respuesta posterior se descarta. Se muestra «La verificación tardó demasiado. Revisá tu conexión e intentá de nuevo.» con «Reintentar», WhatsApp sigue bloqueado y se conservan carrito y datos. Volver o cerrar la hoja cancelan sin mostrar un error. La carga inicial de la carta no cambia.
+- **Antes de desplegar:** verificar explícitamente el valor de `VITE_WHATSAPP_ENABLED` en el entorno de compilación. Ausente o distinto de «true», el enlace no se genera; con «true», el botón abre WhatsApp de verdad, así que solo se define cuando se autorice P6b-2.
+- **Lluvia y 00:00 (D):** siguen como avisos del checkout, sin recargos ni cambios en el total ni en el mensaje.
+- **Apertura:** el botón es un enlace común a `https://wa.me/<número>?text=<mensaje>` (`encodeURIComponent`), en una pestaña nueva, seguido por el navegador desde el toque; nunca `window.open` después de una espera. No vacía el carrito.
+
 ## Decisiones de P5b — administración de promociones (2026-10-22)
 
 - **Panel:** `/admin` tiene dos secciones, «Carta | Promociones», sin React Router. Cada sección carga la primera vez que se abre y después queda montada y oculta (`hidden`), así que los cambios sin guardar sobreviven al cambio de sección; mientras algo se guarda no se puede cambiar de sección ni salir.
@@ -47,7 +58,7 @@ La evidencia de «sin llamadas de red» de D11 describe el prototipo histórico;
 - **Sin borrado físico:** ningún rol puede borrar promociones; se desactivan.
 - **Composición fija (PR #29, hallazgo de Codex):** la configuración de gustos (`eleccion_categoria_id`, `eleccion_unidades`) solo se define al crear la promoción. Después, el administrador cambia título, descripción, precio, visibilidad, orden y vigencia, pero no puede convertir un combo cerrado en configurable ni cambiar la categoría o las 12 unidades de la docena a elección.
 - **Un solo configurador (PR #29, segundo hallazgo de Codex, decisión del responsable):** el MVP admite una única promoción configurable, **12 empanadas a elección**. La base solo acepta la elección de gustos con 12 unidades de la categoría Empanadas (su UUID estable del catálogo autorizado, `e4f5b25a-de7f-5c2e-a05f-071bcc5aa6d4`, nunca por nombre); las promociones cerradas no tienen elección. Otros configuradores requieren una evolución explícita del esquema y del frontend.
-- **Deuda técnica diferida (PR #29, hallazgo 2 de Codex):** la carta se carga una vez; si la pestaña queda abierta cuando una promoción vence, se desactiva o cambia de precio, el cliente la sigue viendo hasta recargar. No se resuelve en P5a (sin polling, temporizadores ni recargas automáticas). Lo resuelve la unidad previa a WhatsApp real, reutilizando la reconciliación de P2 y el repositorio actual, que debe:
+- **Resuelta en P6a (ver «Decisiones de P6»).** **Deuda técnica diferida (PR #29, hallazgo 2 de Codex):** la carta se carga una vez; si la pestaña queda abierta cuando una promoción vence, se desactiva o cambia de precio, el cliente la sigue viendo hasta recargar. No se resuelve en P5a (sin polling, temporizadores ni recargas automáticas). Lo resuelve la unidad previa a WhatsApp real, reutilizando la reconciliación de P2 y el repositorio actual, que debe:
   - actualizar productos y promociones antes de continuar a WhatsApp;
   - detectar cambios de precio y disponibilidad;
   - detectar promociones vencidas, desactivadas o desaparecidas;
@@ -132,7 +143,7 @@ Las pidió el responsable del proyecto después de aprobar el diseño de U2. Nin
 2. ¿Los **precios y costos de envío en PedidosYa** son los mismos que en la carta? Si difieren, conviene aclararlo.
 3. **Lista de zonas de envío** (barrios y fábricas) con su costo (RF-19, RF-63). Hoy solo existe «Otra zona (a consultar)».
 4. ~~Recargo por lluvia~~ Resuelto: aclaración informativa, sin recargo automático. **Recargo nocturno** (RF-65, F2): si se informa. Hoy no se publica.
-5. ¿El **11 7058-2325** puede publicarse? El PDF dice que es una cuenta personal de WhatsApp, no Business. ¿Atiende llamadas? ¿Hay otro teléfono?
+5. ~~¿El **11 7058-2325** puede publicarse?~~ Resuelto (2026-10-22): es el WhatsApp oficial de pedidos (`5491170582325`). Abrir el enlace real sigue sin autorizar (P6b-2). ¿Atiende llamadas? ¿Hay otro teléfono?
 6. Horario nocturno: ¿termina a las 00:00 o sigue después? (ya figuraba arriba).
 7. Unidad de venta de la Chocotorta y del Durazno con dulce de leche, y si llevan descripción (ya figuraba arriba).
 

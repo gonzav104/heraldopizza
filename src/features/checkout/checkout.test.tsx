@@ -3,11 +3,16 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { prototypeCategories, prototypeProducts } from '@/data/prototype-catalog'
 import { Storefront } from '@/app/Storefront'
 import { resetOrderStore } from '@/features/cart/order-store'
+import { SameCatalogOnRefresh } from '@/test/fresh-catalog'
 import { resetCheckoutStore } from './checkout-store'
 import { DELIVERY_RATES_NOTE, NIGHT_NOTICE, ORDER_CONFIRMATION_NOTICE, RAIN_NOTICE } from './notices'
 
 async function openDetails() {
-  render(<Storefront categories={prototypeCategories} products={prototypeProducts} promotions={[]} />)
+  render(
+    <SameCatalogOnRefresh catalog={{ categories: prototypeCategories, products: prototypeProducts, promotions: [] }}>
+      <Storefront categories={prototypeCategories} products={prototypeProducts} promotions={[]} />
+    </SameCatalogOnRefresh>,
+  )
   fireEvent.click(screen.getByRole('button', { name: /^Sumar Muzzarella, Entera/ }))
   fireEvent.click(screen.getByRole('button', { name: /^Ver tu pedido/ }))
 
@@ -89,7 +94,7 @@ describe('checkout prototype', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Ver mensaje/ }))
 
     expect(within(sheet).getByRole('heading', { name: 'Revisá el mensaje' })).toBeInTheDocument()
-    const message = within(sheet).getByText(/\*Pedido para Heraldo Pizza\*/)
+    const message = await within(sheet).findByText(/\*Pedido para Heraldo Pizza\*/)
     expect(message).toHaveTextContent('Dirección: Rivadavia 100, Barrio Centro')
     expect(message).not.toHaveTextContent(/Zona|Recargo por pizza/)
     expect(screen.getByRole('button', { name: 'Continuar en WhatsApp' })).toBeDisabled()
@@ -144,6 +149,29 @@ describe('checkout prototype', () => {
     expect(summary).toHaveTextContent('No incluye el reparto en motito: se paga aparte, con tarifa según el destino, y lo confirma el local.')
     expect(summary).not.toHaveTextContent(/pizza|A confirmar|parcial/i)
     expect(screen.getByRole('button', { name: /^Ver mensaje.*16\.000/ })).toBeInTheDocument()
+  })
+
+  it('does not bring the rates view back after the order was invalidated while it was open (P6a-1)', async () => {
+    const view = render(<Storefront categories={prototypeCategories} products={prototypeProducts} promotions={[]} />)
+    fireEvent.click(screen.getByRole('button', { name: /^Sumar Muzzarella, Entera/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Ver tu pedido/ }))
+    let sheet = await screen.findByRole('dialog', { name: 'Tu pedido' })
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Continuar' }))
+    fireEvent.click(within(sheet).getByRole('radio', { name: 'Envío' }))
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Consultar tarifas de reparto' }))
+    expect(within(sheet).getByRole('heading', { level: 2, name: 'Tarifas de la motito' })).toBeInTheDocument()
+
+    // A fresh catalog says the Muzzarella is out of stock: the sheet goes back to the cart.
+    const outOfStock = prototypeProducts.map((product) => (product.name === 'Muzzarella' ? { ...product, inStock: false } : product))
+    view.rerender(<Storefront categories={prototypeCategories} products={outOfStock} promotions={[]} />)
+    sheet = screen.getByRole('dialog', { name: 'Tu pedido' })
+    expect(within(sheet).getByRole('heading', { level: 2, name: 'Tu pedido' })).toBeInTheDocument()
+
+    // Back in stock: «Continuar» opens the data form, not the rates.
+    view.rerender(<Storefront categories={prototypeCategories} products={prototypeProducts} promotions={[]} />)
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Continuar' }))
+    expect(within(sheet).getByRole('heading', { level: 2, name: 'Tus datos' })).toBeInTheDocument()
+    expect(within(sheet).getByRole('radio', { name: 'Envío' })).toBeChecked()
   })
 
   it('opens «Tarifas de la motito» from delivery as its own view, searchable, and comes back with the data kept', async () => {
@@ -227,7 +255,7 @@ describe('checkout prototype', () => {
       .map((term) => `${term.textContent}: ${term.nextElementSibling?.textContent}`)
 
     fireEvent.click(screen.getByRole('button', { name: /^Ver mensaje/ }))
-    const message = within(sheet).getByText(/\*Pedido para Heraldo Pizza\*/).textContent ?? ''
+    const message = (await within(sheet).findByText(/\*Pedido para Heraldo Pizza\*/)).textContent ?? ''
 
     expect(rows).toEqual([
       expect.stringMatching(/^Productos: \$\s16\.000$/),

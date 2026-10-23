@@ -38,6 +38,7 @@ describe('privacy notice (S2)', () => {
 
     expect(text).toMatch(/armar el mensaje de WhatsApp/)
     expect(text).toMatch(/Hasta que lo envíes desde WhatsApp, Heraldo Pizza no recibe nada/)
+    expect(text).toContain('«Continuar en WhatsApp» abre WhatsApp con el mensaje escrito; abrirlo no envía nada')
     expect(text).toMatch(/tus datos los recibe Heraldo Pizza/)
     expect(text).toMatch(/también se tratan a través de WhatsApp/)
   })
@@ -62,6 +63,11 @@ describe('privacy notice (S2)', () => {
         'permanece en tu dispositivo hasta que decidís enviarlo por WhatsApp.',
     )
     expect(text).toContain('No utilizamos cookies ni herramientas de análisis.')
+    // P6a: the check before WhatsApp is the same catalog request, with nothing of the order either.
+    expect(text).toContain(
+      'Antes de mostrarte el mensaje volvemos a consultar la carta para confirmar precios y disponibilidad; esa ' +
+        'consulta tampoco incluye tu pedido ni tus datos.',
+    )
   })
 
   it('says what the browser keeps for the order, what it does not, and how to delete it (RF-17)', () => {
