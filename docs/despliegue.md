@@ -48,6 +48,7 @@ Todo debe pasar. Además:
 - [ ] El proyecto de destino es el correcto y se sabe qué contiene. Si ya tiene datos que importan, `pg_dump` antes de tocar nada (sección 7).
 - [ ] La clave que se va a usar en el frontend es la **publicable** (`sb_publishable_…`). La clave secreta y `service_role` no van nunca al frontend, a un `.env` versionado ni a un chat.
 - [ ] Se sabe qué contraseña de base de datos se usará y cómo se guarda (gestor de contraseñas, no un archivo del repositorio).
+- [ ] **Ensayo previo en un proyecto de Supabase descartable.** Las secciones 3 a 5 solo se probaron contra el stack local: nunca se corrieron contra un proyecto real, así que cosas como lo que muestra `migration list`, los permisos que trae un proyecto nuevo o la existencia de `supabase_migrations.schema_migrations` son lo esperado, no lo comprobado. La primera vez conviene recorrerlas completas en un proyecto de prueba que se pueda borrar, y recién después hacerlo en el definitivo.
 
 ## 3. Base de datos 🔐
 
@@ -113,7 +114,9 @@ También se puede pegar el contenido de `supabase/verificar_despliegue.sql` en e
 | `DIFERENTE` | datos distintos de los iniciales autorizados | justo después de cargarlos es un error; después de que el dueño edite precios o textos en `/admin` es normal |
 | `AVISO` | para mirar, no impide publicar | por ejemplo, todavía no hay un administrador |
 
-Justo después de cargar, las 20 filas deben ser `ok` salvo el `AVISO` del administrador (todavía no se creó). Las huellas de los datos coinciden con `docs/seed_catalogo.sql` y `supabase/seed_promociones.sql`; el archivo se actualiza en el mismo cambio que cualquier migración, permiso o dato inicial (la integración continua lo corre contra el stack local y falla si quedó viejo).
+Justo después de cargar, las 22 filas deben ser `ok` salvo el `AVISO` del administrador (todavía no se creó). Las huellas de los datos coinciden con `docs/seed_catalogo.sql` y `supabase/seed_promociones.sql`; el archivo se actualiza en el mismo cambio que cualquier migración, permiso o dato inicial (la integración continua lo corre contra el stack local y falla si quedó viejo).
+
+**Qué no demuestra.** Que todo dé `ok` confirma que el esquema versionado está aplicado tal cual (migraciones, RLS sin `FORCE`, permisos por tabla y por columna, funciones con su código fuente, restricciones por nombre y tipo, columnas, disparadores y datos iniciales). **No compara** el texto de las expresiones `USING`/`WITH CHECK` de las políticas ni los valores por defecto de las columnas (PostgreSQL puede escribirlos distinto según la versión), ni índices, secuencias, extensiones o esquemas ajenos al proyecto. Por eso **no prueba por sí solo que la autorización esté intacta**: eso lo prueban las pruebas pgTAP, que solo corren en local, más la verificación de la API pública de la sección 5.
 
 > **No** correr las pruebas pgTAP (`npm run db:test`) contra el proyecto remoto: insertan usuarios y filas de prueba. Son solo para el stack local.
 

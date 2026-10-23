@@ -9,6 +9,10 @@
 --   DIFERENTE  los datos no son los iniciales autorizados (docs/seed_catalogo.sql y supabase/seed_promociones.sql).
 --              Es un error justo después de cargarlos; es normal después de que el dueño edite precios o textos en /admin.
 --   AVISO      algo para mirar que no impide publicar (por ejemplo, todavía no hay un administrador).
+-- Lo que NO compara, a propósito: el texto de las expresiones USING/WITH CHECK de las políticas ni los valores por
+-- defecto de las columnas (PostgreSQL puede escribirlos distinto según la versión), ni los índices, las secuencias, las
+-- extensiones o esquemas ajenos a este proyecto. Que todo dé «ok» confirma que el esquema versionado está aplicado;
+-- NO prueba por sí solo que la autorización esté intacta: eso lo prueban las pruebas pgTAP, solo en local.
 -- Se corre en local en cada integración continua (npm run db:verify): si cambia una migración, un permiso o los datos
 -- iniciales, este archivo se actualiza en el mismo cambio, y así los valores esperados nunca quedan viejos.
 select comprobacion, esperado, obtenido,
@@ -24,10 +28,10 @@ from (
          '20261016220000,20261016220100,20261017120000,20261017180000,20261022190000,20261023120000' as esperado,
          (select string_agg(version, ',' order by version) from supabase_migrations.schema_migrations) as obtenido
   union all
-  select 20, 'ESTRUCTURA', 'tablas con RLS activada',
+  select 20, 'ESTRUCTURA', 'tablas con RLS activada (y ninguna con FORCE, que no se versiona)',
          'administradores,categorias,productos,promociones,variantes',
          (select string_agg(c.relname, ',' order by c.relname) from pg_class c join pg_namespace n on n.oid = c.relnamespace
-           where n.nspname = 'public' and c.relkind = 'r' and c.relrowsecurity)
+           where n.nspname = 'public' and c.relkind = 'r' and c.relrowsecurity and not c.relforcerowsecurity)
   union all
   select 21, 'ESTRUCTURA', 'tablas del esquema public (ninguna sin RLS)',
          '5',
@@ -51,10 +55,11 @@ from (
             from information_schema.role_column_grants
            where table_schema = 'public' and grantee in ('anon', 'authenticated') and privilege_type in ('INSERT', 'UPDATE'))
   union all
-  select 33, 'ESTRUCTURA', 'funciones: quién ejecuta qué, security y search_path (cantidad y huella)',
-         '7 7362bf3971902a28e2364fef15b74ef5',
+  select 33, 'ESTRUCTURA', 'funciones: quién ejecuta qué, security, search_path y código fuente (cantidad y huella)',
+         '7 d7bf7a7a859fd48090bb79cc54c54fcc',
          (select count(*)::text || ' ' || md5(string_agg(n.nspname || '.' || p.proname || ' secdef=' || p.prosecdef::text || ' cfg=' || coalesce(p.proconfig::text, '-')
-              || ' anon=' || has_function_privilege('anon', p.oid, 'EXECUTE')::text || ' auth=' || has_function_privilege('authenticated', p.oid, 'EXECUTE')::text, ';' order by n.nspname, p.proname))
+              || ' anon=' || has_function_privilege('anon', p.oid, 'EXECUTE')::text || ' auth=' || has_function_privilege('authenticated', p.oid, 'EXECUTE')::text
+              || ' src=' || md5(p.prosrc), ';' order by n.nspname, p.proname))
             from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('public', 'privado'))
   union all
   select 34, 'ESTRUCTURA', 'esquema privado: anon sin acceso, authenticated con uso',
@@ -65,6 +70,16 @@ from (
          '5 97a8b3f625be39ce74c5cc857da85326',
          (select count(*)::text || ' ' || md5(string_agg(event_object_table || ' ' || trigger_name, ';' order by event_object_table, trigger_name))
             from information_schema.triggers where trigger_schema = 'public')
+  union all
+  select 37, 'ESTRUCTURA', 'restricciones de todas las tablas, por nombre y tipo (cantidad y huella)',
+         '26 6f257935aa55d50bd980d80dd41ede4f',
+         (select count(*)::text || ' ' || md5(string_agg(conrelid::regclass::text || ' ' || conname || ' ' || contype::text, ';' order by conrelid::regclass::text, conname))
+            from pg_constraint where connamespace = 'public'::regnamespace)
+  union all
+  select 38, 'ESTRUCTURA', 'columnas: nombre, tipo y si admiten nulos (cantidad y huella)',
+         '41 28ce4aa0f51f364c8ae84881f4e19775',
+         (select count(*)::text || ' ' || md5(string_agg(table_name || '.' || column_name || ' ' || data_type || ' ' || is_nullable, ';' order by table_name, ordinal_position))
+            from information_schema.columns where table_schema = 'public')
   union all
   select 36, 'ESTRUCTURA', 'restricciones de las promociones (código único, docena de 12 empanadas)',
          'promociones_codigo_unico,promociones_eleccion_completa,promociones_eleccion_docena,promociones_eleccion_empanadas',
