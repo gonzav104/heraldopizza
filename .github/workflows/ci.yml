@@ -42,8 +42,10 @@ jobs:
         run: npm run build
 
       # The public menu's initial chunk carries no supabase-js or admin sign-in, and no file holds a server-only key.
+      # The real WhatsApp link stays off in every build until the owner authorizes it (P6b-2): a build whose environment
+      # sets VITE_WHATSAPP_ENABLED=true fails here. Turning it on is a separate, explicit change of this assertion.
       - name: Bundle check
-        run: npm run check:bundle
+        run: npm run check:bundle -- --whatsapp=apagado
 
   database:
     name: Database migrations and RLS tests
@@ -66,9 +68,20 @@ jobs:
       - name: pgTAP tests
         run: npm run db:test
 
+      # The read-only deployment verification (supabase/verificar_despliegue.sql) on the freshly seeded stack: migrations,
+      # RLS, permissions, functions, and the authorized initial data. If a migration, a permission, or the seed changes,
+      # that file changes in the same pull request (P6b-2).
+      - name: Deployment verification (read-only SQL)
+        run: npm run db:verify
+
       # Public sign-up stays closed and password sign-in stays enabled on the local stack (RF-27, RF-28).
       - name: Auth settings
         run: npm run db:check-auth
+
+      # What a visitor sees through the public API, with GET requests only: sign-up closed, the initial data, the same
+      # promotions, no access to the administrators, and the private schema not exposed (P6b-2).
+      - name: Public API verification (GET only)
+        run: npm run api:verify
 
       # Admin edits in /admin reach Supabase and the public menu (U5). Resets the runner's local database first.
       - name: Install Chromium for Playwright

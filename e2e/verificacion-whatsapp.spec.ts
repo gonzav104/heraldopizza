@@ -1,19 +1,11 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test'
 import { ADMIN_EMAIL, ADMIN_PASSWORD } from './local-admin.ts'
+import { guardWhatsApp } from './whatsapp-guard.ts'
 
 // P6, end to end against the local Supabase (reset by global-setup.ts): «Ver mensaje» checks the order with a fresh
 // catalog, a price changed in /admin meanwhile must be accepted, a network failure blocks with «Reintentar», and the
 // WhatsApp action stays disabled (VITE_WHATSAPP_ENABLED is not set). Any request to WhatsApp is intercepted and
 // counted: no test ever reaches it.
-
-async function guardWhatsApp(context: BrowserContext) {
-  const hits: string[] = []
-  await context.route(/https:\/\/(wa\.me|api\.whatsapp\.com|web\.whatsapp\.com)\//, async (route) => {
-    hits.push(route.request().url())
-    await route.fulfill({ status: 204, body: '' })
-  })
-  return hits
-}
 
 /** The Muzzarella entera as the menu prices it now (other specs may have changed it in /admin). */
 async function menuPrice(page: Page): Promise<string> {

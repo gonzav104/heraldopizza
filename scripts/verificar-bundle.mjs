@@ -4,8 +4,12 @@
 // 2. That lazy chunk exists, so check 1 cannot pass just because the markers changed name.
 // 3. No file in dist holds a secret key, the word service_role, or a JWT whose role is service_role.
 // 4. No file in dist carries the prototype promotions, which load in development only until U9 brings a real source.
+// 5. The WhatsApp switch (P6b-2): it reports whether this build offers the real link (VITE_WHATSAPP_ENABLED exactly
+//    «true») and, with `--whatsapp=apagado` or `--whatsapp=encendido`, fails when the build is in another state. CI and
+//    the deployment procedure assert «apagado» until the real link is authorized.
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { whatsappStateOf } from './estado-whatsapp.mjs'
 
 const dist = 'dist'
 const html = readFileSync(join(dist, 'index.html'), 'utf8')
@@ -57,8 +61,23 @@ for (const name of readdirSync(dist, { recursive: true })) {
   if (prototypePromotionMarker.test(text)) failures.push(`${path} carries the prototype promotions (development only)`)
 }
 
+const expectedWhatsapp = process.argv.find((argument) => argument.startsWith('--whatsapp='))?.slice('--whatsapp='.length)
+if (expectedWhatsapp !== undefined && !['apagado', 'encendido'].includes(expectedWhatsapp)) {
+  failures.push(`--whatsapp expects «apagado» or «encendido», not «${expectedWhatsapp}»`)
+}
+let whatsapp = null
+try {
+  whatsapp = whatsappStateOf(allChunks.map((chunk) => readFileSync(join(dist, chunk), 'utf8')))
+  if (['apagado', 'encendido'].includes(expectedWhatsapp ?? '') && whatsapp.state !== expectedWhatsapp) {
+    failures.push(`WhatsApp is ${whatsapp.state} in this build (${whatsapp.note}), expected ${expectedWhatsapp}`)
+  }
+} catch (error) {
+  failures.push(error instanceof Error ? error.message : String(error))
+}
+
 if (failures.length > 0) {
   console.error('Bundle check failed:\n- ' + failures.join('\n- '))
   process.exit(1)
 }
 console.log(`Bundle check passed: initial ${initial.join(', ')}; admin sign-in only in ${lazyAdmin.join(', ')}.`)
+console.log(`WhatsApp: ${whatsapp?.state} (${whatsapp?.note}).`)
