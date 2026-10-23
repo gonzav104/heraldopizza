@@ -12,10 +12,13 @@ const buttonClass =
  */
 export function VerificationPanel({
   verification,
+  changedAfterCheck = false,
   onRetry,
   onAccept,
 }: {
   verification: Verification
+  /** Wording only: the order changed after it was verified, not while it was being checked. */
+  changedAfterCheck?: boolean
   onRetry: () => void
   onAccept: () => void
 }) {
@@ -33,7 +36,16 @@ export function VerificationPanel({
       return <Changes comparison={verification.comparison} onAccept={onAccept} />
     case 'failed':
       return (
-        <Notice role="alert" text="No pudimos verificar tu pedido. Revisá tu conexión e intentá de nuevo." action="Reintentar" onAction={onRetry} />
+        <Notice
+          role="alert"
+          text={
+            verification.reason === 'timeout'
+              ? 'La verificación tardó demasiado. Revisá tu conexión e intentá de nuevo.'
+              : 'No pudimos verificar tu pedido. Revisá tu conexión e intentá de nuevo.'
+          }
+          action="Reintentar"
+          onAction={onRetry}
+        />
       )
     case 'expired':
       return (
@@ -49,9 +61,11 @@ export function VerificationPanel({
         <Notice
           role="status"
           text={
-            verification.cartChanged
-              ? 'Tu pedido cambió mientras lo verificábamos. Verificalo de nuevo para continuar.'
-              : 'Verificá tu pedido para continuar.'
+            changedAfterCheck
+              ? 'El pedido cambió después de la última verificación. Verificalo de nuevo para continuar.'
+              : verification.cartChanged
+                ? 'El pedido cambió mientras lo verificábamos. Verificalo de nuevo para continuar.'
+                : 'Verificá tu pedido para continuar.'
           }
           action="Verificar de nuevo"
           onAction={onRetry}

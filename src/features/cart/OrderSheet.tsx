@@ -170,7 +170,8 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
       {shownStep === 'preview' && !verified ? (
         <VerificationPanel
           // A verified order that no longer matches what is on screen needs a new check, never a blank step.
-          verification={verification.status === 'verified' ? { status: 'unverified', cartChanged: true } : verification}
+          verification={verification.status === 'verified' ? { status: 'unverified', cartChanged: false } : verification}
+          changedAfterCheck={verification.status === 'verified'}
           onRetry={() => live && void check(live)}
           onAccept={accept}
         />

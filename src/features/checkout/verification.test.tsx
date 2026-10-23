@@ -130,7 +130,7 @@ describe('final check before WhatsApp (P6a-3)', () => {
     act(() => useOrderStore.getState().setNote(useOrderStore.getState().lines[0].id, 'bien cocida'))
 
     expect(bubble()).toBeNull()
-    expect(within(sheet()).getByRole('status')).toHaveTextContent('Tu pedido cambió mientras lo verificábamos.')
+    expect(within(sheet()).getByRole('status')).toHaveTextContent('El pedido cambió después de la última verificación.')
     fireEvent.click(within(sheet()).getByRole('button', { name: 'Verificar de nuevo' }))
     await act(async () => calls[2].resolve(catalogA))
     expect(bubble()).toHaveTextContent('Aclaración: bien cocida')
@@ -177,7 +177,7 @@ describe('final check before WhatsApp (P6a-3)', () => {
     await act(async () => calls[1].resolve(catalogA))
 
     expect(bubble()).toBeNull()
-    expect(within(sheet()).getByRole('status')).toHaveTextContent('Tu pedido cambió mientras lo verificábamos.')
+    expect(within(sheet()).getByRole('status')).toHaveTextContent('El pedido cambió mientras lo verificábamos.')
     fireEvent.click(within(sheet()).getByRole('button', { name: 'Verificar de nuevo' }))
     await act(async () => calls[2].resolve(catalogA))
     expect(bubble()).toHaveTextContent('2 × Muzzarella (Entera): $ 32.000')

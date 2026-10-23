@@ -23,10 +23,15 @@ export type Verification =
   | { status: 'verified'; at: number; snapshot: OrderSnapshot }
   | { status: 'changed'; at: number; seen: OrderSnapshot; fresh: OrderSnapshot; comparison: OrderComparison }
   | { status: 'invalid' }
-  | { status: 'failed' }
+  /** «network»: the request failed. «timeout»: it took longer than VERIFICATION_TIMEOUT_MS. Both offer «Reintentar». */
+  | { status: 'failed'; reason: 'network' | 'timeout' }
   | { status: 'expired' }
 
 const cancelled = () => new DOMException('The order check was cancelled', 'AbortError')
+const timedOut = () => new DOMException('The order check took too long', 'TimeoutError')
+
+/** The final check never waits longer than this: it then fails in a recoverable way («Reintentar»). */
+export const VERIFICATION_TIMEOUT_MS = 20_000
 
 /**
  * The final check (P6a-3). It runs on demand, from event handlers, never from a render: one catalog refresh (the two
@@ -39,11 +44,19 @@ export function useOrderVerification() {
   const [verification, setVerification] = useState<Verification>({ status: 'unverified', cartChanged: false })
   const latest = useRef(0)
   const controller = useRef<AbortController | null>(null)
+  const deadline = useRef<number | null>(null)
 
+  const clearDeadline = () => {
+    if (deadline.current !== null) window.clearTimeout(deadline.current)
+    deadline.current = null
+  }
+
+  /** Cancels the check in flight, if any: its number goes stale, its request is aborted, and its time limit cleared. */
   const stop = useCallback(() => {
     latest.current++
     controller.current?.abort(cancelled())
     controller.current = null
+    clearDeadline()
   }, [])
 
   const check = useCallback(
@@ -53,10 +66,21 @@ export function useOrderVerification() {
       const own = new AbortController()
       controller.current = own
       setVerification({ status: 'checking' })
+      // The time limit holds even if the request ignores the abort: when it fires, this check's number goes stale, so
+      // whatever the request answers later is dropped, and the step fails in a recoverable way.
+      deadline.current = window.setTimeout(() => {
+        if (request !== latest.current) return
+        latest.current++
+        own.abort(timedOut())
+        controller.current = null
+        deadline.current = null
+        setVerification({ status: 'failed', reason: 'timeout' })
+      }, VERIFICATION_TIMEOUT_MS)
       try {
         const outcome = await refresh(own.signal)
         if (request !== latest.current) return
         controller.current = null
+        clearDeadline()
         if (!outcome.applied) {
           setVerification({ status: 'unverified', cartChanged: false })
           return
@@ -83,7 +107,8 @@ export function useOrderVerification() {
       } catch {
         if (request !== latest.current) return
         controller.current = null
-        setVerification({ status: 'failed' })
+        clearDeadline()
+        setVerification({ status: 'failed', reason: 'network' })
       }
     },
     [refresh, stop],
