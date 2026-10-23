@@ -114,9 +114,13 @@ También se puede pegar el contenido de `supabase/verificar_despliegue.sql` en e
 | `DIFERENTE` | datos distintos de los iniciales autorizados | justo después de cargarlos es un error; después de que el dueño edite precios o textos en `/admin` es normal |
 | `AVISO` | para mirar, no impide publicar | por ejemplo, todavía no hay un administrador |
 
-Justo después de cargar, las 22 filas deben ser `ok` salvo el `AVISO` del administrador (todavía no se creó). Las huellas de los datos coinciden con `docs/seed_catalogo.sql` y `supabase/seed_promociones.sql`; el archivo se actualiza en el mismo cambio que cualquier migración, permiso o dato inicial (la integración continua lo corre contra el stack local y falla si quedó viejo).
+Justo después de cargar, las 27 filas deben ser `ok` salvo el `AVISO` del administrador (todavía no se creó). Las huellas de los datos coinciden con `docs/seed_catalogo.sql` y `supabase/seed_promociones.sql`; el archivo se actualiza en el mismo cambio que cualquier migración, permiso o dato inicial (la integración continua lo corre contra el stack local y falla si quedó viejo).
 
-**Qué no demuestra.** Que todo dé `ok` confirma que el esquema versionado está aplicado tal cual (migraciones, RLS sin `FORCE`, permisos por tabla y por columna, funciones con su código fuente, restricciones por nombre y tipo, columnas, disparadores y datos iniciales). **No compara** el texto de las expresiones `USING`/`WITH CHECK` de las políticas ni los valores por defecto de las columnas (PostgreSQL puede escribirlos distinto según la versión), ni índices, secuencias, extensiones o esquemas ajenos al proyecto. Por eso **no prueba por sí solo que la autorización esté intacta**: eso lo prueban las pruebas pgTAP, que solo corren en local, más la verificación de la API pública de la sección 5.
+**Qué compara.** Migraciones aplicadas, RLS sin `FORCE`, permisos por tabla y por columna, funciones con su código fuente, y las definiciones completas de políticas (`USING` y `WITH CHECK`), restricciones, disparadores (función, evento y momento) y valores por defecto, además de los datos iniciales.
+
+**La versión de PostgreSQL importa.** PostgreSQL arma el texto de esas definiciones al leerlas, y puede escribirlo distinto en otra versión mayor. Las huellas se calcularon en la **17** (la de `supabase/config.toml`). Una fila `AVISO` informa la versión del proyecto: si no es la 17 y alguna fila de definiciones da `FALLA`, no se asume un error ni se ignora: se compara contra un stack local de esa misma versión antes de decidir. Con la 17 y una `FALLA`, es un cambio real.
+
+**Qué no demuestra.** No compara índices, secuencias, extensiones ni esquemas ajenos al proyecto. Que todo dé `ok` confirma que lo versionado está aplicado tal cual, pero la autorización además se prueba con las pruebas pgTAP (solo local) y con la verificación de la API pública de la sección 5.
 
 > **No** correr las pruebas pgTAP (`npm run db:test`) contra el proyecto remoto: insertan usuarios y filas de prueba. Son solo para el stack local.
 
@@ -146,7 +150,7 @@ Con la URL y la clave **publicable** del proyecto (la misma que va al frontend):
 node scripts/verificar-api-publica.mjs --remoto --url=https://<proyecto>.supabase.co --key=<sb_publishable_…>
 ```
 
-Comprueba, solo con `GET`, que el registro está cerrado, que el ingreso anónimo está deshabilitado, que se ven 13 categorías, 84 productos, 110 variantes y las 8 promociones con sus precios y orden, que un visitante **no** puede leer la lista de administradores y que el esquema `privado` no está expuesto. No escribe ni crea cuentas. Rechaza claves que parezcan secretas, y sin `--remoto` solo habla con el stack local. Después de que el dueño edite datos, usar `--permitir-diferentes` (las `FALLA` siguen bloqueando).
+Comprueba, solo con `GET`, que el registro está cerrado, que el ingreso anónimo está deshabilitado, que se ven 13 categorías, 84 productos, 110 variantes y las 8 promociones con sus precios y orden, que un visitante **no** puede leer la lista de administradores y que el esquema `privado` no está expuesto. No escribe ni crea cuentas. Rechaza claves que parezcan secretas, y sin `--remoto` solo habla con el stack local. Después de que el dueño edite datos, usar `--permitir-diferentes`: solo perdona una diferencia de datos con la API respondiendo bien; cualquier error HTTP (401, 403, 404, 500…) o respuesta ilegible es `FALLA` y bloquea siempre.
 
 Control manual complementario: abrir la carta publicada, comparar tres precios con `docs/seed_catalogo.sql` y ver que se muestran las 8 promociones.
 

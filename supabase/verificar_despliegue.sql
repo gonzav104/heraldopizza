@@ -9,10 +9,11 @@
 --   DIFERENTE  los datos no son los iniciales autorizados (docs/seed_catalogo.sql y supabase/seed_promociones.sql).
 --              Es un error justo después de cargarlos; es normal después de que el dueño edite precios o textos en /admin.
 --   AVISO      algo para mirar que no impide publicar (por ejemplo, todavía no hay un administrador).
--- Lo que NO compara, a propósito: el texto de las expresiones USING/WITH CHECK de las políticas ni los valores por
--- defecto de las columnas (PostgreSQL puede escribirlos distinto según la versión), ni los índices, las secuencias, las
--- extensiones o esquemas ajenos a este proyecto. Que todo dé «ok» confirma que el esquema versionado está aplicado;
--- NO prueba por sí solo que la autorización esté intacta: eso lo prueban las pruebas pgTAP, solo en local.
+-- Compara también las definiciones completas (expresiones de las políticas, restricciones, disparadores y valores por
+-- defecto), calculadas en PostgreSQL 17: la fila de la versión avisa si el proyecto usa otra, porque ese texto puede
+-- escribirse distinto. Lo que NO compara, a propósito: índices, secuencias, extensiones ni esquemas ajenos al proyecto.
+-- Que todo dé «ok» confirma que el esquema versionado está aplicado; la autorización además la prueban las pruebas pgTAP
+-- (solo local) y la verificación de la API pública (npm run api:verify).
 -- Se corre en local en cada integración continua (npm run db:verify): si cambia una migración, un permiso o los datos
 -- iniciales, este archivo se actualiza en el mismo cambio, y así los valores esperados nunca quedan viejos.
 select comprobacion, esperado, obtenido,
@@ -79,6 +80,34 @@ from (
   select 38, 'ESTRUCTURA', 'columnas: nombre, tipo y si admiten nulos (cantidad y huella)',
          '41 28ce4aa0f51f364c8ae84881f4e19775',
          (select count(*)::text || ' ' || md5(string_agg(table_name || '.' || column_name || ' ' || data_type || ' ' || is_nullable, ';' order by table_name, ordinal_position))
+            from information_schema.columns where table_schema = 'public')
+  -- Definiciones completas (Codex, PR #32). PostgreSQL arma estos textos al leerlos, así que pueden cambiar de una versión
+  -- mayor a otra o con otro search_path: por eso van en filas aparte y con un AVISO de la versión. Una FALLA en estas
+  -- filas con la versión esperada es un cambio real; con otra versión, primero hay que comparar contra un stack local
+  -- de esa misma versión.
+  union all
+  select 51, 'AVISO', 'versión mayor de PostgreSQL (las huellas de definiciones se calcularon en la 17)', '17',
+         (current_setting('server_version_num')::int / 10000)::text
+  union all
+  select 52, 'ESTRUCTURA', 'políticas: expresiones USING y WITH CHECK (cantidad y huella)',
+         '19 fa9880ff0b8aa732ada90b65f60bd446',
+         (select count(*)::text || ' ' || md5(string_agg(tablename || ' | ' || policyname || ' | ' || coalesce(qual, '-') || ' | ' || coalesce(with_check, '-'), ';' order by tablename, policyname))
+            from pg_policies where schemaname = 'public')
+  union all
+  select 53, 'ESTRUCTURA', 'restricciones: definición completa (cantidad y huella)',
+         '26 8680e2c706f780af3267202b9954533b',
+         (select count(*)::text || ' ' || md5(string_agg(conrelid::regclass::text || ' ' || conname || ' ' || pg_get_constraintdef(oid), ';' order by conrelid::regclass::text, conname))
+            from pg_constraint where connamespace = 'public'::regnamespace)
+  union all
+  select 54, 'ESTRUCTURA', 'disparadores: definición completa, con su función, evento y momento (cantidad y huella)',
+         '5 d845fcef27bc2065e97776715c00f952',
+         (select count(*)::text || ' ' || md5(string_agg(c.relname || ' ' || t.tgname || ' ' || pg_get_triggerdef(t.oid), ';' order by c.relname, t.tgname))
+            from pg_trigger t join pg_class c on c.oid = t.tgrelid
+           where c.relnamespace = 'public'::regnamespace and not t.tgisinternal)
+  union all
+  select 55, 'ESTRUCTURA', 'columnas: valores por defecto (cantidad y huella)',
+         '41 5ae3ff33b80e15b2306a6a41872abd9f',
+         (select count(*)::text || ' ' || md5(string_agg(table_name || '.' || column_name || ' = ' || coalesce(column_default, '-'), ';' order by table_name, column_name))
             from information_schema.columns where table_schema = 'public')
   union all
   select 36, 'ESTRUCTURA', 'restricciones de las promociones (código único, docena de 12 empanadas)',
