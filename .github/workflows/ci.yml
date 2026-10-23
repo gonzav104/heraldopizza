@@ -42,8 +42,10 @@ jobs:
         run: npm run build
 
       # The public menu's initial chunk carries no supabase-js or admin sign-in, and no file holds a server-only key.
+      # The real WhatsApp link stays off in every build until the owner authorizes it (P6b-2): a build whose environment
+      # sets VITE_WHATSAPP_ENABLED=true fails here. Turning it on is a separate, explicit change of this assertion.
       - name: Bundle check
-        run: npm run check:bundle
+        run: npm run check:bundle -- --whatsapp=apagado
 
   database:
     name: Database migrations and RLS tests
