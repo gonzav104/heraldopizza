@@ -34,6 +34,10 @@ La evidencia de «sin llamadas de red» de D11 describe el prototipo histórico;
 - **Vigencia (C):** una verificación vale menos de 10 minutos y nunca después de la medianoche argentina. Si sigue vigente y el carrito es el mismo, se reutiliza; si cambió el total por los datos del pedido (por ejemplo, crédito), se pide aceptar otra vez. Al tocar «Continuar en WhatsApp» con una verificación vencida, no se navega y se verifica de nuevo.
 - **Tiempo máximo (resiliencia):** la verificación final nunca espera más de 20 segundos. Al vencer el plazo, la solicitud se cancela y la verificación queda marcada como vieja (vale aunque la solicitud ignore la cancelación), así que cualquier respuesta posterior se descarta. Se muestra «La verificación tardó demasiado. Revisá tu conexión e intentá de nuevo.» con «Reintentar», WhatsApp sigue bloqueado y se conservan carrito y datos. Volver o cerrar la hoja cancelan sin mostrar un error. La carga inicial de la carta no cambia.
 - **Antes de desplegar:** verificar explícitamente el valor de `VITE_WHATSAPP_ENABLED` en el entorno de compilación. Ausente o distinto de «true», el enlace no se genera; con «true», el botón abre WhatsApp de verdad, así que solo se define cuando se autorice P6b-2.
+- **Aceptación de importes (2026-10-23):** todo cambio de importe, incluso una reducción (por ejemplo, pasar de crédito a efectivo), puede requerir que el cliente acepte el total actualizado. Se aceptó tal cual; no se agrega una excepción para las bajas.
+- **Editar el carrito invalida la verificación anterior (2026-10-23):** al cambiar la composición del carrito se consulta la carta de nuevo y se descarta la referencia de un cambio pendiente; el carrito nuevo se valora con la carta que se muestra en pantalla.
+- **Un cambio de precio no aceptado sigue requiriendo aceptación después de revalidar (2026-10-23):** vence a los 10 minutos o a la medianoche argentina como una verificación; la nueva consulta compara contra lo que el cliente vio antes, así que un precio nuevo que sigue vigente se vuelve a pedir y uno que volvió al original no pide nada. Lo mismo vale para un total cambiado por la forma de pago.
+- **Preparación para producción (P6b-2):** el procedimiento de publicación, las verificaciones de solo lectura (`npm run db:verify`, `npm run api:verify`) y los riesgos están en `docs/despliegue.md`. Activar el enlace real y desplegar siguen sin autorizar.
 - **Lluvia y 00:00 (D):** siguen como avisos del checkout, sin recargos ni cambios en el total ni en el mensaje.
 - **Apertura:** el botón es un enlace común a `https://wa.me/<número>?text=<mensaje>` (`encodeURIComponent`), en una pestaña nueva, seguido por el navegador desde el toque; nunca `window.open` después de una espera. No vacía el carrito.
 
@@ -141,7 +145,7 @@ Las pidió el responsable del proyecto después de aprobar el diseño de U2. Nin
 
 1. **Archivo oficial del logo de PedidosYa** (SVG o PNG, de su portal de socios o de su ejecutivo de cuenta) y sus reglas de uso. El sitio de PedidosYa bloquea la descarga automática y no encontramos un kit público.
 2. ¿Los **precios y costos de envío en PedidosYa** son los mismos que en la carta? Si difieren, conviene aclararlo.
-3. **Lista de zonas de envío** (barrios y fábricas) con su costo (RF-19, RF-63). Hoy solo existe «Otra zona (a consultar)».
+3. ~~**Lista de zonas de envío** (barrios y fábricas) con su costo (RF-19, RF-63).~~ Resuelto (2026-10-22): la lista oficial de tarifas de la motito está en `src/data/delivery-rates.ts` y se consulta desde el checkout; no se calcula ni se suma al total.
 4. ~~Recargo por lluvia~~ Resuelto: aclaración informativa, sin recargo automático. **Recargo nocturno** (RF-65, F2): si se informa. Hoy no se publica.
 5. ~~¿El **11 7058-2325** puede publicarse?~~ Resuelto (2026-10-22): es el WhatsApp oficial de pedidos (`5491170582325`). Abrir el enlace real sigue sin autorizar (P6b-2). ¿Atiende llamadas? ¿Hay otro teléfono?
 6. Horario nocturno: ¿termina a las 00:00 o sigue después? (ya figuraba arriba).
@@ -153,9 +157,9 @@ Las pidió el responsable del proyecto después de aprobar el diseño de U2. Nin
 9. **Canal formal para consultas sobre datos personales**: hoy el aviso indica WhatsApp, Instagram y el local. ¿Hay un correo electrónico?
 10. **Cuánto tiempo conserva el local las conversaciones de WhatsApp** y si carga los pedidos en Fudo (el PDF dice que se cargan a mano). Si Fudo guarda nombre y dirección, hay que decidir si se menciona.
 11. **Ley 25.326 (art. 6)**: según la guía de la AAIP, al recabar datos hay que informar la finalidad, los destinatarios, la existencia de la base de datos y la identidad y domicilio de su responsable, el carácter obligatorio o facultativo de las respuestas, y los derechos de acceso, rectificación y supresión. El aviso cubre la finalidad, los destinatarios y los derechos; faltan la identidad completa del responsable (punto 8) y definir si corresponde registrar la base ante la AAIP. Esto no es asesoramiento legal.
-12. Cuando se elija el **hosting**, revisar si guarda registros de acceso y ajustar el aviso.
+12. Cuando se elija el **hosting**, revisar si guarda registros de acceso y ajustar el aviso. Lo mismo vale para el **proyecto de Supabase**: la carta lo consulta desde el navegador de cada visitante, así que puede registrar datos técnicos de la solicitud (por ejemplo, la dirección IP). El aviso nombra a Supabase como donde se aloja la carta, pero hoy no dice que pueda registrar eso; conviene revisarlo con quien valide el aviso antes de publicar.
 
 ### Cuándo hay que volver a tocar el aviso
 
-- **U5** (el carrito se guarda en el dispositivo), **U8** (se abre WhatsApp de verdad) o la fase de **Supabase**: el test de coherencia falla y el aviso debe actualizarse en el mismo cambio.
+- **U5** (el carrito se guarda en el dispositivo), **U8** (se abre WhatsApp de verdad) o la fase de **Supabase**: el test de coherencia falla y el aviso debe actualizarse en el mismo cambio. Al activar el enlace real (P6b-2) conviene releer el aviso con el responsable: ya dice que «Continuar en WhatsApp» abre WhatsApp con el mensaje escrito sin enviar nada y que la verificación consulta la carta sin el pedido ni los datos.
 

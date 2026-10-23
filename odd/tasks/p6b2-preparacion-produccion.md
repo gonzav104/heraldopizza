@@ -20,7 +20,7 @@ Objective: leave the commercial flow (Carta → Carrito → Checkout → Revalid
 | T2 Bundle check reports and asserts the WhatsApp switch (+ CI) | S2, S5 | inline (item 5) | done | RED (module missing) → GREEN; verified against real builds absent/false/true |
 | T3 E2E of the enabled link on phone and desktop, WhatsApp intercepted | S2, S5 | inline (item 5) | done | E2E 21/21 (12 existing + 9 new: Android, iPhone emulated on Chromium, desktop); zero requests reached WhatsApp |
 | T4 Read-only deployment verification SQL + deployment procedure | S3, S4 | inline (item 5) | done | `supabase/verificar_despliegue.sql` (20 checks) proven against 9 kinds of damage rolled back; `api:verify` (GET only); both in CI; `docs/despliegue.md` |
-| T5 Decisions, README and privacy review | S4 | inline | pending | |
+| T5 Decisions, README and privacy review | S4 | inline | done | decisions recorded; README updated; privacy follow-ups recorded (Supabase may log request metadata) |
 
 ## Log
 

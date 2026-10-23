@@ -40,6 +40,8 @@ npm run db:reset  # recrea la base local desde las migraciones y vuelve a cargar
 npm run db:test   # pruebas pgTAP de supabase/tests/ (restricciones, seed y RLS)
 npm run db:admin-local  # crea o reinicia un administrador de prueba en el stack local
 npm run db:check-auth   # comprueba que el registro siga cerrado y el login con contraseña habilitado
+npm run db:verify       # verificación de despliegue de solo lectura (migraciones, RLS, permisos y datos iniciales)
+npm run api:verify      # lo que ve un visitante por la API pública, solo con GET (local; remoto solo con --remoto)
 npm run e2e             # E2E con Playwright contra el stack local (¡resetea la base local!)
 npm run db:stop   # detiene el stack
 ```
@@ -48,7 +50,7 @@ Las migraciones no se aplican a ningún proyecto remoto sin autorización expres
 
 ## Pruebas de punta a punta (`npm run e2e`)
 
-Con el stack local levantado, `npm run e2e` resetea la base local desde el seed, crea un administrador de prueba y recorre con Playwright el panel y la carta: un precio guardado en `/admin` queda en Supabase y se ve en la carta al recargar; lo mismo con «Sin stock», la visibilidad y un cambio de nombre (que conserva el `id`); y dos pestañas que editan el mismo precio terminan en un conflicto, sin pisarse. Corre también en CI. Se niega a correr si la API no es local.
+Con el stack local levantado, `npm run e2e` resetea la base local desde el seed, crea un administrador de prueba y recorre con Playwright el panel y la carta: un precio guardado en `/admin` queda en Supabase y se ve en la carta al recargar; lo mismo con «Sin stock», la visibilidad y un cambio de nombre (que conserva el `id`); y dos pestañas que editan el mismo precio terminan en un conflicto, sin pisarse. Corre también en CI. Se niega a correr si la API no es local. Además, tres proyectos (Android, iPhone emulado sobre Chromium y escritorio) prueban el enlace de WhatsApp **encendido** contra un segundo servidor de desarrollo cuyo entorno define `VITE_WHATSAPP_ENABLED=true`, con todo el tráfico hacia WhatsApp interceptado: ninguna prueba llega al servicio ni al número del local.
 
 ## Variables de entorno
 
@@ -60,6 +62,7 @@ La carta lee el catálogo desde la Data API de Supabase y necesita dos variables
 |---|---|
 | `VITE_SUPABASE_URL` | URL del proyecto (en local, `API_URL` de `npx supabase status -o env`) |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Clave publicable (en local, `PUBLISHABLE_KEY` del mismo comando) |
+| `VITE_WHATSAPP_ENABLED` | Opcional. Solo el valor exacto `true` ofrece el enlace real de WhatsApp; **apagado por defecto en todos los entornos** hasta que se autorice. `npm run check:bundle -- --whatsapp=apagado` lo comprueba en el build, y la integración continua lo exige |
 
 Para desarrollo, levantá el stack local (`npm run db:start`) y poné esos dos valores en `.env.local`. Nunca uses una clave secreta (`sb_secret_…`) ni `service_role` en la carta. Si faltan las variables o Supabase no responde, la carta muestra un error con «Reintentar»: no usa datos de prueba en su lugar.
 
@@ -75,6 +78,7 @@ No hay registro público. Para probar en local, con el stack levantado, `npm run
 
 - `AGENTS.md`: reglas de negocio, diseño y convenciones.
 - `docs/decisiones-pendientes.md`: inconsistencias y datos faltantes por resolver.
+- `docs/despliegue.md`: procedimiento de publicación (Supabase y frontend), verificaciones previas y posteriores, qué hacer si algo falla y riesgos. Nada de esto se ejecutó contra un proyecto remoto.
 - `odd/tasks/`: seguimiento de unidades de trabajo.
 
 Las importaciones internas usan el alias `@/` → `src/`.
