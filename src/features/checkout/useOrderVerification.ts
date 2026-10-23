@@ -141,7 +141,14 @@ export function useOrderVerification() {
         isVerificationCurrent(new Date(verification.at), new Date())
       ) {
         const { at, seen } = verification
-        setVerification({ status: 'changed', at, seen, fresh: live, comparison: compareOrders(seen, live) })
+        const comparison = compareOrders(seen, live)
+        // Back to what the customer had accepted (e.g. credit, then cash again): nothing is left to accept.
+        if (comparison.priceChanges.length === 0 && comparison.totalAfter === comparison.totalBefore) {
+          pending.current = null
+          setVerification({ status: 'verified', at, snapshot: live })
+          return
+        }
+        setVerification({ status: 'changed', at, seen, fresh: live, comparison })
         return
       }
       if (
@@ -150,11 +157,14 @@ export function useOrderVerification() {
         isVerificationCurrent(new Date(verification.at), new Date())
       ) {
         const { at, snapshot } = verification
-        setVerification(
-          snapshot.total === live.total
-            ? { status: 'verified', at, snapshot: live }
-            : { status: 'changed', at, seen: snapshot, fresh: live, comparison: compareOrders(snapshot, live) },
-        )
+        if (snapshot.total === live.total) {
+          setVerification({ status: 'verified', at, snapshot: live })
+          return
+        }
+        // A total changed by the checkout data (e.g. credit) keeps the accepted order as its starting point, like a
+        // check does, so it still has to be accepted after an expiry and a new check.
+        pending.current = snapshot
+        setVerification({ status: 'changed', at, seen: snapshot, fresh: live, comparison: compareOrders(snapshot, live) })
         return
       }
       void check(baseFor(live))

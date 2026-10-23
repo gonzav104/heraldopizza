@@ -67,6 +67,27 @@ async function pendingChange(start: string) {
   return { repository, calls, view }
 }
 
+const back = () => fireEvent.click(within(sheet()).getByRole('button', { name: 'Volver al paso anterior' }))
+const seeMessage = () => fireEvent.click(screen.getByRole('button', { name: /^Ver mensaje/ }))
+
+/** Builds an order paid in cash and verifies it with no change, at `start`. */
+async function verifiedInCash(start: string) {
+  vi.setSystemTime(new Date(start))
+  const { repository, calls } = controlledRepository()
+  render(<PublicMenu repository={repository} />)
+  await act(async () => calls[0].resolve(catalogA))
+  fireEvent.click(screen.getByRole('button', { name: /^Sumar Muzzarella, Entera/ }))
+  fireEvent.click(screen.getByRole('button', { name: /^Ver tu pedido/ }))
+  fireEvent.click(within(sheet()).getByRole('button', { name: 'Continuar' }))
+  fireEvent.change(within(sheet()).getByLabelText('Nombre y apellido'), { target: { value: 'Ana Gómez' } })
+  fireEvent.click(within(sheet()).getByRole('radio', { name: 'Retiro' }))
+  fireEvent.click(within(sheet()).getByRole('radio', { name: 'Efectivo' }))
+  seeMessage()
+  await act(async () => calls[1].resolve(catalogA))
+  expect(bubble()).toHaveTextContent('Pago: Efectivo')
+  return { repository, calls }
+}
+
 beforeEach(() => {
   resetOrderStore()
   resetCheckoutStore()
@@ -169,6 +190,40 @@ describe('a price change waiting for acceptance expires (Codex P2 on PR #31)', (
     expect(changes()).toBeNull()
     expect(bubble()).toHaveTextContent('1 × Muzzarella (Entera): $ 16.000')
     expect(link()).not.toBeNull()
+  })
+
+  it('keeps asking to accept a total changed by the payment after it expires and is checked again (Codex P2 on PR #31)', async () => {
+    const { calls, repository } = await verifiedInCash('2026-10-24T20:00:00Z')
+    back()
+    fireEvent.click(within(sheet()).getByRole('radio', { name: /^Crédito/ }))
+    seeMessage()
+    expect(within(sheet()).getByRole('region', { name: 'Cambió el total' })).toHaveTextContent('$ 16.000 → $ 17.280')
+    act(() => vi.advanceTimersByTime(VERIFICATION_TTL_MS))
+    fireEvent.click(within(sheet()).getByRole('button', { name: 'Volver a verificar' }))
+    await act(async () => calls[2].resolve(catalogA))
+
+    expect(repository.load).toHaveBeenCalledTimes(3)
+    expect(within(sheet()).getByRole('region', { name: 'Cambió el total' })).toHaveTextContent('$ 16.000 → $ 17.280')
+    expect(bubble()).toBeNull()
+    expect(link()).toBeNull()
+    accept()
+    expect(bubble()).toHaveTextContent('Recargo crédito 8 %: $ 1.280')
+  })
+
+  it('asks for nothing when the payment goes back to the one already accepted (Codex P2 on PR #31)', async () => {
+    const { repository } = await verifiedInCash('2026-10-24T20:00:00Z')
+    back()
+    fireEvent.click(within(sheet()).getByRole('radio', { name: /^Crédito/ }))
+    seeMessage()
+    expect(within(sheet()).getByRole('region', { name: 'Cambió el total' })).toBeInTheDocument()
+    back()
+    fireEvent.click(within(sheet()).getByRole('radio', { name: 'Efectivo' }))
+    seeMessage()
+
+    expect(within(sheet()).queryByRole('region', { name: 'Cambió el total' })).toBeNull()
+    expect(bubble()).toHaveTextContent('Pago: Efectivo')
+    expect(link()).not.toBeNull()
+    expect(repository.load).toHaveBeenCalledTimes(2)
   })
 
   it('leaves no timer behind once unmounted', async () => {
