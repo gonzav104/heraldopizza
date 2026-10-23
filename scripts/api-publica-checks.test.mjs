@@ -92,6 +92,20 @@ describe('runPublicApiChecks', () => {
     for (const overrides of cases) expect(summarize(await run(overrides), { permitirDiferentes: true }).failed).toBe(true)
   })
 
+  // Codex P1 on PR #32 (round 2): only PostgREST's «Invalid schema» (PGRST106) proves `privado` is not exposed.
+  it('the private schema counts as not exposed only with PostgREST\'s PGRST106 answer', async () => {
+    const privado = (rows) => results(rows)['esquema privado no expuesto por la API']
+    expect(privado(await run())).toBe('ok')
+    for (const answer of [reply(401, { code: '42501' }), reply(403, { code: '42501' }), reply(404, { code: 'PGRST205' }), reply(500, { message: 'boom' }), reply(406, { code: 'PGRST107' }), reply(406, 'not json')]) {
+      const rows = await run({ 'profile:privado': answer })
+      expect(privado(rows)).toBe('FALLA')
+      expect(summarize(rows, { permitirDiferentes: true }).failed).toBe(true)
+    }
+    const unreadable = { ...reply(406), json: async () => { throw new SyntaxError('bad json') } }
+    expect(privado(await run({ 'profile:privado': unreadable }))).toBe('FALLA')
+    expect(privado(await run({ 'profile:privado': new TypeError('fetch failed') }))).toBe('FALLA')
+  })
+
   it('only ever asks with GET and the publishable key', async () => {
     const seen = []
     await runPublicApiChecks({ url: 'https://p.example', key: 'sb_publishable_x', fetchImpl: async (url, init = {}) => { seen.push({ method: init.method ?? 'GET', apikey: init.headers?.apikey }); return fakeFetch()(url, init) } })

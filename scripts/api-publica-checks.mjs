@@ -67,7 +67,14 @@ export async function runPublicApiChecks({ url, key, fetchImpl = fetch }) {
   const admins = await get('/rest/v1/administradores?select=*')
   check('anónimo sin acceso a la lista de administradores', 'ESTRUCTURA', 'denegado', admins && (admins.status === 401 || admins.status === 403) ? 'denegado' : `HTTP ${admins?.status}`)
   const privado = await get('/rest/v1/categorias?select=id', { 'Accept-Profile': 'privado' })
-  check('esquema privado no expuesto por la API', 'ESTRUCTURA', 'no expuesto', privado && privado.status >= 400 ? 'no expuesto' : `HTTP ${privado?.status}`)
+  // Only PostgREST's «Invalid schema» (406, PGRST106) proves the schema is not exposed: a 401/403/404/500 says nothing.
+  let privadoCode = null
+  try {
+    privadoCode = privado?.status === 406 ? (await privado.json())?.code : null
+  } catch {
+    // an unreadable body is not evidence
+  }
+  check('esquema privado no expuesto por la API', 'ESTRUCTURA', 'no expuesto', privadoCode === 'PGRST106' ? 'no expuesto' : `HTTP ${privado?.status ?? 'sin respuesta'}`)
 
   // A count that could not be read is already a FALLA above: the data row is only written when every count is valid.
   const counts = [await count('categorias'), await count('productos'), await count('variantes'), await count('promociones')]

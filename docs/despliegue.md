@@ -116,11 +116,11 @@ También se puede pegar el contenido de `supabase/verificar_despliegue.sql` en e
 
 Justo después de cargar, las 27 filas deben ser `ok` salvo el `AVISO` del administrador (todavía no se creó). Las huellas de los datos coinciden con `docs/seed_catalogo.sql` y `supabase/seed_promociones.sql`; el archivo se actualiza en el mismo cambio que cualquier migración, permiso o dato inicial (la integración continua lo corre contra el stack local y falla si quedó viejo).
 
-**Qué compara.** Migraciones aplicadas, RLS sin `FORCE`, permisos por tabla y por columna, funciones con su código fuente, y las definiciones completas de políticas (`USING` y `WITH CHECK`), restricciones, disparadores (función, evento y momento) y valores por defecto, además de los datos iniciales.
+**Qué compara.** Migraciones aplicadas, RLS sin `FORCE`, permisos por tabla y por columna, funciones con su código fuente, y las definiciones completas de políticas (modo permisiva o restrictiva, `USING` y `WITH CHECK`), restricciones, disparadores (función, evento, momento y si están habilitados) y valores por defecto, además de los datos iniciales.
 
 **La versión de PostgreSQL importa.** PostgreSQL arma el texto de esas definiciones al leerlas, y puede escribirlo distinto en otra versión mayor. Las huellas se calcularon en la **17** (la de `supabase/config.toml`). Una fila `AVISO` informa la versión del proyecto: si no es la 17 y alguna fila de definiciones da `FALLA`, no se asume un error ni se ignora: se compara contra un stack local de esa misma versión antes de decidir. Con la 17 y una `FALLA`, es un cambio real.
 
-**Qué no demuestra.** No compara índices, secuencias, extensiones ni esquemas ajenos al proyecto. Que todo dé `ok` confirma que lo versionado está aplicado tal cual, pero la autorización además se prueba con las pruebas pgTAP (solo local) y con la verificación de la API pública de la sección 5.
+**Qué no demuestra.** La verificación SQL detecta diferencias respecto del esquema esperado; no es una auditoría de PostgreSQL. No compara índices, secuencias, extensiones ni esquemas ajenos al proyecto. Un resultado `ok` **no reemplaza las pruebas de permisos con pgTAP** (`npm run db:test`, que solo corren en local) y **no garantiza por sí solo la seguridad de una base remota**: confirma que lo versionado está aplicado tal cual. La verificación de la API pública (sección 5) comprueba desde afuera lo que ve un visitante.
 
 > **No** correr las pruebas pgTAP (`npm run db:test`) contra el proyecto remoto: insertan usuarios y filas de prueba. Son solo para el stack local.
 
@@ -150,7 +150,7 @@ Con la URL y la clave **publicable** del proyecto (la misma que va al frontend):
 node scripts/verificar-api-publica.mjs --remoto --url=https://<proyecto>.supabase.co --key=<sb_publishable_…>
 ```
 
-Comprueba, solo con `GET`, que el registro está cerrado, que el ingreso anónimo está deshabilitado, que se ven 13 categorías, 84 productos, 110 variantes y las 8 promociones con sus precios y orden, que un visitante **no** puede leer la lista de administradores y que el esquema `privado` no está expuesto. No escribe ni crea cuentas. Rechaza claves que parezcan secretas, y sin `--remoto` solo habla con el stack local. Después de que el dueño edite datos, usar `--permitir-diferentes`: solo perdona una diferencia de datos con la API respondiendo bien; cualquier error HTTP (401, 403, 404, 500…) o respuesta ilegible es `FALLA` y bloquea siempre.
+Comprueba, solo con `GET`, que el registro está cerrado, que el ingreso anónimo está deshabilitado, que se ven 13 categorías, 84 productos, 110 variantes y las 8 promociones con sus precios y orden, que un visitante **no** puede leer la lista de administradores y que el esquema `privado` no está expuesto (solo vale la respuesta `PGRST106` de PostgREST, «Invalid schema»; un 401, 403, 404 o 500 es `FALLA`). No escribe ni crea cuentas. Rechaza claves que parezcan secretas, y sin `--remoto` solo habla con el stack local. Después de que el dueño edite datos, usar `--permitir-diferentes`: solo perdona una diferencia de datos con la API respondiendo bien; cualquier error HTTP (401, 403, 404, 500…) o respuesta ilegible es `FALLA` y bloquea siempre.
 
 Control manual complementario: abrir la carta publicada, comparar tres precios con `docs/seed_catalogo.sql` y ver que se muestran las 8 promociones.
 
@@ -223,5 +223,11 @@ Antes de **cualquier** despliegue, verificar explícitamente el valor de `VITE_W
 - Una carta con categorías pero sin productos se aplicaría al refrescar.
 - Dos altas simultáneas de promociones pueden empatar en el orden hasta el próximo movimiento (el desempate es por código).
 - Bajar un total (por ejemplo, de crédito a efectivo) también pide aceptación; editar el carrito descarta la referencia pendiente (decisiones aprobadas).
+- Limitaciones conocidas de las herramientas de verificación, sin corregir a propósito (no son parte de la aplicación):
+  - `check:bundle` reconoce la forma en que Vite incrusta `VITE_WHATSAPP_ENABLED`; si una versión futura la cambiara, podría informar «apagado» sin haberla visto. Los tests cubren las formas actuales.
+  - `api:verify` no reintenta una consulta que falla por un tropiezo pasajero (cada una espera hasta 15 s); repetirlo es seguro porque solo lee.
+  - En modo local, `api:verify` no avisa con claridad si `supabase status` no devuelve la clave publicable.
+  - `--remoto` acepta cualquier URL (la clave es publicable por diseño y se rechazan las secretas).
+  - Los dos servidores de desarrollo de los E2E comparten la caché de Vite: riesgo mínimo de inestabilidad en CI.
 - Test intermitente de docenas (`dozen-builder.test.tsx`), ajeno al flujo.
 - Solo local: un worktree de otra rama bajo `.claude/worktrees/` hace que `eslint` y `vitest` locales recojan sus archivos; no afecta a la integración continua.

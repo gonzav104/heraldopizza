@@ -9,10 +9,11 @@
 --   DIFERENTE  los datos no son los iniciales autorizados (docs/seed_catalogo.sql y supabase/seed_promociones.sql).
 --              Es un error justo después de cargarlos; es normal después de que el dueño edite precios o textos en /admin.
 --   AVISO      algo para mirar que no impide publicar (por ejemplo, todavía no hay un administrador).
--- Compara también las definiciones completas (expresiones de las políticas, restricciones, disparadores y valores por
+-- Compara también las definiciones completas (políticas con su modo, restricciones, disparadores con su estado y valores por
 -- defecto), calculadas en PostgreSQL 17: la fila de la versión avisa si el proyecto usa otra, porque ese texto puede
 -- escribirse distinto. Lo que NO compara, a propósito: índices, secuencias, extensiones ni esquemas ajenos al proyecto.
--- Que todo dé «ok» confirma que el esquema versionado está aplicado; la autorización además la prueban las pruebas pgTAP
+-- Que todo dé «ok» confirma que el esquema versionado está aplicado; NO garantiza por sí solo la seguridad de una base
+-- remota ni reemplaza las pruebas de permisos: la autorización además la prueban las pruebas pgTAP
 -- (solo local) y la verificación de la API pública (npm run api:verify).
 -- Se corre en local en cada integración continua (npm run db:verify): si cambia una migración, un permiso o los datos
 -- iniciales, este archivo se actualiza en el mismo cambio, y así los valores esperados nunca quedan viejos.
@@ -89,9 +90,9 @@ from (
   select 51, 'AVISO', 'versión mayor de PostgreSQL (las huellas de definiciones se calcularon en la 17)', '17',
          (current_setting('server_version_num')::int / 10000)::text
   union all
-  select 52, 'ESTRUCTURA', 'políticas: expresiones USING y WITH CHECK (cantidad y huella)',
-         '19 fa9880ff0b8aa732ada90b65f60bd446',
-         (select count(*)::text || ' ' || md5(string_agg(tablename || ' | ' || policyname || ' | ' || coalesce(qual, '-') || ' | ' || coalesce(with_check, '-'), ';' order by tablename, policyname))
+  select 52, 'ESTRUCTURA', 'políticas: modo (permisiva o restrictiva), USING y WITH CHECK (cantidad y huella)',
+         '19 6b175a656f3fa425986dbb0d2836f54c',
+         (select count(*)::text || ' ' || md5(string_agg(tablename || ' | ' || policyname || ' | ' || permissive || ' | ' || coalesce(qual, '-') || ' | ' || coalesce(with_check, '-'), ';' order by tablename, policyname))
             from pg_policies where schemaname = 'public')
   union all
   select 53, 'ESTRUCTURA', 'restricciones: definición completa (cantidad y huella)',
@@ -99,9 +100,9 @@ from (
          (select count(*)::text || ' ' || md5(string_agg(conrelid::regclass::text || ' ' || conname || ' ' || pg_get_constraintdef(oid), ';' order by conrelid::regclass::text, conname))
             from pg_constraint where connamespace = 'public'::regnamespace)
   union all
-  select 54, 'ESTRUCTURA', 'disparadores: definición completa, con su función, evento y momento (cantidad y huella)',
-         '5 d845fcef27bc2065e97776715c00f952',
-         (select count(*)::text || ' ' || md5(string_agg(c.relname || ' ' || t.tgname || ' ' || pg_get_triggerdef(t.oid), ';' order by c.relname, t.tgname))
+  select 54, 'ESTRUCTURA', 'disparadores: definición completa y si están habilitados (cantidad y huella)',
+         '5 09dd7e1558a8146f0c6dbebfb040e244',
+         (select count(*)::text || ' ' || md5(string_agg(c.relname || ' ' || t.tgname || ' ' || t.tgenabled::text || ' ' || pg_get_triggerdef(t.oid), ';' order by c.relname, t.tgname))
             from pg_trigger t join pg_class c on c.oid = t.tgrelid
            where c.relnamespace = 'public'::regnamespace and not t.tgisinternal)
   union all
