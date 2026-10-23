@@ -18,7 +18,7 @@ Objective: leave the commercial flow (Carta → Carrito → Checkout → Revalid
 |---|---|---|---|---|
 | T1 Verification tests for promotions and the dozen | S1, S5 | inline | done | tests added against existing behavior (no production change needed): 5 pass |
 | T2 Bundle check reports and asserts the WhatsApp switch (+ CI) | S2, S5 | inline (item 5) | done | RED (module missing) → GREEN; verified against real builds absent/false/true |
-| T3 E2E of the enabled link on phone and desktop, WhatsApp intercepted | S2, S5 | inline (item 5) | pending | |
+| T3 E2E of the enabled link on phone and desktop, WhatsApp intercepted | S2, S5 | inline (item 5) | done | E2E 21/21 (12 existing + 9 new: Android, iPhone emulated on Chromium, desktop); zero requests reached WhatsApp |
 | T4 Read-only deployment verification SQL + deployment procedure | S3, S4 | inline (item 5) | pending | |
 | T5 Decisions, README and privacy review | S4 | inline | pending | |
 
@@ -28,3 +28,4 @@ Objective: leave the commercial flow (Carta → Carrito → Checkout → Revalid
 - L2 Finding while reading the seeds: `docs/seed_catalogo.sql` is NOT idempotent (plain inserts in one transaction, variants without ids), unlike `supabase/seed_promociones.sql` (`on conflict (codigo) do nothing`). Production loading must be conditional on empty tables.
 - L3 Local note: a locked worktree `.claude/worktrees/ajuste-layout-desktop` (branch `feat/layout-desktop`, not part of this task) makes local `eslint` and `vitest` pick up its files; local checks run with `--ignore-pattern '.claude/**'` and `--exclude '.claude/**'`. CI is unaffected (the directory is untracked). Left untouched.
 - L4 Build behavior observed: Vite embeds `VITE_WHATSAPP_ENABLED:`<value>`` (backticks) only when the build environment defines it, in every default-parameter object literal of `import.meta.env`; absent otherwise. The normal local build (which also reads any untracked `.env*` file) has no such definition, so `.env.local` does not turn the link on. The same build embeds the LOCAL Supabase URL and publishable key: a build for production must be made in a clean environment with the production values, never from a developer machine's `.env.local`.
+- L5 Limits of what can be verified here: only Chromium is installed, so the iPhone project emulates viewport, user agent, and touch on Chromium and does NOT exercise Safari's own pop-up rules; no real phone and no real WhatsApp app were used. The link is a plain `<a target="_blank" rel="noopener noreferrer">` followed by the browser from the tap, the pattern phones do not block. Real-device opening on Android and iPhone must be checked by a person at activation (P6b-2), with the owner's own number, before announcing it.
