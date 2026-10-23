@@ -61,7 +61,11 @@ beforeEach(() => {
   resetCheckoutStore()
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
 })
-afterEach(() => vi.useRealTimers())
+// Spies (console.error, window.open) and fake timers end with each test, so no test depends on the order they run.
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.useRealTimers()
+})
 
 describe('time limit of the final check (P6)', () => {
   it('is 20 seconds', () => {

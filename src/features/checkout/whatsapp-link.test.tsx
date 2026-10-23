@@ -5,7 +5,11 @@ import { ORDER_CONFIRMATION_NOTICE } from './notices'
 
 const message = '*Pedido para Heraldo Pizza*\nNombre: Ana Gómez'
 
-afterEach(() => vi.useRealTimers())
+// Spies (console.error, window.open) and fake timers end with each test, so no test depends on the order they run.
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.useRealTimers()
+})
 
 describe('WhatsAppAction (P6b-1)', () => {
   it('while the setting is off, is a disabled button with no link, and says why', () => {

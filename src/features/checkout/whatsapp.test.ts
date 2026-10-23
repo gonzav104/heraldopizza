@@ -49,5 +49,6 @@ describe('isWhatsAppEnabled (P6b-1)', () => {
 
   it('is off in this build: no environment turns it on yet', () => {
     expect(isWhatsAppEnabled()).toBe(false)
+    expect(import.meta.env.VITE_WHATSAPP_ENABLED).toBeUndefined()
   })
 })
