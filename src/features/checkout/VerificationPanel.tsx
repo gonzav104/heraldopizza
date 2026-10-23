@@ -52,7 +52,7 @@ export function VerificationPanel({
         <Notice
           role="status"
           text="La verificación venció. Verificá tu pedido de nuevo para continuar."
-          action="Verificar de nuevo"
+          action="Volver a verificar"
           onAction={onRetry}
         />
       )

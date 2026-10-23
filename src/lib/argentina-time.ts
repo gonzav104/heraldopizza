@@ -22,3 +22,19 @@ export function argentinaToday(now: Date): Today {
   const part = (type: Intl.DateTimeFormatPartTypes) => argentina.formatToParts(now).find((p) => p.type === type)?.value
   return { date: `${part('year')}-${part('month')}-${part('day')}`, weekday: WEEKDAYS.indexOf(part('weekday') ?? '') }
 }
+
+const argentinaClock = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/Argentina/Buenos_Aires',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+})
+
+/** Milliseconds from `now` until the next midnight in Argentina, whatever the time zone of this computer. */
+export function msUntilArgentinaMidnight(now: Date): number {
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(argentinaClock.formatToParts(now).find((p) => p.type === type)?.value ?? 0)
+  const elapsed = ((part('hour') * 60 + part('minute')) * 60 + part('second')) * 1000 + now.getMilliseconds()
+  return 24 * 60 * 60 * 1000 - elapsed
+}

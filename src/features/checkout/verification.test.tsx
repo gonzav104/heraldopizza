@@ -262,7 +262,7 @@ describe('final check before WhatsApp (P6a-3)', () => {
 
     expect(within(sheet()).getByRole('status')).toHaveTextContent('La verificación venció. Verificá tu pedido de nuevo para continuar.')
     expect(bubble()).toBeNull()
-    fireEvent.click(within(sheet()).getByRole('button', { name: 'Verificar de nuevo' }))
+    fireEvent.click(within(sheet()).getByRole('button', { name: 'Volver a verificar' }))
     await act(async () => calls[2].resolve(catalogA))
     expect(bubble()).not.toBeNull()
   })

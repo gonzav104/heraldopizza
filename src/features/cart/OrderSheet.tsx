@@ -40,7 +40,7 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
   const summary = useOrderSummary()
   const details = useCheckoutStore((state) => state.details)
   const lines = useOrderStore((state) => state.lines)
-  const { verification, enter, check, accept, leave } = useOrderVerification()
+  const { verification, enter, recheck, accept, leave } = useOrderVerification()
   const [current, setCurrent] = useState<OrderStep>(step ?? 'cart')
   const [requested, setRequested] = useState(step)
   // «Tarifas de la motito» opens as a view of the details step, not as a second sheet (sheets never stack).
@@ -125,7 +125,7 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
         enabled={isWhatsAppEnabled()}
         message={buildOrderMessage(details, summary, totals)}
         verifiedAt={verified && verification.status === 'verified' ? verification.at : null}
-        onStale={() => live && void check(live)}
+        onStale={() => live && recheck(live)}
       />
     )
 
@@ -181,7 +181,7 @@ export function OrderSheet({ step, onClose }: OrderSheetProps) {
           // A verified order that no longer matches what is on screen needs a new check, never a blank step.
           verification={verification.status === 'verified' ? { status: 'unverified', cartChanged: false } : verification}
           changedAfterCheck={verification.status === 'verified'}
-          onRetry={() => live && void check(live)}
+          onRetry={() => live && recheck(live)}
           onAccept={accept}
         />
       ) : null}

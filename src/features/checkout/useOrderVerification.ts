@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRefreshCatalog } from '@/features/catalog/catalog-refresh'
 import { indexCatalog, reconcileOrder } from '@/features/cart/line-pricing'
+import { msUntilArgentinaMidnight } from '@/lib/argentina-time'
 import { useOrderStore } from '@/features/cart/order-store'
 import { useCheckoutStore } from './checkout-store'
 import {
@@ -44,6 +45,10 @@ export function useOrderVerification() {
   const [verification, setVerification] = useState<Verification>({ status: 'unverified', cartChanged: false })
   const latest = useRef(0)
   const controller = useRef<AbortController | null>(null)
+  // What the customer saw before a price change they have not accepted yet. A new check compares against it, so an
+  // expired, failed, or timed-out change still has to be accepted if the new price holds (Codex P2 on PR #31). It is
+  // dropped once a check verifies with nothing to accept, or once the cart is no longer the same.
+  const pending = useRef<OrderSnapshot | null>(null)
   const deadline = useRef<number | null>(null)
 
   const clearDeadline = () => {
@@ -99,11 +104,13 @@ export function useOrderVerification() {
         }
         const comparison = compareOrders(seen, fresh)
         const at = Date.now()
-        setVerification(
-          comparison.priceChanges.length > 0 || comparison.totalAfter !== comparison.totalBefore
-            ? { status: 'changed', at, seen, fresh, comparison }
-            : { status: 'verified', at, snapshot: fresh },
-        )
+        if (comparison.priceChanges.length > 0 || comparison.totalAfter !== comparison.totalBefore) {
+          pending.current = seen
+          setVerification({ status: 'changed', at, seen, fresh, comparison })
+        } else {
+          pending.current = null
+          setVerification({ status: 'verified', at, snapshot: fresh })
+        }
       } catch {
         if (request !== latest.current) return
         controller.current = null
@@ -113,6 +120,12 @@ export function useOrderVerification() {
     },
     [refresh, stop],
   )
+
+  /** What a new check compares against: the unaccepted change's starting point for this cart, or the order as it is. */
+  const baseFor = (live: OrderSnapshot) => {
+    if (pending.current && pending.current.cart !== live.cart) pending.current = null
+    return pending.current ?? live
+  }
 
   /**
    * Opening the message step. A check that is still current (under 10 minutes, same day in Argentina) for the same
@@ -144,17 +157,27 @@ export function useOrderVerification() {
         )
         return
       }
-      // An expired change that was never accepted is checked against what the customer last saw, so it is shown again.
-      void check(verification.status === 'changed' && verification.seen.cart === live.cart ? verification.seen : live)
+      void check(baseFor(live))
     },
     [verification, check],
   )
 
+  /**
+   * A new check from the step's own buttons («Reintentar», «Volver a verificar», a stale WhatsApp tap): it compares
+   * against what the customer saw before an unaccepted change, if there is one for this cart.
+   */
+  const recheck = useCallback((live: OrderSnapshot) => void check(baseFor(live)), [check])
+
+  /** Never turns an expired change into «verified», not even for one render: the time is checked right here. */
   const accept = useCallback(() => {
-    setVerification((current) =>
-      current.status === 'changed' ? { status: 'verified', at: current.at, snapshot: current.fresh } : current,
-    )
-  }, [])
+    if (verification.status !== 'changed') return
+    if (!isVerificationCurrent(new Date(verification.at), new Date())) {
+      setVerification({ status: 'expired' })
+      return
+    }
+    pending.current = null
+    setVerification({ status: 'verified', at: verification.at, snapshot: verification.fresh })
+  }, [verification])
 
   /** Leaving the message step aborts a check in flight; a finished one stays for reuse. */
   const leave = useCallback(() => {
@@ -163,17 +186,19 @@ export function useOrderVerification() {
     setVerification({ status: 'unverified', cartChanged: false })
   }, [verification.status, stop])
 
-  // A verified order expires on its own after 10 minutes. Past midnight in Argentina it is caught when it is used.
+  // A verified order and a change waiting for acceptance both expire on their own: after 10 minutes, or at midnight in
+  // Argentina if that comes first. Accepting and using the link also check the time themselves.
   useEffect(() => {
-    if (verification.status !== 'verified') return
+    if (verification.status !== 'verified' && verification.status !== 'changed') return
+    const now = Date.now()
     const timer = window.setTimeout(
       () => setVerification((current) => (current === verification ? { status: 'expired' } : current)),
-      Math.max(0, verification.at + VERIFICATION_TTL_MS - Date.now()),
+      Math.max(0, Math.min(verification.at + VERIFICATION_TTL_MS - now, msUntilArgentinaMidnight(new Date(now)))),
     )
     return () => window.clearTimeout(timer)
   }, [verification])
 
   useEffect(() => stop, [stop])
 
-  return { verification, enter, check, accept, leave }
+  return { verification, enter, check, recheck, accept, leave }
 }
